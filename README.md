@@ -9,7 +9,7 @@ Production: https://babbledeck.aialra.online
 - Next.js App Router web app in `apps/web`.
 - Prisma/PostgreSQL persistence in `db/schema.prisma`.
 - Bootstrap admin seed via `SEED_ADMIN_PASSWORD`.
-- Login, dashboard, live session creation, recorder page, public viewer page, session history, provider usage, and exports.
+- Login, dashboard, live session creation, recorder page, public viewer page, session history, provider usage, budget caps with degraded-provider status, and exports.
 - Browser microphone permission flow, volume meter, IndexedDB local backup, binary audio chunk upload to local/S3-compatible object storage, SSE viewer stream with polling fallback, and deterministic mock transcript provider.
 - Playwright desktop/mobile E2E for the full MVP flow.
 
@@ -30,6 +30,8 @@ E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD" \
 E2E_NEW_ADMIN_PASSWORD="set-a-new-test-password" \
 pnpm e2e
 ```
+
+Set `E2E_RUN_BUDGET_TEST=true` to include low-budget Soniox-mode degraded-provider coverage.
 
 ## Verification
 

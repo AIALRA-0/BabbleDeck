@@ -24,8 +24,27 @@ type RecorderClientProps = {
   title: string;
   status: string;
   targetLanguage: string;
+  providerName: string;
+  budgetCapUsd: number | null;
+  estimatedCostUsd: number;
   viewerUrl: string | null;
 };
+
+type AudioChunkUploadResponse =
+  | {
+      ok: true;
+      data: {
+        provider: {
+          budgetExceeded: boolean;
+          sessionStatus: string | null;
+          estimatedCostUsd: number | null;
+        } | null;
+      };
+    }
+  | { ok: false };
+
+type StartSessionResponse =
+  { ok: true; data: { session: { status: string } } } | { ok: false };
 
 const script = [
   {
@@ -47,6 +66,9 @@ export function RecorderClient({
   title,
   status,
   targetLanguage,
+  providerName,
+  budgetCapUsd,
+  estimatedCostUsd: initialEstimatedCostUsd,
   viewerUrl,
 }: RecorderClientProps) {
   const router = useRouter();
@@ -55,10 +77,19 @@ export function RecorderClient({
   >("untested");
   const [volume, setVolume] = useState(0);
   const [recording, setRecording] = useState(status === "recording");
+  const [sessionStatus, setSessionStatus] = useState(status);
+  const [estimatedCostUsd, setEstimatedCostUsd] = useState(
+    initialEstimatedCostUsd,
+  );
   const [pending, setPending] = useState(false);
   const [copied, setCopied] = useState(false);
   const [backup, setBackup] = useState({ total: 0, uploaded: 0, pending: 0 });
   const [backupError, setBackupError] = useState<string | null>(null);
+  const [providerNotice, setProviderNotice] = useState<string | null>(
+    status === "provider_degraded"
+      ? "Budget cap reached. Local backup continues."
+      : null,
+  );
   const [latestOriginal, setLatestOriginal] = useState("Waiting for speech...");
   const [latestTranslation, setLatestTranslation] =
     useState("字幕会在这里显示。");
@@ -72,6 +103,14 @@ export function RecorderClient({
     viewerUrl && typeof window !== "undefined" && viewerUrl.startsWith("/")
       ? new URL(viewerUrl, window.location.origin).toString()
       : viewerUrl;
+  const providerLabel =
+    providerName === "soniox" ? "Soniox realtime" : "Mock realtime";
+  const visibleStatus =
+    sessionStatus === "provider_degraded"
+      ? sessionStatus
+      : recording
+        ? "recording"
+        : sessionStatus;
 
   useEffect(() => {
     countLocalChunks(sessionId)
@@ -150,6 +189,19 @@ export function RecorderClient({
     });
     if (!response.ok) {
       throw new Error("Audio chunk upload failed.");
+    }
+    const payload = (await response.json()) as AudioChunkUploadResponse;
+    if (!payload.ok) {
+      throw new Error("Audio chunk upload failed.");
+    }
+    if (payload.data.provider?.sessionStatus) {
+      setSessionStatus(payload.data.provider.sessionStatus);
+    }
+    if (payload.data.provider?.estimatedCostUsd != null) {
+      setEstimatedCostUsd(payload.data.provider.estimatedCostUsd);
+    }
+    if (payload.data.provider?.budgetExceeded) {
+      setProviderNotice("Budget cap reached. Local backup continues.");
     }
     await markLocalChunkUploaded(sessionId, input.index);
     setBackup(await countLocalChunks(sessionId));
@@ -237,7 +289,17 @@ export function RecorderClient({
   async function startRecording() {
     setPending(true);
     await ensureMic();
-    await fetch(`/api/sessions/${sessionId}/start`, { method: "POST" });
+    const startResponse = await fetch(`/api/sessions/${sessionId}/start`, {
+      method: "POST",
+    });
+    if (!startResponse.ok) {
+      setPending(false);
+      return;
+    }
+    const startPayload = (await startResponse.json()) as StartSessionResponse;
+    setSessionStatus(
+      startPayload.ok ? startPayload.data.session.status : status,
+    );
     setRecording(true);
     setPending(false);
 
@@ -285,7 +347,7 @@ export function RecorderClient({
             <p className="text-sm text-muted-foreground">Recorder</p>
             <h1 className="text-2xl font-bold tracking-normal">{title}</h1>
           </div>
-          <SessionStatusBadge status={recording ? "recording" : status} />
+          <SessionStatusBadge status={visibleStatus} />
         </div>
 
         <div className="mt-6 space-y-6">
@@ -358,7 +420,16 @@ export function RecorderClient({
             </div>
             <div className="rounded-md border border-border p-3">
               <p className="text-xs text-muted-foreground">Provider</p>
-              <p className="mt-1 font-semibold">Mock realtime</p>
+              <p className="mt-1 font-semibold">{providerLabel}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                ${estimatedCostUsd.toFixed(4)}
+                {budgetCapUsd ? ` / $${budgetCapUsd.toFixed(4)}` : ""}
+              </p>
+              {providerNotice ? (
+                <p className="mt-1 text-xs font-medium text-amber-700">
+                  {providerNotice}
+                </p>
+              ) : null}
             </div>
           </div>
         </div>

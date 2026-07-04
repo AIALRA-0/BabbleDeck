@@ -392,8 +392,8 @@ Show:
 
 - Warning at 80%.
 - Critical at 95%.
-- Stop provider at 100% hard cap if configured.
-- Continue local recording only if allowed? MVP: stop session or prompt.
+- Mark session `provider_degraded` at the configured hard cap.
+- Continue recorder-side local backup and chunk upload after provider degradation.
 
 ## 7. Responsive breakpoints
 

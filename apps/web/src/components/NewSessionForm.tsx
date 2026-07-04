@@ -121,8 +121,8 @@ export function NewSessionForm() {
         <Input
           id="budgetCapUsd"
           type="number"
-          step="0.01"
-          min="0.01"
+          step="0.0001"
+          min="0.0001"
           value={budgetCapUsd}
           onChange={(event) => setBudgetCapUsd(event.target.value)}
         />

@@ -23,17 +23,18 @@
 - `apps/web` contains a Next.js App Router PWA shell.
 - Prisma/PostgreSQL schema covers auth sessions, live sessions, transcript events/segments, translations, audio chunks, exports, glossary terms, provider usage, and audit logs.
 - Seed script creates the bootstrap admin only when no admin exists and `SEED_ADMIN_PASSWORD` is set.
-- Browser MVP path implemented: login, forced password rotation for seed admins, dashboard, session create, recorder shell, mic test, volume meter, IndexedDB backup, binary audio chunk upload to local/S3-compatible storage, provider audio usage/cost tracking, mock transcript events, public viewer SSE with polling fallback, session history, and transcript export.
+- Browser MVP path implemented: login, forced password rotation for seed admins, dashboard, session create, recorder shell, mic test, volume meter, IndexedDB backup, binary audio chunk upload to local/S3-compatible storage, provider audio usage/cost tracking, budget-cap enforcement with degraded-provider UI, mock transcript events, public viewer SSE with polling fallback, session history, and transcript export.
 - Verification passed locally: Prisma validate/generate/migrate, format, lint, typecheck, Vitest unit tests, Next build, and Playwright desktop/mobile MVP E2E.
 - Production deployment is live at `https://babbledeck.aialra.online` through systemd service `aialra-babbledeck.service`, Nginx TLS, and production database `babbledeck_prod`.
 - Production audio object storage currently uses local root `/srv/aialra/storage/babbledeck` with S3/R2-compatible env hooks available for later off-host storage.
 - Production backup/restore automation is installed through `aialra-babbledeck-backup.timer`; verified backups restore into a temporary database and temporary audio directory.
 - Production smoke passed with Playwright desktop/mobile using a temporary smoke admin that was cleaned up afterward, including verification that binary audio chunk files were written before cleanup.
+- Budget-cap enforcement and degraded-provider UI are deployed to production; smoke coverage verifies that low-cap Soniox-mode sessions enter `provider_degraded` while audio backup continues.
 
 ## Next Recommended Tasks
 
 1. Add Soniox realtime adapter behind the current provider boundary.
 2. Configure production R2/S3 credentials and migrate raw audio storage off the local object directory.
 3. Add recorder WebSocket audio transport now that the deployment target is Nginx/systemd and can proxy upgrades.
-4. Add degraded-provider UI and budget-cap enforcement.
-5. Add raw audio retention/deletion automation.
+4. Add raw audio retention/deletion automation.
+5. Add production Soniox staging validation once a real `SONIOX_API_KEY` is configured.

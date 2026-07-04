@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 const adminEmail = process.env.E2E_ADMIN_EMAIL ?? "admin@example.invalid";
 const adminPassword = process.env.E2E_ADMIN_PASSWORD;
 const rotatedAdminPassword = process.env.E2E_NEW_ADMIN_PASSWORD;
+const runBudgetTest = process.env.E2E_RUN_BUDGET_TEST === "true";
 
 async function signIn(page: Page) {
   const passwords = [adminPassword, rotatedAdminPassword].filter(
@@ -145,5 +146,66 @@ test.describe("BabbleDeck MVP browser flow", () => {
     expect(download.suggestedFilename()).toMatch(/\.markdown$/);
 
     await viewerContext.close();
+  });
+
+  test("budget cap marks provider degraded while audio backup continues", async ({
+    page,
+  }) => {
+    test.skip(
+      !runBudgetTest,
+      "Set E2E_RUN_BUDGET_TEST=true to run budget-cap coverage.",
+    );
+
+    const title = `Budget cap session ${Date.now()}`;
+
+    await page.goto("/");
+    await page.getByRole("link", { name: /open portal/i }).click();
+    await signIn(page);
+    await expect(
+      page.getByRole("heading", { name: "Live sessions" }),
+    ).toBeVisible();
+
+    await page
+      .getByRole("link", { name: /new live session/i })
+      .first()
+      .click();
+    await page.getByLabel("Title").fill(title);
+    await page.getByLabel("Target language").selectOption("zh");
+    await page.getByLabel("Provider").selectOption("soniox");
+    await page.getByLabel("Budget cap").fill("0.0001");
+    await page.getByRole("button", { name: /create session/i }).click();
+
+    await expect(page.getByRole("heading", { name: title })).toBeVisible();
+    await expect(page.getByText("Soniox realtime")).toBeVisible();
+
+    await page.getByRole("button", { name: /test microphone/i }).click();
+    await expect(page.getByText("granted")).toBeVisible({ timeout: 10_000 });
+
+    await page.getByRole("button", { name: /start recording/i }).click();
+    await expect(page.getByText("provider degraded")).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(
+      page.getByText("Budget cap reached. Local backup continues."),
+    ).toBeVisible();
+    await expect(
+      page.getByText(/[1-9][0-9]*\/[1-9][0-9]* uploaded/),
+    ).toBeVisible({
+      timeout: 12_000,
+    });
+
+    await page.getByRole("button", { name: /stop recording/i }).click();
+    await page.waitForURL(/\/sessions\/[0-9a-f-]+$/, { timeout: 20_000 });
+    await expect(page.getByRole("heading", { name: title })).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(page.getByText("provider degraded")).toBeVisible();
+    await expect(page.getByText("soniox", { exact: true })).toBeVisible();
+    await expect(
+      page.getByText("Backup chunks").locator("xpath=.."),
+    ).toContainText(/[1-9]/);
+    await expect(page.getByText("Cost").locator("xpath=..")).toContainText(
+      /\$0\.000[1-9]|\$0\.00[1-9]|\$0\.[1-9]/,
+    );
   });
 });

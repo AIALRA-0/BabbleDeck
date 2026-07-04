@@ -7,6 +7,7 @@ import {
 import { prisma } from "@/server/db";
 import { recordProviderAudioUsage } from "@/server/provider-usage";
 import { audioChunkSchema } from "@/server/schemas";
+import { apiStatus } from "@/server/serializers";
 
 export const runtime = "nodejs";
 
@@ -86,7 +87,7 @@ export async function POST(
       },
     },
   });
-  const chunk = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const savedChunk = await tx.audioChunk.upsert({
       where: {
         sessionId_chunkIndex: {
@@ -124,9 +125,12 @@ export async function POST(
       },
     });
 
+    let usageResult: Awaited<ReturnType<typeof recordProviderAudioUsage>> =
+      null;
     if (!existingChunk && parsed.durationMs) {
-      await recordProviderAudioUsage(tx, {
+      usageResult = await recordProviderAudioUsage(tx, {
         sessionId: id,
+        actorUserId: user.id,
         providerName: session.providerName,
         qualityMode: session.qualityMode,
         audioMs: parsed.durationMs,
@@ -140,12 +144,23 @@ export async function POST(
       });
     }
 
-    return savedChunk;
+    return { chunk: savedChunk, usageResult };
   });
 
   return ok({
-    chunkId: chunk.id,
-    objectKey: chunk.objectKey,
-    status: chunk.status.toLowerCase(),
+    chunkId: result.chunk.id,
+    objectKey: result.chunk.objectKey,
+    status: result.chunk.status.toLowerCase(),
+    provider: result.usageResult
+      ? {
+          budgetExceeded: result.usageResult.budgetExceeded,
+          sessionStatus: result.usageResult.sessionStatus
+            ? apiStatus(result.usageResult.sessionStatus)
+            : null,
+          estimatedCostUsd: result.usageResult.estimatedCostUsd
+            ? Number(result.usageResult.estimatedCostUsd)
+            : null,
+        }
+      : null,
   });
 }

@@ -179,11 +179,11 @@ Acceptance:
 
 - Log audio seconds.
 - Estimate cost.
-- Budget warnings. (pending)
+- Enforce configured budget cap and mark the session `provider_degraded` when the cap is reached. (implemented)
 
 Acceptance:
 
-- Session usage visible in admin. (implemented)
+- Session usage, estimated cost, and degraded-provider status are visible in admin. (implemented)
 
 ## Epic 6: History and exports
 

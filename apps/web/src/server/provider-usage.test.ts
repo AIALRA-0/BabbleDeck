@@ -1,7 +1,9 @@
+import { Prisma } from "@prisma/client";
 import { afterEach, describe, expect, test } from "vitest";
 import {
   estimateAudioCostUsd,
   providerAudioHourRateUsd,
+  shouldDegradeForBudgetCap,
 } from "@/server/provider-usage";
 
 const originalEnv = { ...process.env };
@@ -32,5 +34,22 @@ describe("provider usage", () => {
         audioMs: 30 * 60 * 1000,
       }).toNumber(),
     ).toBeCloseTo(0.36);
+  });
+
+  test("flags active sessions once provider usage reaches the budget cap", () => {
+    expect(
+      shouldDegradeForBudgetCap({
+        budgetCapUsd: new Prisma.Decimal("0.0001"),
+        estimatedCostUsd: new Prisma.Decimal("0.0001"),
+        status: "RECORDING",
+      }),
+    ).toBe(true);
+    expect(
+      shouldDegradeForBudgetCap({
+        budgetCapUsd: new Prisma.Decimal("0.0001"),
+        estimatedCostUsd: new Prisma.Decimal("0.0100"),
+        status: "COMPLETED",
+      }),
+    ).toBe(false);
   });
 });

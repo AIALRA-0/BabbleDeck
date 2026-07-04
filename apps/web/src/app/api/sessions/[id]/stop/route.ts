@@ -18,7 +18,10 @@ export async function POST(
   const session = await prisma.liveSession.update({
     where: { id },
     data: {
-      status: "COMPLETED",
+      status:
+        existing.status === "PROVIDER_DEGRADED"
+          ? "PROVIDER_DEGRADED"
+          : "COMPLETED",
       endedAt: existing.endedAt ?? new Date(),
     },
   });

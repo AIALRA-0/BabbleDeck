@@ -27,6 +27,9 @@ export default async function RecorderPage({
           title={serialized.title}
           status={serialized.status}
           targetLanguage={serialized.targetLanguage}
+          providerName={serialized.providerName}
+          budgetCapUsd={serialized.budgetCapUsd}
+          estimatedCostUsd={serialized.estimatedCostUsd}
           viewerUrl={share ? `/s/${share}` : null}
         />
       </main>

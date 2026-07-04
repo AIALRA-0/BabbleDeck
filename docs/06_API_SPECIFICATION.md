@@ -292,7 +292,12 @@ Response:
   "data": {
     "chunkId": "uuid",
     "objectKey": "sessions/{id}/audio/chunk-000001.webm",
-    "status": "uploaded"
+    "status": "uploaded",
+    "provider": {
+      "budgetExceeded": false,
+      "sessionStatus": "recording",
+      "estimatedCostUsd": 0.000097
+    }
   }
 }
 ```
