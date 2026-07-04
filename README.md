@@ -10,7 +10,7 @@ Production: https://babbledeck.aialra.online
 - Prisma/PostgreSQL persistence in `db/schema.prisma`.
 - Bootstrap admin seed via `SEED_ADMIN_PASSWORD`.
 - Login, dashboard, live session creation, recorder page, public viewer page, session history, and exports.
-- Browser microphone permission flow, volume meter, IndexedDB local backup, metadata upload endpoint, and deterministic mock transcript provider.
+- Browser microphone permission flow, volume meter, IndexedDB local backup, metadata upload endpoint, SSE viewer stream with polling fallback, and deterministic mock transcript provider.
 - Playwright desktop/mobile E2E for the full MVP flow.
 
 ## Development

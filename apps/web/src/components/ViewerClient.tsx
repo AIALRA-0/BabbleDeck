@@ -20,6 +20,12 @@ type Segment = {
   translationText: string | null;
 };
 
+type ViewerPayload = {
+  session: ViewerClientProps["initialSession"];
+  events: ViewerEvent[];
+  segments: Segment[];
+};
+
 type ViewerClientProps = {
   shareToken: string;
   initialSession: {
@@ -38,14 +44,30 @@ export function ViewerClient({
   const [session, setSession] = useState(initialSession);
   const [segments, setSegments] = useState(initialSegments);
   const [events, setEvents] = useState<ViewerEvent[]>([]);
-  const [connected, setConnected] = useState(true);
+  const [connectionMode, setConnectionMode] = useState<
+    "connecting" | "sse" | "polling" | "reconnecting"
+  >("connecting");
   const [showOriginal, setShowOriginal] = useState(true);
   const [large, setLarge] = useState(true);
   const lastSequenceRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
-    async function poll() {
+
+    function applyPayload(payload: ViewerPayload) {
+      if (cancelled) return;
+      setSession(payload.session);
+      if (payload.events.length) {
+        lastSequenceRef.current = Math.max(
+          lastSequenceRef.current,
+          ...payload.events.map((event) => event.sequenceNo),
+        );
+        setEvents((current) => [...current, ...payload.events].slice(-20));
+      }
+      setSegments(payload.segments);
+    }
+
+    async function pollOnce() {
       try {
         const response = await fetch(
           `/api/viewer/session/${shareToken}/events?after=${lastSequenceRef.current}`,
@@ -54,26 +76,51 @@ export function ViewerClient({
         if (!response.ok) throw new Error("Viewer poll failed.");
         const payload = await response.json();
         if (!payload.ok || cancelled) return;
-        setConnected(true);
-        setSession(payload.data.session);
-        if (payload.data.events.length) {
-          const nextEvents = payload.data.events as ViewerEvent[];
-          lastSequenceRef.current = Math.max(
-            lastSequenceRef.current,
-            ...nextEvents.map((event) => event.sequenceNo),
-          );
-          setEvents((current) => [...current, ...nextEvents].slice(-20));
-        }
-        setSegments(payload.data.segments);
+        setConnectionMode("polling");
+        applyPayload(payload.data as ViewerPayload);
       } catch {
-        if (!cancelled) setConnected(false);
+        if (!cancelled) setConnectionMode("reconnecting");
       }
     }
-    void poll();
-    const interval = window.setInterval(() => void poll(), 900);
+
+    function startPolling() {
+      void pollOnce();
+      return window.setInterval(() => void pollOnce(), 900);
+    }
+
+    let interval: number | null = null;
+    let eventSource: EventSource | null = null;
+
+    if ("EventSource" in window) {
+      eventSource = new EventSource(
+        `/api/viewer/session/${shareToken}/stream?after=${lastSequenceRef.current}`,
+      );
+      eventSource.onopen = () => {
+        if (!cancelled) setConnectionMode("sse");
+      };
+      eventSource.addEventListener("snapshot", (event) => {
+        setConnectionMode("sse");
+        applyPayload(JSON.parse(event.data) as ViewerPayload);
+      });
+      eventSource.addEventListener("stream.error", () => {
+        if (!cancelled) setConnectionMode("reconnecting");
+      });
+      eventSource.onerror = () => {
+        eventSource?.close();
+        eventSource = null;
+        if (!cancelled && interval == null) {
+          setConnectionMode("reconnecting");
+          interval = startPolling();
+        }
+      };
+    } else {
+      interval = startPolling();
+    }
+
     return () => {
       cancelled = true;
-      window.clearInterval(interval);
+      eventSource?.close();
+      if (interval != null) window.clearInterval(interval);
     };
   }, [shareToken]);
 
@@ -108,7 +155,13 @@ export function ViewerClient({
           </div>
           <div className="flex items-center gap-2">
             <span className="rounded-full border border-white/10 px-2.5 py-1 text-xs font-semibold text-white/70">
-              {connected ? "Connected" : "Reconnecting"}
+              {connectionMode === "sse"
+                ? "SSE live"
+                : connectionMode === "polling"
+                  ? "Polling"
+                  : connectionMode === "connecting"
+                    ? "Connecting"
+                    : "Reconnecting"}
             </span>
             <SessionStatusBadge status={session.status} />
           </div>

@@ -15,3 +15,7 @@ The first end-to-end path uses a deterministic mock realtime provider through se
 ## ADR-004: Polling Viewer Stream for First Web Deployment
 
 The first viewer implementation polls for new transcript events. This is less sophisticated than WebSocket/SSE but deploys reliably on more hosts and preserves the API boundary for later realtime transport upgrades.
+
+## ADR-005: SSE Viewer Stream With Polling Fallback
+
+The production viewer now uses Server-Sent Events for live transcript updates and falls back to short polling if EventSource fails. This fits the one-way viewer update path, works through the current Nginx/systemd deployment, and keeps WebSocket reserved for recorder audio and later multi-party flows.

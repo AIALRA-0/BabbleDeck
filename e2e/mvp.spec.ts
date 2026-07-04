@@ -58,6 +58,9 @@ test.describe("BabbleDeck MVP browser flow", () => {
     await expect(
       viewer.getByRole("heading", { name: "Live captions" }),
     ).toBeVisible();
+    await expect(viewer.getByText("SSE live")).toBeVisible({
+      timeout: 10_000,
+    });
 
     await page.getByRole("button", { name: /test microphone/i }).click();
     await expect(page.getByText("granted")).toBeVisible({ timeout: 10_000 });

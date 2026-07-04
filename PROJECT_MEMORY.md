@@ -23,7 +23,7 @@
 - `apps/web` contains a Next.js App Router PWA shell.
 - Prisma/PostgreSQL schema covers auth sessions, live sessions, transcript events/segments, translations, audio chunks, exports, glossary terms, provider usage, and audit logs.
 - Seed script creates the bootstrap admin only when no admin exists and `SEED_ADMIN_PASSWORD` is set.
-- Browser MVP path implemented: login, dashboard, session create, recorder shell, mic test, volume meter, IndexedDB backup, mock transcript events, public viewer polling, session history, and transcript export.
+- Browser MVP path implemented: login, dashboard, session create, recorder shell, mic test, volume meter, IndexedDB backup, mock transcript events, public viewer SSE with polling fallback, session history, and transcript export.
 - Verification passed locally: Prisma validate/generate/migrate, format, lint, typecheck, Vitest unit tests, Next build, and Playwright desktop/mobile MVP E2E.
 - Production deployment is live at `https://babbledeck.aialra.online` through systemd service `aialra-babbledeck.service`, Nginx TLS, and production database `babbledeck_prod`.
 - Production smoke passed with Playwright desktop/mobile using a temporary smoke admin that was cleaned up afterward.
@@ -33,5 +33,5 @@
 1. Add Soniox realtime adapter behind the current provider boundary.
 2. Replace metadata-only audio upload with R2/S3 object upload.
 3. Add password-rotation UI for the bootstrap admin.
-4. Add WebSocket/SSE transport now that the deployment target is Nginx/systemd and can proxy upgrades.
+4. Add recorder WebSocket audio transport now that the deployment target is Nginx/systemd and can proxy upgrades.
 5. Add production backup/restore automation for `babbledeck_prod`.

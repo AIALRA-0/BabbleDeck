@@ -1,5 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:3100";
+const shouldStartWebServer =
+  baseURL.startsWith("http://127.0.0.1") ||
+  baseURL.startsWith("http://localhost");
+
 export default defineConfig({
   testDir: "./e2e",
   timeout: 90_000,
@@ -9,7 +14,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? [["html"], ["github"]] : [["list"], ["html"]],
   use: {
-    baseURL: process.env.E2E_BASE_URL ?? "http://127.0.0.1:3100",
+    baseURL,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     permissions: ["microphone"],
@@ -21,13 +26,15 @@ export default defineConfig({
       ],
     },
   },
-  webServer: {
-    command:
-      "env -u NO_COLOR NODE_ENV=development pnpm --filter @babbledeck/web dev --hostname 127.0.0.1 --port 3100",
-    url: process.env.E2E_BASE_URL ?? "http://127.0.0.1:3100",
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
+  webServer: shouldStartWebServer
+    ? {
+        command:
+          "env -u NO_COLOR NODE_ENV=development pnpm --filter @babbledeck/web dev --hostname 127.0.0.1 --port 3100",
+        url: baseURL,
+        reuseExistingServer: false,
+        timeout: 120_000,
+      }
+    : undefined,
   projects: [
     {
       name: "chromium-desktop",
