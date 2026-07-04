@@ -3,9 +3,18 @@ type Bucket = {
   resetAt: number;
 };
 
+export type RateLimitResult = {
+  allowed: boolean;
+  retryAfterSeconds: number;
+};
+
 const buckets = new Map<string, Bucket>();
 
-export function checkRateLimit(key: string, limit: number, windowMs: number) {
+export function checkRateLimit(
+  key: string,
+  limit: number,
+  windowMs: number,
+): RateLimitResult {
   const now = Date.now();
   const bucket = buckets.get(key);
   if (!bucket || bucket.resetAt <= now) {
@@ -22,4 +31,8 @@ export function checkRateLimit(key: string, limit: number, windowMs: number) {
 
   bucket.count += 1;
   return { allowed: true, retryAfterSeconds: 0 };
+}
+
+export function resetRateLimitsForTest() {
+  buckets.clear();
 }

@@ -1,5 +1,33 @@
 # Test Runs
 
+## 2026-07-05 Login Rate Limit Hardening
+
+- Environment: local workspace, production deployment at `https://babbledeck.aialra.online`, production secret env loaded without printing secrets.
+- Commands:
+  - `pnpm --filter @babbledeck/web test -- --run src/server/client-ip.test.ts src/server/login-rate-limit.test.ts`
+  - `pnpm format:check`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/recorder-ws-server.ts scripts/prune-audio-retention.ts scripts/migrate-audio-storage.ts scripts/audit-audio-storage.ts scripts/check-production-readiness.ts scripts/sync-seed-admin.ts playwright.config.ts`
+  - `pnpm build`
+  - `systemctl restart aialra-babbledeck.service aialra-babbledeck-ws.service`
+  - `curl -fsSI https://babbledeck.aialra.online/`
+  - `pnpm tsx scripts/check-production-readiness.ts --strict`
+  - Sent six failed JSON login attempts to production `/api/auth/login` with a synthetic email.
+  - `E2E_BASE_URL=https://babbledeck.aialra.online E2E_ADMIN_EMAIL="$SEED_ADMIN_EMAIL" E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD" pnpm e2e e2e/mvp.spec.ts --project=chromium-desktop --grep "admin creates a live session"`
+- Results:
+  - Login throttling now applies both per-IP and per-IP/email windows; `.env.example` documents `LOGIN_IP_RATE_LIMIT_PER_MINUTE`.
+  - Client IP parsing now prefers Nginx-managed `X-Real-IP` and falls back to the proxy-appended `X-Forwarded-For` address for rate limits and audit logs.
+  - Format, lint, app typecheck, script typecheck, full unit tests, and production build passed.
+  - Unit tests passed with `12` files and `33` tests, including same-account login throttling, changing-email IP throttling, and trusted proxy IP parsing coverage.
+  - Production login probe returned `401` for the first five failed attempts and `429 RATE_LIMITED` on the sixth attempt.
+  - Production services restarted successfully and remained active.
+  - Production HTTPS returned `HTTP/2 200`.
+  - Strict production readiness still fails only because `AUDIO_STORAGE_DRIVER=local`; all required checks pass.
+  - Production Playwright desktop MVP passed after restart, confirming normal admin login was not affected.
+  - Production smoke cleanup removed 1 temporary Playwright session and 3 local audio objects.
+
 ## 2026-07-05 Soniox Live Readiness Probe
 
 - Environment: local workspace, production deployment at `https://babbledeck.aialra.online`, production secret env loaded without printing secrets.

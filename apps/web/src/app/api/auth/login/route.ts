@@ -3,8 +3,8 @@ import { auditLog } from "@/server/audit";
 import { createAuthSession, setAuthCookie } from "@/server/auth";
 import { fail, getClientIp, ok, validationError } from "@/server/api";
 import { prisma } from "@/server/db";
+import { checkLoginRateLimit } from "@/server/login-rate-limit";
 import { verifyPassword } from "@/server/password";
-import { checkRateLimit } from "@/server/rate-limit";
 import { loginSchema } from "@/server/schemas";
 import { hashIp } from "@/server/security";
 
@@ -43,8 +43,7 @@ export async function POST(request: Request) {
   }
 
   const ip = getClientIp(request);
-  const limit = Number(process.env.LOGIN_RATE_LIMIT_PER_MINUTE ?? 5);
-  const limited = checkRateLimit(`login:${ip}:${parsed.email}`, limit, 60_000);
+  const limited = checkLoginRateLimit({ ip, email: parsed.email });
   if (!limited.allowed) {
     return fail(
       "RATE_LIMITED",

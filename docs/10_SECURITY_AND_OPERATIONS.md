@@ -124,6 +124,7 @@ Implement:
 Minimum rate limits:
 
 - Login attempts by IP/email.
+- Login attempts by source IP across changing emails.
 - Session creation.
 - Recorder token exchange.
 - Audio chunk upload.

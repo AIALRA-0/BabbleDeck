@@ -25,3 +25,5 @@
 - Hardened GitHub Actions CI with format/schema/script checks, secret scanning, and deterministic fallback E2E credentials.
 - Added audited transcript segment corrections from session history, with corrected text flowing into exports.
 - Added an opt-in live Soniox realtime readiness probe that verifies websocket credentials with generated WAV silence.
+- Hardened login rate limiting with both per-IP and per-IP/email attempt limits.
+- Hardened trusted proxy client IP parsing for rate limits and audit logs.

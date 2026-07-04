@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { getCurrentUser, type CurrentUser } from "@/server/auth";
+import { clientIpFromHeaders } from "@/server/client-ip";
 
 export type ApiErrorCode =
   | "UNAUTHENTICATED"
@@ -67,11 +68,7 @@ export async function requireApiUser(options?: {
 }
 
 export function getClientIp(request: Request) {
-  return (
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    request.headers.get("x-real-ip") ??
-    "127.0.0.1"
-  );
+  return clientIpFromHeaders(request.headers);
 }
 
 export function isSecureRequest(request: Request) {
