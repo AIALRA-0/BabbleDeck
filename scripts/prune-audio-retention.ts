@@ -3,6 +3,7 @@ import {
   pruneRawAudio,
   resolveAudioRetentionDays,
 } from "../apps/web/src/server/audio-retention";
+import { getAudioRetentionDaysSetting } from "../apps/web/src/server/settings-service";
 
 function argValue(name: string) {
   const prefix = `${name}=`;
@@ -18,11 +19,11 @@ function numberArg(name: string) {
 }
 
 async function main() {
-  const retentionDays = resolveAudioRetentionDays(
-    numberArg("--retention-days") ??
-      process.env.BABBLEDECK_AUDIO_RETENTION_DAYS ??
-      process.env.AUDIO_RETENTION_DAYS,
-  );
+  const cliRetentionDays = numberArg("--retention-days");
+  const retentionDays =
+    cliRetentionDays == null
+      ? await getAudioRetentionDaysSetting()
+      : resolveAudioRetentionDays(cliRetentionDays);
   const batchSize = numberArg("--batch-size");
   const dryRun =
     process.argv.includes("--dry-run") ||

@@ -99,6 +99,20 @@ test.describe("BabbleDeck MVP browser flow", () => {
       page.getByRole("heading", { name: "Live sessions" }),
     ).toBeVisible();
 
+    await page.getByRole("link", { name: /settings/i }).click();
+    await expect(
+      page.getByRole("heading", { name: /provider and safety status/i }),
+    ).toBeVisible();
+    const retentionInput = page.getByLabel("Raw audio retention");
+    await expect(retentionInput).toBeVisible();
+    await retentionInput.fill((await retentionInput.inputValue()) || "30");
+    await page.getByRole("button", { name: /^save$/i }).click();
+    await expect(page.getByText("Saved.")).toBeVisible();
+    await page.getByRole("link", { name: /dashboard/i }).click();
+    await expect(
+      page.getByRole("heading", { name: "Live sessions" }),
+    ).toBeVisible();
+
     await page
       .getByRole("link", { name: /new live session/i })
       .first()
@@ -183,6 +197,13 @@ test.describe("BabbleDeck MVP browser flow", () => {
     await expect(page.getByRole("heading", { name: title })).toBeVisible({
       timeout: 20_000,
     });
+    await page.getByLabel("Legal hold").check();
+    await page
+      .locator("form")
+      .filter({ hasText: "Legal hold" })
+      .getByRole("button", { name: /^save$/i })
+      .click();
+    await expect(page.getByText("Raw audio protected.")).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "Transcript timeline" }),
     ).toBeVisible({ timeout: 20_000 });

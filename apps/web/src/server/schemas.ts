@@ -85,3 +85,11 @@ export const exportSchema = z.object({
   includeTranslation: z.boolean().default(true),
   includeTimestamps: z.boolean().default(true),
 });
+
+export const updateSettingsSchema = z.object({
+  audioRetentionDays: z.coerce.number().int().min(1).max(3650).optional(),
+});
+
+export const updateSessionLegalHoldSchema = z.object({
+  rawAudioLegalHold: z.boolean(),
+});

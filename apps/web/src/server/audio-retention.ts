@@ -63,6 +63,12 @@ export async function pruneRawAudio(input?: {
       status: "UPLOADED",
       session: {
         endedAt: { lt: cutoff },
+        NOT: {
+          metadata: {
+            path: ["rawAudioLegalHold"],
+            equals: true,
+          },
+        },
       },
     },
     include: {

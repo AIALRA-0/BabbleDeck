@@ -8,6 +8,7 @@ import type {
   TranscriptSegment,
   Translation,
 } from "@prisma/client";
+import { rawAudioLegalHold } from "./settings-service";
 
 export function apiStatus(status: SessionStatus) {
   return status.toLowerCase();
@@ -89,6 +90,7 @@ export function serializeSession(
       eventCount: providerUsage.length,
     },
     transcriptSegmentCount: session.transcriptSegments?.length ?? 0,
+    rawAudioLegalHold: rawAudioLegalHold(session.metadata),
   };
 }
 

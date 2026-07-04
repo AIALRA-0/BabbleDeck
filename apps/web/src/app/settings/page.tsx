@@ -1,9 +1,12 @@
 import { AppHeader } from "@/components/AppHeader";
+import { AudioRetentionSettingsForm } from "@/components/AudioRetentionSettingsForm";
 import { Badge } from "@/components/ui/badge";
 import { requireUser } from "@/server/auth";
+import { getAudioRetentionDaysSetting } from "@/server/settings-service";
 
 export default async function SettingsPage() {
   await requireUser();
+  const audioRetentionDays = await getAudioRetentionDaysSetting();
   const providers = [
     ["Soniox", Boolean(process.env.SONIOX_API_KEY)],
     ["Azure Translator", Boolean(process.env.AZURE_TRANSLATOR_KEY)],
@@ -47,6 +50,12 @@ export default async function SettingsPage() {
               </div>
             ))}
           </div>
+        </section>
+        <section className="mt-6 rounded-lg border border-border bg-white shadow-sm">
+          <div className="border-b border-border p-5">
+            <h2 className="font-semibold">Data retention</h2>
+          </div>
+          <AudioRetentionSettingsForm initialDays={audioRetentionDays} />
         </section>
       </main>
     </>

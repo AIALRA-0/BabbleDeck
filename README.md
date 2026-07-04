@@ -79,6 +79,7 @@ The current production instance follows the server's existing systemd + Nginx pa
 - Production backup timer: `aialra-babbledeck-backup.timer`
 - Production raw audio retention timer: `aialra-babbledeck-audio-retention.timer`
 - Backup root: `/srv/aialra/backups/babbledeck`
+- Raw audio retention days are configurable at `/settings`; per-session raw audio legal hold is available from session history.
 
 Soniox realtime requires `SONIOX_API_KEY`. Without it, Soniox-mode sessions are marked degraded while local backup continues.
 

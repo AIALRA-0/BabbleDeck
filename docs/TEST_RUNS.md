@@ -1,5 +1,38 @@
 # Test Runs
 
+## 2026-07-05 Retention Settings and Legal Hold
+
+- Environment: local workspace with Docker Postgres on `localhost:55432`, Playwright dev server on `127.0.0.1:3107`, production deployment at `https://babbledeck.aialra.online`, production secret env loaded without printing secrets.
+- Commands:
+  - `pnpm db:validate`
+  - `pnpm db:generate`
+  - `pnpm db:migrate` against local dev DB
+  - `pnpm format:check`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/recorder-ws-server.ts scripts/prune-audio-retention.ts scripts/migrate-audio-storage.ts scripts/audit-audio-storage.ts scripts/check-production-readiness.ts scripts/sync-seed-admin.ts playwright.config.ts`
+  - `E2E_BASE_URL=http://127.0.0.1:3107 pnpm e2e e2e/mvp.spec.ts --project=chromium-desktop --grep "admin creates a live session"`
+  - `pnpm db:migrate` against production DB
+  - `pnpm build`
+  - `systemctl restart aialra-babbledeck.service aialra-babbledeck-ws.service`
+  - `curl -fsSI https://babbledeck.aialra.online/`
+  - `pnpm tsx scripts/check-production-readiness.ts`
+  - `pnpm tsx scripts/check-production-readiness.ts --strict`
+  - `pnpm tsx scripts/prune-audio-retention.ts --dry-run --batch-size=10`
+  - `E2E_BASE_URL=https://babbledeck.aialra.online E2E_ADMIN_EMAIL="$SEED_ADMIN_EMAIL" E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD" pnpm e2e e2e/mvp.spec.ts --project=chromium-desktop --grep "admin creates a live session"`
+- Results:
+  - Migration `20260705001500_app_settings` applied successfully to local and production Postgres.
+  - Format, lint, app typecheck, script typecheck, full unit tests, and production build passed.
+  - Unit tests passed with `8` files and `21` tests.
+  - Local and production Playwright desktop MVP passed while saving raw audio retention in Settings, enabling session raw audio legal hold, recording from a no-cookie recorder link, streaming captions to the viewer, and exporting from history.
+  - Production retention dry-run used the configured `30` day setting and matched `0` chunks.
+  - Production app settings contain only non-secret `audio.retentionDays`.
+  - Production services restarted successfully and remained active with `NRestarts=0`.
+  - Production HTTPS returned `HTTP/2 200`.
+  - Strict production readiness confirms all required checks pass, including `SONIOX_API_KEY`; strict completion still waits on off-host R2/S3-compatible audio storage because production currently has `AUDIO_STORAGE_DRIVER=local`.
+  - Production smoke cleanup removed 1 temporary Playwright session and 2 local audio objects.
+
 ## 2026-07-05 Audio Storage Cutover Audit Tooling
 
 - Environment: production secret env loaded without printing secrets, current production storage target still local through `AUDIO_STORAGE_DRIVER=local`.

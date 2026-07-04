@@ -82,6 +82,10 @@ Retention cleanup deletes uploaded raw audio objects for sessions whose
 `BABBLEDECK_AUDIO_RETENTION_DAYS` when set. Deleted chunks remain in the
 database with status `DELETED` and retention metadata.
 
+The default retention window is read from `/settings`, with env defaults used
+when no database setting exists. A session-level legal hold skips raw audio
+deletion for that session.
+
 Manual dry run:
 
 ```bash

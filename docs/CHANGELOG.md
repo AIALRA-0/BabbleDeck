@@ -19,3 +19,4 @@
 - Restored one-time viewer links on reopened recorder pages through same-browser token caching, without storing plaintext share tokens server-side.
 - Scoped recorder tokens now authorize no-cookie recorder links for page access, start/stop, transcript events, audio upload, and WebSocket backup.
 - Added raw audio storage target audit tooling and stricter off-host migration readiness checks for the R2/S3 cutover.
+- Added operator-managed raw audio retention days and per-session raw audio legal hold.

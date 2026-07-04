@@ -93,6 +93,7 @@ model User {
   auditLogs    AuditLog[]
   exports      ExportRecord[]
   glossary     GlossaryTerm[]
+  appSettings  AppSetting[]
 
   @@index([email])
   @@map("users")
@@ -136,16 +137,16 @@ model LiveSession {
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
 
-  owner                User?                 @relation(fields: [ownerUserId], references: [id], onDelete: SetNull)
-  participants         SessionParticipant[]
-  recorderConnections  RecorderConnection[]
-  transcriptEvents     TranscriptEvent[]
-  transcriptSegments   TranscriptSegment[]
-  translations         Translation[]
-  audioChunks          AudioChunk[]
-  providerUsage        ProviderUsage[]
-  exports              ExportRecord[]
-  auditLogs            AuditLog[]
+  owner               User?                @relation(fields: [ownerUserId], references: [id], onDelete: SetNull)
+  participants        SessionParticipant[]
+  recorderConnections RecorderConnection[]
+  transcriptEvents    TranscriptEvent[]
+  transcriptSegments  TranscriptSegment[]
+  translations        Translation[]
+  audioChunks         AudioChunk[]
+  providerUsage       ProviderUsage[]
+  exports             ExportRecord[]
+  auditLogs           AuditLog[]
 
   @@index([ownerUserId, createdAt])
   @@index([status])
@@ -218,21 +219,21 @@ model TranscriptEvent {
 }
 
 model TranscriptSegment {
-  id                String    @id @default(uuid()) @db.Uuid
-  sessionId         String    @db.Uuid
+  id                String       @id @default(uuid()) @db.Uuid
+  sessionId         String       @db.Uuid
   segmentIndex      Int
   sourceLanguage    String?
   originalText      String
   finalOriginalText String?
   startMs           Int?
   endMs             Int?
-  confidence        Decimal?  @db.Decimal(6, 5)
+  confidence        Decimal?     @db.Decimal(6, 5)
   speakerLabel      String?
   providerName      ProviderName
-  editedByUserId    String?   @db.Uuid
+  editedByUserId    String?      @db.Uuid
   editedAt          DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 
   session      LiveSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   translations Translation[]
@@ -323,6 +324,19 @@ model GlossaryTerm {
   @@map("glossary_terms")
 }
 
+model AppSetting {
+  key             String   @id
+  value           Json
+  updatedByUserId String?  @db.Uuid
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  updatedBy User? @relation(fields: [updatedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([updatedByUserId])
+  @@map("app_settings")
+}
+
 model ExportRecord {
   id                String       @id @default(uuid()) @db.Uuid
   sessionId         String       @db.Uuid
@@ -354,7 +368,7 @@ model AuditLog {
   metadata    Json     @default("{}")
   createdAt   DateTime @default(now())
 
-  actor  User?        @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  actor   User?        @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
   session LiveSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
 
   @@index([createdAt])

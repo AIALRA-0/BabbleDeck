@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
+import { SessionLegalHoldForm } from "@/components/SessionLegalHoldForm";
 import { SessionHistoryClient } from "@/components/SessionHistoryClient";
 import { SessionStatusBadge } from "@/components/SessionStatusBadge";
 import { Button } from "@/components/ui/button";
@@ -46,13 +47,14 @@ export default async function SessionDetailPage({
             </Link>
           </Button>
         </div>
-        <div className="mt-6 grid gap-3 sm:grid-cols-5">
+        <div className="mt-6 grid gap-3 sm:grid-cols-6">
           {[
             ["Target", serialized.targetLanguage],
             ["Provider", serialized.providerName],
             ["Backup chunks", String(serialized.backup.uploadedChunks)],
             ["Audio processed", formatDuration(serialized.usage.audioMs)],
             ["Cost", `$${serialized.estimatedCostUsd.toFixed(4)}`],
+            ["Legal hold", serialized.rawAudioLegalHold ? "On" : "Off"],
           ].map(([label, value]) => (
             <div
               key={label}
@@ -64,6 +66,12 @@ export default async function SessionDetailPage({
               <p className="mt-2 text-lg font-semibold">{value}</p>
             </div>
           ))}
+        </div>
+        <div className="mt-6">
+          <SessionLegalHoldForm
+            sessionId={serialized.id}
+            initialEnabled={serialized.rawAudioLegalHold}
+          />
         </div>
         <div className="mt-6">
           <SessionHistoryClient sessionId={serialized.id} segments={segments} />

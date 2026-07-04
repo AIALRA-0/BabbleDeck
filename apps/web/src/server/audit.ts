@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
-import { prisma } from "@/server/db";
-import { hashIp } from "@/server/security";
+import { prisma } from "./db";
+import { hashIp } from "./security";
 
 export async function auditLog(input: {
   actorUserId?: string | null;
