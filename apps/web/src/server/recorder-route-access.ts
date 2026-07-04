@@ -1,6 +1,6 @@
 import "server-only";
 
-import { fail, requireApiUser } from "@/server/api";
+import { fail, requireApiUser, requireSameOriginMutation } from "@/server/api";
 import {
   findRecorderSessionForOwner,
   findRecorderSessionForToken,
@@ -14,6 +14,8 @@ export async function requireRecorderAccess(
 ): Promise<{ access: RecorderAccess } | { response: Response }> {
   const auth = await requireApiUser();
   if (!("response" in auth)) {
+    const csrfResponse = requireSameOriginMutation(request);
+    if (csrfResponse) return { response: csrfResponse };
     const session = await findRecorderSessionForOwner(sessionId, auth.user.id);
     if (session) {
       return {

@@ -1,4 +1,9 @@
-import { ok, requireApiUser, validationError } from "@/server/api";
+import {
+  ok,
+  requireApiUser,
+  requireSameOriginMutation,
+  validationError,
+} from "@/server/api";
 import { prisma } from "@/server/db";
 import {
   getAudioRetentionDaysSetting,
@@ -37,6 +42,9 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
+  const csrfResponse = requireSameOriginMutation(request);
+  if (csrfResponse) return csrfResponse;
+
   const auth = await requireApiUser();
   if ("response" in auth) return auth.response;
   const { user } = auth;

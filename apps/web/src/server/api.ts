@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { getCurrentUser, type CurrentUser } from "@/server/auth";
 import { clientIpFromHeaders } from "@/server/client-ip";
+import { validateSameOriginMutation } from "@/server/same-origin";
 
 export type ApiErrorCode =
   | "UNAUTHENTICATED"
@@ -44,6 +45,12 @@ export function validationError(error: unknown) {
     return fail("VALIDATION_ERROR", "Invalid request.", 400, error.flatten());
   }
   return fail("VALIDATION_ERROR", "Invalid request.", 400);
+}
+
+export function requireSameOriginMutation(request: Request) {
+  const result = validateSameOriginMutation(request);
+  if (result.allowed) return null;
+  return fail("FORBIDDEN", "Cross-site mutation blocked.", 403);
 }
 
 export async function requireApiUser(options?: {

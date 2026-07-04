@@ -116,6 +116,7 @@ Implement:
 - Frame-ancestors restrictions.
 - Secure CORS config.
 - CSRF protection if cookie-auth mutation endpoints are used.
+- Current production applies same-origin `Origin` and Fetch Metadata checks to cookie-authenticated admin mutations while leaving scoped recorder-token writes available for no-cookie recorder links.
 - HTML escaping through React default behavior.
 - File upload validation.
 

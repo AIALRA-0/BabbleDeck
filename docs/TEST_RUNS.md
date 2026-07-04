@@ -1,5 +1,33 @@
 # Test Runs
 
+## 2026-07-05 Same-Origin Mutation Guard
+
+- Environment: local workspace, production deployment at `https://babbledeck.aialra.online`, production secret env loaded without printing secrets.
+- Commands:
+  - `pnpm --filter @babbledeck/web test -- --run src/server/same-origin.test.ts src/server/recorder-access.test.ts`
+  - `pnpm format:check`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/recorder-ws-server.ts scripts/prune-audio-retention.ts scripts/migrate-audio-storage.ts scripts/audit-audio-storage.ts scripts/check-production-readiness.ts scripts/sync-seed-admin.ts playwright.config.ts`
+  - `pnpm build`
+  - `systemctl restart aialra-babbledeck.service aialra-babbledeck-ws.service`
+  - `curl -fsSI https://babbledeck.aialra.online/`
+  - `pnpm tsx scripts/check-production-readiness.ts --strict`
+  - Logged in to production with the seed admin through the JSON login API using the server secret env, then attempted a cross-site `Origin: https://attacker.example` POST to `/api/sessions`.
+  - `E2E_BASE_URL=https://babbledeck.aialra.online E2E_ADMIN_EMAIL="$SEED_ADMIN_EMAIL" E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD" pnpm e2e e2e/mvp.spec.ts --project=chromium-desktop --grep "admin creates a live session"`
+- Results:
+  - Cookie-authenticated admin mutation endpoints now enforce same-origin Origin/Fetch Metadata checks.
+  - Recorder-token routes still permit no-cookie recorder links while protecting the admin-cookie path.
+  - Format, lint, app typecheck, script typecheck, full unit tests, and production build passed.
+  - Unit tests passed with `13` files and `37` tests, including same-origin guard and recorder access coverage.
+  - Production CSRF probe returned login `200` and cross-site mutation `403 FORBIDDEN` with `Cross-site mutation blocked.`
+  - Production services restarted successfully and remained active.
+  - Production HTTPS returned `HTTP/2 200`.
+  - Strict production readiness still fails only because `AUDIO_STORAGE_DRIVER=local`; all required checks pass.
+  - Production Playwright desktop MVP passed after restart, confirming same-origin UI writes and no-cookie recorder-token writes still work.
+  - Production smoke cleanup removed 1 temporary Playwright session and 3 local audio objects; CSRF probe auth sessions were logged out afterward.
+
 ## 2026-07-05 Login Rate Limit Hardening
 
 - Environment: local workspace, production deployment at `https://babbledeck.aialra.online`, production secret env loaded without printing secrets.

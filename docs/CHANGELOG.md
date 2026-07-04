@@ -27,3 +27,4 @@
 - Added an opt-in live Soniox realtime readiness probe that verifies websocket credentials with generated WAV silence.
 - Hardened login rate limiting with both per-IP and per-IP/email attempt limits.
 - Hardened trusted proxy client IP parsing for rate limits and audit logs.
+- Added same-origin mutation guards for cookie-authenticated admin writes while preserving recorder-token flows.

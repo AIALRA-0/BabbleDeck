@@ -3,6 +3,7 @@ import {
   getClientIp,
   ok,
   requireApiUser,
+  requireSameOriginMutation,
   validationError,
 } from "@/server/api";
 import { updateTranscriptSegment } from "@/server/session-service";
@@ -12,6 +13,9 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string; segmentId: string }> },
 ) {
+  const csrfResponse = requireSameOriginMutation(request);
+  if (csrfResponse) return csrfResponse;
+
   const auth = await requireApiUser();
   if ("response" in auth) return auth.response;
   const { user } = auth;

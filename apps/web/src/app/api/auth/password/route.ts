@@ -1,11 +1,20 @@
 import { auditLog } from "@/server/audit";
-import { fail, ok, requireApiUser, validationError } from "@/server/api";
+import {
+  fail,
+  ok,
+  requireApiUser,
+  requireSameOriginMutation,
+  validationError,
+} from "@/server/api";
 import { prisma } from "@/server/db";
 import { hashPassword, verifyPassword } from "@/server/password";
 import { changePasswordSchema } from "@/server/schemas";
 import { revokeOtherUserSessions } from "@/server/auth";
 
 export async function POST(request: Request) {
+  const csrfResponse = requireSameOriginMutation(request);
+  if (csrfResponse) return csrfResponse;
+
   const auth = await requireApiUser({ allowPasswordRotation: true });
   if ("response" in auth) return auth.response;
 

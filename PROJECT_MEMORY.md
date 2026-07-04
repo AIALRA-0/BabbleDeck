@@ -49,6 +49,7 @@
 - Production readiness can now run an opt-in live Soniox websocket probe with generated WAV silence through `scripts/check-production-readiness.ts --check-soniox-live`; the current production `SONIOX_API_KEY` passed without printing the key.
 - Login throttling now enforces both per-IP and per-IP/email attempt windows, with `LOGIN_IP_RATE_LIMIT_PER_MINUTE` documented in `.env.example`.
 - Client IP parsing now prefers Nginx-managed `X-Real-IP` and otherwise uses the proxy-appended `X-Forwarded-For` address, protecting rate limits and audit IP hashes from spoofed leading XFF values.
+- Cookie-authenticated admin mutation endpoints now enforce same-origin `Origin`/Fetch Metadata checks; recorder-token writes remain available for no-cookie recorder links.
 
 ## Next Recommended Tasks
 

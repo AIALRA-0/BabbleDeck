@@ -5,9 +5,12 @@ import {
   getCurrentUser,
   revokeCurrentSession,
 } from "@/server/auth";
-import { ok } from "@/server/api";
+import { ok, requireSameOriginMutation } from "@/server/api";
 
 export async function POST(request: Request) {
+  const csrfResponse = requireSameOriginMutation(request);
+  if (csrfResponse) return csrfResponse;
+
   const user = await getCurrentUser();
   await revokeCurrentSession();
   if (user) {

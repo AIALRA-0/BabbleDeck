@@ -1,4 +1,10 @@
-import { fail, ok, requireApiUser, validationError } from "@/server/api";
+import {
+  fail,
+  ok,
+  requireApiUser,
+  requireSameOriginMutation,
+  validationError,
+} from "@/server/api";
 import { buildExport, getSessionForAdmin } from "@/server/session-service";
 import { exportSchema } from "@/server/schemas";
 
@@ -6,6 +12,9 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
+  const csrfResponse = requireSameOriginMutation(request);
+  if (csrfResponse) return csrfResponse;
+
   const auth = await requireApiUser();
   if ("response" in auth) return auth.response;
   const { user } = auth;
