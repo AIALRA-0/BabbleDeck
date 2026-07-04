@@ -1,0 +1,89 @@
+import { expect, test } from "@playwright/test";
+
+const adminEmail = process.env.E2E_ADMIN_EMAIL ?? "admin@example.invalid";
+const adminPassword = process.env.E2E_ADMIN_PASSWORD;
+
+test.describe("BabbleDeck MVP browser flow", () => {
+  test.skip(
+    !adminPassword,
+    "E2E_ADMIN_PASSWORD must be set for browser login.",
+  );
+
+  test("admin creates a live session, viewer receives captions, and export downloads", async ({
+    browser,
+    page,
+  }) => {
+    const title = `Playwright session ${Date.now()}`;
+
+    await page.goto("/");
+    await expect(
+      page.getByRole("heading", { name: /live multilingual captions/i }),
+    ).toBeVisible();
+
+    await page.getByRole("link", { name: /open portal/i }).click();
+    await page.getByLabel("Email").fill(adminEmail);
+    await page.getByLabel("Password").fill(adminPassword ?? "");
+    const signInButton = page.getByRole("button", { name: /sign in/i });
+    await expect(signInButton).toBeEnabled();
+    await signInButton.click();
+    await page.waitForURL("**/dashboard");
+    await expect(
+      page.getByRole("heading", { name: "Live sessions" }),
+    ).toBeVisible();
+
+    await page
+      .getByRole("link", { name: /new live session/i })
+      .first()
+      .click();
+    await page.getByLabel("Title").fill(title);
+    await page.getByLabel("Target language").selectOption("zh");
+    await page.getByLabel("Provider").selectOption("mock");
+    const createButton = page.getByRole("button", { name: /create session/i });
+    await expect(createButton).toBeEnabled();
+    await createButton.click();
+
+    await expect(page.getByRole("heading", { name: title })).toBeVisible();
+    await expect(page.getByText("Viewer link", { exact: true })).toBeVisible();
+    const viewerUrl = await page
+      .locator("aside p")
+      .filter({ hasText: "/s/" })
+      .textContent();
+    expect(viewerUrl).toContain("/s/");
+
+    const viewerContext = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+    });
+    const viewer = await viewerContext.newPage();
+    await viewer.goto(viewerUrl ?? "");
+    await expect(
+      viewer.getByRole("heading", { name: "Live captions" }),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: /test microphone/i }).click();
+    await expect(page.getByText("granted")).toBeVisible({ timeout: 10_000 });
+
+    await page.getByRole("button", { name: /start recording/i }).click();
+    await expect(page.getByText("Mock realtime")).toBeVisible();
+    await expect(viewer.getByText("欢迎使用 BabbleDeck")).toBeVisible({
+      timeout: 12_000,
+    });
+    await expect(viewer.getByText(/final segments/i)).toBeVisible();
+
+    await page.getByRole("button", { name: /stop recording/i }).click();
+    await page.waitForURL(/\/sessions\/[0-9a-f-]+$/, { timeout: 20_000 });
+    await expect(page.getByRole("heading", { name: title })).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(
+      page.getByRole("heading", { name: "Transcript timeline" }),
+    ).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("欢迎使用 BabbleDeck")).toBeVisible();
+
+    const downloadPromise = page.waitForEvent("download");
+    await page.getByRole("button", { name: /markdown/i }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/\.markdown$/);
+
+    await viewerContext.close();
+  });
+});

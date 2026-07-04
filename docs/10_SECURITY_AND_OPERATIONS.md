@@ -1,0 +1,308 @@
+# BabbleDeck Security and Operations Plan
+
+## 1. Security posture
+
+BabbleDeck handles sensitive data: voice recordings, transcripts, translations, user login, provider credentials, and potentially private event notes. Security must be implemented from the first milestone.
+
+Target baseline: OWASP ASVS-inspired practical controls for MVP.
+
+## 2. Secret handling
+
+### Rules
+
+- Never commit secrets.
+- Never hard-code default passwords.
+- Never print secrets in logs or UI.
+- Never expose provider API keys to frontend.
+- Use platform secret manager or environment variables.
+- `.env.example` must contain placeholders only.
+
+### Required secrets
+
+```text
+DATABASE_URL
+AUTH_SECRET
+SEED_ADMIN_PASSWORD
+SONIOX_API_KEY
+AZURE_TRANSLATOR_KEY optional
+AZURE_TRANSLATOR_REGION optional
+OPENAI_API_KEY optional
+R2_ACCOUNT_ID
+R2_ACCESS_KEY_ID
+R2_SECRET_ACCESS_KEY
+R2_BUCKET
+R2_ENDPOINT
+```
+
+### Bootstrap admin
+
+Email:
+
+```text
+admin@example.invalid
+```
+
+Password:
+
+```text
+process.env.SEED_ADMIN_PASSWORD
+```
+
+Seed behavior:
+
+1. If admin user exists, do nothing.
+2. If no admin user exists and `SEED_ADMIN_PASSWORD` is set, create admin.
+3. If no admin user exists and env is missing, fail loudly.
+4. Set password rotation required if implemented.
+5. Do not log password.
+
+## 3. Authentication security
+
+- Use strong password hashing: Argon2id preferred; bcrypt acceptable with strong cost.
+- Use secure session cookies or robust token session.
+- Production cookies: `HttpOnly`, `Secure`, `SameSite=Lax` or stricter.
+- Rate limit login.
+- Generic auth failure messages.
+- Logout invalidates server-side session if DB sessions are used.
+
+## 4. Authorization model
+
+Roles:
+
+```text
+admin: full portal access
+operator: create/manage own sessions later
+viewer: no portal, view via share token only
+```
+
+MVP can use only admin + unauthenticated viewer share token.
+
+Rules:
+
+- Admin endpoints require admin session.
+- Viewer share token allows read-only live stream and viewer-safe metadata.
+- Recorder token allows audio upload/record events for one session only.
+- Tokens stored as hashes.
+- Tokens should be long and random.
+
+## 5. Data security
+
+### At rest
+
+- Database managed encryption if provider supports it.
+- R2/S3 bucket private by default.
+- Signed URLs for downloads.
+- No public raw audio links.
+
+### In transit
+
+- HTTPS/WSS only in production.
+- HSTS.
+- TLS-managed domain.
+
+### Data minimization
+
+- Hash IP addresses if stored.
+- Store user agent only for debugging/security.
+- Avoid storing raw provider payloads longer than necessary unless useful for debugging.
+
+## 6. Web security controls
+
+Implement:
+
+- Content Security Policy.
+- X-Content-Type-Options: nosniff.
+- Referrer-Policy.
+- Frame-ancestors restrictions.
+- Secure CORS config.
+- CSRF protection if cookie-auth mutation endpoints are used.
+- HTML escaping through React default behavior.
+- File upload validation.
+
+## 7. Rate limits
+
+Minimum rate limits:
+
+- Login attempts by IP/email.
+- Session creation.
+- Recorder token exchange.
+- Audio chunk upload.
+- Export generation.
+- Retranslate endpoint.
+
+If using serverless, use Redis/Upstash or provider-native rate limiting.
+
+## 8. Audit logs
+
+Log:
+
+- Login success.
+- Login failure.
+- Logout.
+- Session created.
+- Recording started/stopped.
+- Session exported.
+- Transcript edited.
+- Settings changed.
+- Provider key status changed, not key value.
+- Provider failure.
+- Budget exceeded.
+
+Audit logs must not include secrets or raw password values.
+
+## 9. Object storage operations
+
+### Bucket access
+
+- Private bucket.
+- Least-privilege access key.
+- Separate dev/prod bucket or prefix.
+- Lifecycle policies later for raw audio retention.
+
+### Object keys
+
+Use predictable internal keys but never expose without signed URL:
+
+```text
+sessions/{sessionId}/audio/chunk-{chunkIndex}.webm
+sessions/{sessionId}/exports/transcript-{timestamp}.md
+```
+
+## 10. Backup plan
+
+### Database
+
+- Use managed Postgres backups.
+- Daily backups minimum for production.
+- Test restore before production launch.
+
+### Object storage
+
+- R2/S3 stores raw chunks.
+- Consider lifecycle policy.
+- For critical sessions, export transcript immediately after completion.
+
+### Local client backup
+
+- IndexedDB chunk queue.
+- Never delete unsynced chunks automatically.
+- Give user cleanup action after upload complete.
+
+## 11. Incident response
+
+### Provider outage
+
+- Show `Provider delayed` or `Translation unavailable`.
+- Keep local recording backup active.
+- Allow session stop and export partial transcript.
+- Log provider outage.
+
+### Database outage
+
+- Recorder should surface `Saving delayed`.
+- Local chunks remain.
+- Avoid claiming data is saved until confirmed.
+
+### Object storage outage
+
+- Continue local backup.
+- Mark server upload pending.
+- Retry with exponential backoff.
+
+### Suspected secret leak
+
+1. Rotate affected key immediately.
+2. Revoke old key.
+3. Review logs.
+4. Search repo history.
+5. Add prevention test if possible.
+6. Document incident.
+
+## 12. Deployment operations
+
+### Environments
+
+```text
+local
+preview
+staging optional
+production
+```
+
+### Environment separation
+
+- Separate database or schema.
+- Separate object storage prefix/bucket.
+- Separate provider keys if possible.
+- No production secrets in preview builds.
+
+### Domain
+
+Production domain target:
+
+```text
+babbledeck.aialra.online
+```
+
+Configure:
+
+- TLS.
+- HTTPS redirect.
+- Security headers.
+- DNS records.
+
+## 13. Monitoring
+
+Minimum metrics:
+
+- Active sessions.
+- Recorder connections.
+- Viewer connections.
+- Provider errors.
+- First-token latency.
+- Audio chunk upload failures.
+- Auth failures.
+- Estimated provider cost.
+
+Minimum logs:
+
+- Structured JSON.
+- Correlation ID.
+- Session ID.
+- Error code.
+- Provider name.
+
+## 14. Cost operations
+
+Default budget targets:
+
+```text
+Default realtime mode: $0.20–$0.50 / audio hour
+Enhanced mode: $0.60–$1.50 / audio hour
+Fallback hard cap: $3.00 / audio hour
+```
+
+Implement:
+
+- Session cost estimate.
+- Provider usage table.
+- Budget warning.
+- Hard stop or confirmation at cap.
+
+## 15. Production readiness checklist
+
+- [ ] No secrets in repo.
+- [ ] `.env.example` placeholders only.
+- [ ] Admin seed uses env password only.
+- [ ] Auth rate limit enabled.
+- [ ] Protected routes tested.
+- [ ] Viewer share token read-only.
+- [ ] Recorder token scoped.
+- [ ] R2 bucket private.
+- [ ] Security headers configured.
+- [ ] Playwright core flows pass.
+- [ ] Mobile browser smoke tested.
+- [ ] Backups tested.
+- [ ] Export tested.
+- [ ] Provider outage behavior tested.
+- [ ] Domain HTTPS working.

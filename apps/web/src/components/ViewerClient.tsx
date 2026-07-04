@@ -1,0 +1,181 @@
+"use client";
+
+import { Maximize2, Minimize2, RefreshCw } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { SessionStatusBadge } from "@/components/SessionStatusBadge";
+import { Button } from "@/components/ui/button";
+
+type ViewerEvent = {
+  id: string;
+  type: string;
+  sequenceNo: number;
+  text: string | null;
+  isFinal: boolean;
+};
+
+type Segment = {
+  id: string;
+  index: number;
+  originalText: string;
+  translationText: string | null;
+};
+
+type ViewerClientProps = {
+  shareToken: string;
+  initialSession: {
+    title: string;
+    status: string;
+    targetLanguage: string;
+  };
+  initialSegments: Segment[];
+};
+
+export function ViewerClient({
+  shareToken,
+  initialSession,
+  initialSegments,
+}: ViewerClientProps) {
+  const [session, setSession] = useState(initialSession);
+  const [segments, setSegments] = useState(initialSegments);
+  const [events, setEvents] = useState<ViewerEvent[]>([]);
+  const [connected, setConnected] = useState(true);
+  const [showOriginal, setShowOriginal] = useState(true);
+  const [large, setLarge] = useState(true);
+  const lastSequenceRef = useRef(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function poll() {
+      try {
+        const response = await fetch(
+          `/api/viewer/session/${shareToken}/events?after=${lastSequenceRef.current}`,
+          { cache: "no-store" },
+        );
+        if (!response.ok) throw new Error("Viewer poll failed.");
+        const payload = await response.json();
+        if (!payload.ok || cancelled) return;
+        setConnected(true);
+        setSession(payload.data.session);
+        if (payload.data.events.length) {
+          const nextEvents = payload.data.events as ViewerEvent[];
+          lastSequenceRef.current = Math.max(
+            lastSequenceRef.current,
+            ...nextEvents.map((event) => event.sequenceNo),
+          );
+          setEvents((current) => [...current, ...nextEvents].slice(-20));
+        }
+        setSegments(payload.data.segments);
+      } catch {
+        if (!cancelled) setConnected(false);
+      }
+    }
+    void poll();
+    const interval = window.setInterval(() => void poll(), 900);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [shareToken]);
+
+  const partial = useMemo(
+    () =>
+      [...events]
+        .reverse()
+        .find(
+          (event) =>
+            event.type === "partial_transcript" ||
+            event.type === "partial_translation",
+        ),
+    [events],
+  );
+  const latest = segments[segments.length - 1] ?? null;
+  const translation =
+    latest?.translationText ?? partial?.text ?? "Waiting for captions...";
+  const original =
+    latest?.originalText ??
+    partial?.text ??
+    "Waiting for original transcript...";
+
+  return (
+    <main className="min-h-svh bg-slate-950 text-white">
+      <div className="mx-auto flex min-h-svh w-full max-w-5xl flex-col px-4 py-5 sm:px-6">
+        <header className="flex items-center justify-between gap-4 border-b border-white/10 pb-4">
+          <div className="min-w-0">
+            <p className="truncate text-sm text-white/55">{session.title}</p>
+            <h1 className="mt-1 truncate text-lg font-semibold">
+              Live captions
+            </h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="rounded-full border border-white/10 px-2.5 py-1 text-xs font-semibold text-white/70">
+              {connected ? "Connected" : "Reconnecting"}
+            </span>
+            <SessionStatusBadge status={session.status} />
+          </div>
+        </header>
+
+        <section className="flex flex-1 flex-col justify-center py-8">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/45">
+            Translation · {session.targetLanguage}
+          </p>
+          <p
+            className={
+              large
+                ? "mt-5 text-balance text-5xl font-bold leading-tight tracking-normal sm:text-7xl"
+                : "mt-5 text-balance text-3xl font-bold leading-tight tracking-normal sm:text-5xl"
+            }
+          >
+            {translation}
+          </p>
+          {showOriginal ? (
+            <div className="mt-8 border-l border-white/20 pl-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/45">
+                Original
+              </p>
+              <p className="mt-3 text-2xl leading-snug text-white/75">
+                {original}
+              </p>
+            </div>
+          ) : null}
+        </section>
+
+        <footer className="sticky bottom-0 -mx-4 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 bg-slate-950/95 px-4 py-4 backdrop-blur sm:-mx-6 sm:px-6">
+          <div className="text-sm text-white/55">
+            {segments.length} final segments
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => setShowOriginal((value) => !value)}
+              className="border-white/10 bg-white/10 text-white hover:bg-white/15"
+            >
+              {showOriginal ? "Hide original" : "Show original"}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => setLarge((value) => !value)}
+              className="border-white/10 bg-white/10 text-white hover:bg-white/15"
+              aria-label="Toggle caption size"
+              title="Toggle caption size"
+            >
+              {large ? (
+                <Minimize2 className="h-4 w-4" />
+              ) : (
+                <Maximize2 className="h-4 w-4" />
+              )}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => window.location.reload()}
+              className="border-white/10 bg-white/10 text-white hover:bg-white/15"
+              aria-label="Refresh captions"
+              title="Refresh captions"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
+        </footer>
+      </div>
+    </main>
+  );
+}

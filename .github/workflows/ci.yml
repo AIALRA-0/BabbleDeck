@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: babbledeck
+          POSTGRES_PASSWORD: babbledeck
+          POSTGRES_DB: babbledeck_dev
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U babbledeck -d babbledeck_dev"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://babbledeck:babbledeck@localhost:55432/babbledeck_dev
+      SEED_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD }}
+      E2E_ADMIN_EMAIL: admin@example.invalid
+      E2E_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.9.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - run: pnpm db:migrate
+      - run: pnpm db:seed
+        if: ${{ env.SEED_ADMIN_PASSWORD != '' }}
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="BabbleDeck">
+  <rect width="64" height="64" rx="14" fill="#111827"/>
+  <path d="M17 21c0-3.3 2.7-6 6-6h18c3.3 0 6 2.7 6 6v11c0 3.3-2.7 6-6 6H31l-8 9v-9c-3.3 0-6-2.7-6-6V21Z" fill="#f8fafc"/>
+  <path d="M24 25h16M24 31h11" stroke="#0f766e" stroke-width="4" stroke-linecap="round"/>
+</svg>

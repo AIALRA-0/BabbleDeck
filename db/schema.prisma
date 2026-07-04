@@ -1,0 +1,364 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  OPERATOR
+  VIEWER
+}
+
+enum SessionStatus {
+  CREATED
+  READY
+  RECORDING
+  RECONNECTING
+  PROVIDER_DEGRADED
+  STOPPING
+  COMPLETED
+  FAILED
+  ARCHIVED
+}
+
+enum ParticipantRole {
+  RECORDER
+  VIEWER
+  ADMIN
+  AGENT
+}
+
+enum ProviderName {
+  MOCK
+  SONIOX
+  AZURE
+  OPENAI
+  DEEPGRAM
+  GOOGLE
+  SELF_HOSTED
+}
+
+enum TranscriptEventType {
+  PARTIAL_TRANSCRIPT
+  FINAL_TRANSCRIPT
+  PARTIAL_TRANSLATION
+  FINAL_TRANSLATION
+  LANGUAGE_DETECTED
+  SEGMENT_CORRECTED
+  PROVIDER_ERROR
+  SESSION_STATE
+  USAGE
+}
+
+enum AudioChunkStatus {
+  LOCAL_ONLY
+  UPLOADING
+  UPLOADED
+  FAILED
+  DELETED
+}
+
+enum ExportFormat {
+  MARKDOWN
+  TXT
+  JSON
+  SRT
+  VTT
+}
+
+enum ExportStatus {
+  COMPLETED
+  FAILED
+}
+
+model User {
+  id                       String    @id @default(uuid()) @db.Uuid
+  email                    String    @unique
+  passwordHash             String
+  role                     UserRole  @default(ADMIN)
+  displayName              String?
+  firstLoginAt             DateTime?
+  lastLoginAt              DateTime?
+  passwordRotationRequired Boolean   @default(false)
+  disabledAt               DateTime?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  authSessions AuthSession[]
+  liveSessions LiveSession[]
+  auditLogs    AuditLog[]
+  exports      ExportRecord[]
+  glossary     GlossaryTerm[]
+
+  @@index([email])
+  @@map("users")
+}
+
+model AuthSession {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @db.Uuid
+  sessionTokenHash String    @unique
+  userAgent        String?
+  ipHash           String?
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("auth_sessions")
+}
+
+model LiveSession {
+  id                 String        @id @default(uuid()) @db.Uuid
+  ownerUserId        String?       @db.Uuid
+  title              String
+  description        String?
+  status             SessionStatus @default(CREATED)
+  sourceLanguageMode String        @default("auto")
+  targetLanguage     String        @default("zh")
+  providerName       ProviderName  @default(SONIOX)
+  qualityMode        String        @default("realtime")
+  budgetCapUsd       Decimal?      @db.Decimal(12, 4)
+  estimatedCostUsd   Decimal       @default(0) @db.Decimal(12, 6)
+  shareTokenHash     String        @unique
+  recorderTokenHash  String?
+  startedAt          DateTime?
+  endedAt            DateTime?
+  archivedAt         DateTime?
+  metadata           Json          @default("{}")
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  owner                User?                 @relation(fields: [ownerUserId], references: [id], onDelete: SetNull)
+  participants         SessionParticipant[]
+  recorderConnections  RecorderConnection[]
+  transcriptEvents     TranscriptEvent[]
+  transcriptSegments   TranscriptSegment[]
+  translations         Translation[]
+  audioChunks          AudioChunk[]
+  providerUsage        ProviderUsage[]
+  exports              ExportRecord[]
+  auditLogs            AuditLog[]
+
+  @@index([ownerUserId, createdAt])
+  @@index([status])
+  @@index([createdAt])
+  @@map("live_sessions")
+}
+
+model SessionParticipant {
+  id           String          @id @default(uuid()) @db.Uuid
+  sessionId    String          @db.Uuid
+  userId       String?         @db.Uuid
+  role         ParticipantRole
+  displayName  String?
+  connectionId String?
+  userAgent    String?
+  ipHash       String?
+  joinedAt     DateTime        @default(now())
+  leftAt       DateTime?
+  metadata     Json            @default("{}")
+
+  session LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, joinedAt])
+  @@map("session_participants")
+}
+
+model RecorderConnection {
+  id               String    @id @default(uuid()) @db.Uuid
+  sessionId        String    @db.Uuid
+  connectionId     String
+  transport        String    @default("polling")
+  status           String
+  startedAt        DateTime  @default(now())
+  endedAt          DateTime?
+  reconnectCount   Int       @default(0)
+  lastErrorCode    String?
+  lastErrorMessage String?
+  clientInfo       Json      @default("{}")
+
+  session LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, startedAt])
+  @@map("recorder_connections")
+}
+
+model TranscriptEvent {
+  id             String              @id @default(uuid()) @db.Uuid
+  sessionId      String              @db.Uuid
+  providerName   ProviderName
+  eventType      TranscriptEventType
+  sequenceNo     Int
+  segmentId      String?             @db.Uuid
+  language       String?
+  targetLanguage String?
+  text           String?
+  confidence     Decimal?            @db.Decimal(6, 5)
+  startMs        Int?
+  endMs          Int?
+  isFinal        Boolean             @default(false)
+  payload        Json                @default("{}")
+  createdAt      DateTime            @default(now())
+
+  session LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, sequenceNo])
+  @@index([sessionId, sequenceNo])
+  @@index([sessionId, createdAt])
+  @@index([eventType])
+  @@map("transcript_events")
+}
+
+model TranscriptSegment {
+  id                String    @id @default(uuid()) @db.Uuid
+  sessionId         String    @db.Uuid
+  segmentIndex      Int
+  sourceLanguage    String?
+  originalText      String
+  finalOriginalText String?
+  startMs           Int?
+  endMs             Int?
+  confidence        Decimal?  @db.Decimal(6, 5)
+  speakerLabel      String?
+  providerName      ProviderName
+  editedByUserId    String?   @db.Uuid
+  editedAt          DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  session      LiveSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  translations Translation[]
+
+  @@unique([sessionId, segmentIndex])
+  @@index([sessionId, segmentIndex])
+  @@map("transcript_segments")
+}
+
+model Translation {
+  id              String       @id @default(uuid()) @db.Uuid
+  segmentId       String       @db.Uuid
+  sessionId       String       @db.Uuid
+  targetLanguage  String
+  translationText String
+  providerName    ProviderName
+  qualityMode     String       @default("realtime")
+  isEnhanced      Boolean      @default(false)
+  editedByUserId  String?      @db.Uuid
+  editedAt        DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  segment TranscriptSegment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+  session LiveSession       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([segmentId, targetLanguage, qualityMode])
+  @@index([sessionId, targetLanguage])
+  @@map("translations")
+}
+
+model AudioChunk {
+  id             String           @id @default(uuid()) @db.Uuid
+  sessionId      String           @db.Uuid
+  chunkIndex     Int
+  objectKey      String
+  mimeType       String
+  byteSize       BigInt
+  durationMs     Int?
+  checksumSha256 String?
+  status         AudioChunkStatus @default(UPLOADED)
+  startedAt      DateTime?
+  uploadedAt     DateTime         @default(now())
+  metadata       Json             @default("{}")
+
+  session LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, chunkIndex])
+  @@index([sessionId, chunkIndex])
+  @@map("audio_chunks")
+}
+
+model ProviderUsage {
+  id               String       @id @default(uuid()) @db.Uuid
+  sessionId        String       @db.Uuid
+  providerName     ProviderName
+  usageType        String
+  audioMs          Int?
+  inputCharacters  Int?
+  outputCharacters Int?
+  targetLanguage   String?
+  estimatedCostUsd Decimal?     @db.Decimal(12, 6)
+  payload          Json         @default("{}")
+  createdAt        DateTime     @default(now())
+
+  session LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+  @@index([providerName, createdAt])
+  @@map("provider_usage")
+}
+
+model GlossaryTerm {
+  id              String   @id @default(uuid()) @db.Uuid
+  sourceTerm      String
+  targetTerm      String
+  sourceLanguage  String?
+  targetLanguage  String
+  notes           String?
+  enabled         Boolean  @default(true)
+  createdByUserId String?  @db.Uuid
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  createdBy User? @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([targetLanguage, enabled])
+  @@map("glossary_terms")
+}
+
+model ExportRecord {
+  id                String       @id @default(uuid()) @db.Uuid
+  sessionId         String       @db.Uuid
+  requestedByUserId String?      @db.Uuid
+  format            ExportFormat
+  content           String
+  objectKey         String?
+  byteSize          BigInt?
+  status            ExportStatus @default(COMPLETED)
+  errorMessage      String?
+  createdAt         DateTime     @default(now())
+
+  session     LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  requestedBy User?       @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([sessionId, createdAt])
+  @@map("exports")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  actorUserId String?  @db.Uuid
+  sessionId   String?  @db.Uuid
+  action      String
+  entityType  String?
+  entityId    String?
+  ipHash      String?
+  userAgent   String?
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now())
+
+  actor  User?        @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  session LiveSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([sessionId, createdAt])
+  @@map("audit_logs")
+}

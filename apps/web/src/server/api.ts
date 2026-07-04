@@ -1,0 +1,59 @@
+import { NextResponse } from "next/server";
+import { ZodError } from "zod";
+
+export type ApiErrorCode =
+  | "UNAUTHENTICATED"
+  | "FORBIDDEN"
+  | "VALIDATION_ERROR"
+  | "NOT_FOUND"
+  | "RATE_LIMITED"
+  | "SESSION_ALREADY_ENDED"
+  | "SESSION_NOT_RECORDING"
+  | "AUDIO_CHUNK_TOO_LARGE"
+  | "EXPORT_FAILED"
+  | "INTERNAL_ERROR";
+
+export function ok<T>(data: T, init?: ResponseInit) {
+  return NextResponse.json({ ok: true, data }, init);
+}
+
+export function fail(
+  code: ApiErrorCode,
+  message: string,
+  status = 400,
+  details?: unknown,
+) {
+  return NextResponse.json(
+    {
+      ok: false,
+      error: {
+        code,
+        message,
+        details,
+      },
+    },
+    { status },
+  );
+}
+
+export function validationError(error: unknown) {
+  if (error instanceof ZodError) {
+    return fail("VALIDATION_ERROR", "Invalid request.", 400, error.flatten());
+  }
+  return fail("VALIDATION_ERROR", "Invalid request.", 400);
+}
+
+export function getClientIp(request: Request) {
+  return (
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    request.headers.get("x-real-ip") ??
+    "127.0.0.1"
+  );
+}
+
+export function isSecureRequest(request: Request) {
+  return (
+    request.headers.get("x-forwarded-proto") === "https" ||
+    request.url.startsWith("https:")
+  );
+}

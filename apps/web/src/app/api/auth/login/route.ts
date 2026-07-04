@@ -1,0 +1,112 @@
+import { NextResponse } from "next/server";
+import { auditLog } from "@/server/audit";
+import { createAuthSession, setAuthCookie } from "@/server/auth";
+import { fail, getClientIp, ok, validationError } from "@/server/api";
+import { prisma } from "@/server/db";
+import { verifyPassword } from "@/server/password";
+import { checkRateLimit } from "@/server/rate-limit";
+import { loginSchema } from "@/server/schemas";
+import { hashIp } from "@/server/security";
+
+export async function POST(request: Request) {
+  const contentType = request.headers.get("content-type") ?? "";
+  const isFormPost = contentType.includes("application/x-www-form-urlencoded");
+  let next = "/dashboard";
+  let parsed;
+  try {
+    if (isFormPost) {
+      const formData = await request.formData();
+      next = String(formData.get("next") ?? "/dashboard");
+      parsed = loginSchema.parse({
+        email: formData.get("email"),
+        password: formData.get("password"),
+      });
+    } else {
+      parsed = loginSchema.parse(await request.json());
+    }
+  } catch (error) {
+    return validationError(error);
+  }
+
+  const ip = getClientIp(request);
+  const limit = Number(process.env.LOGIN_RATE_LIMIT_PER_MINUTE ?? 5);
+  const limited = checkRateLimit(`login:${ip}:${parsed.email}`, limit, 60_000);
+  if (!limited.allowed) {
+    return fail(
+      "RATE_LIMITED",
+      "Too many sign-in attempts. Try again soon.",
+      429,
+      {
+        retryAfterSeconds: limited.retryAfterSeconds,
+      },
+    );
+  }
+
+  const user = await prisma.user.findUnique({ where: { email: parsed.email } });
+  const valid =
+    user && !user.disabledAt
+      ? await verifyPassword(parsed.password, user.passwordHash)
+      : false;
+
+  if (!user || !valid) {
+    await auditLog({
+      action: "auth.login_failed",
+      entityType: "user",
+      entityId: user?.id ?? null,
+      ip,
+      userAgent: request.headers.get("user-agent"),
+    });
+    if (isFormPost) {
+      return NextResponse.redirect(new URL("/login?error=1", request.url), {
+        status: 303,
+      });
+    }
+    return fail(
+      "UNAUTHENTICATED",
+      "Sign-in failed. Check your credentials and try again.",
+      401,
+    );
+  }
+
+  const now = new Date();
+  const session = await createAuthSession({
+    userId: user.id,
+    userAgent: request.headers.get("user-agent"),
+    ipHash: hashIp(ip),
+  });
+
+  const updated = await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      firstLoginAt: user.firstLoginAt ?? now,
+      lastLoginAt: now,
+    },
+  });
+
+  await auditLog({
+    actorUserId: user.id,
+    action: "auth.login_success",
+    entityType: "user",
+    entityId: user.id,
+    ip,
+    userAgent: request.headers.get("user-agent"),
+  });
+
+  const response = isFormPost
+    ? NextResponse.redirect(
+        new URL(next.startsWith("/") ? next : "/dashboard", request.url),
+        {
+          status: 303,
+        },
+      )
+    : (ok({
+        user: {
+          id: updated.id,
+          email: updated.email,
+          role: updated.role.toLowerCase(),
+          passwordRotationRequired: updated.passwordRotationRequired,
+        },
+      }) as NextResponse);
+  setAuthCookie(response, session.token, session.expiresAt);
+  return response;
+}
