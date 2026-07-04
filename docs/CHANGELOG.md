@@ -12,3 +12,5 @@
 - Added enforced password rotation UI/API for seed admins.
 - Added provider audio usage/cost tracking and admin usage visibility.
 - Added production Postgres/audio backup scripts, restore verification, and a systemd backup timer.
+- Added production raw audio retention automation and audio storage migration tooling for R2/S3 cutover.
+- Validated configured Soniox realtime credentials with a real speech sample and improved bridge shutdown/keepalive handling.

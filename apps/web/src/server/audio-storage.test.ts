@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
 import {
   deleteAudioObject,
+  putAudioObject,
   sha256Hex,
   uploadAudioChunk,
 } from "@/server/audio-storage";
@@ -68,5 +69,25 @@ describe("audio storage", () => {
       objectKey: uploaded.objectKey,
     });
     await expect(fs.stat(fullPath)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  test("writes an existing audio object key for migration", async () => {
+    storageRoot = await fs.mkdtemp(path.join(os.tmpdir(), "babbledeck-audio-"));
+    process.env.AUDIO_STORAGE_DRIVER = "local";
+    process.env.AUDIO_STORAGE_DIR = storageRoot;
+
+    const body = Buffer.from("migrated bytes");
+    const result = await putAudioObject({
+      objectKey:
+        "sessions/6ca13183-f9df-4bb0-94bc-2f5a88f3bc96/audio/chunk-000009.webm",
+      body,
+      mimeType: "audio/webm",
+      checksumSha256: sha256Hex(body),
+      metadata: { "session-id": "6ca13183-f9df-4bb0-94bc-2f5a88f3bc96" },
+    });
+
+    const saved = await fs.readFile(path.join(storageRoot, result.objectKey));
+    expect(result.driver).toBe("local");
+    expect(saved).toEqual(body);
   });
 });

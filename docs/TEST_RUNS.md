@@ -1,5 +1,45 @@
 # Test Runs
 
+## 2026-07-04 Soniox Realtime Staging Check
+
+- Environment: production secret env file loaded locally without printing secrets; Soniox realtime WebSocket endpoint `wss://stt-rt.soniox.com/transcribe-websocket`.
+- Commands:
+  - Checked `SONIOX_API_KEY` presence without echoing the value.
+  - Generated a short valid 16 kHz PCM WAV silence sample with `ffmpeg` and confirmed Soniox accepted audio frames without provider errors.
+  - Downloaded the public `brooklyn_bridge.flac` speech sample, streamed it to Soniox in 3840-byte frames with 120 ms pacing, and ended the stream with an empty WebSocket frame.
+  - Created a temporary production smoke session, streamed the public speech sample through `SonioxRealtimeBridge`, verified database transcript/translation writes, and cleaned up the temporary session/user.
+- Results:
+  - Soniox WebSocket opened successfully with the configured production API key.
+  - Real speech sample returned original transcript tokens and translation tokens.
+  - App adapter smoke wrote transcript events, translation events, transcript segment rows, and translation rows with no provider error.
+  - The stream returned a `finished` response with no provider error.
+  - This uncovered and fixed an app bridge issue where BabbleDeck closed the Soniox socket immediately after sending the end-of-audio frame instead of waiting for the provider's final responses.
+  - This also uncovered and fixed a transcript `sequenceNo` race by serializing Soniox message handling before database writes.
+
+## 2026-07-04 Production Soniox and Migration Deploy Smoke
+
+- Environment: `https://babbledeck.aialra.online`, systemd services `aialra-babbledeck.service` and `aialra-babbledeck-ws.service`, production Postgres database `babbledeck_prod`, local production audio root `/srv/aialra/storage/babbledeck`, configured `SONIOX_API_KEY`.
+- Commands:
+  - `pnpm format:check`
+  - `pnpm lint`
+  - `pnpm --filter @babbledeck/web typecheck`
+  - `pnpm --filter @babbledeck/web test`
+  - Script typecheck for `scripts/recorder-ws-server.ts`, `scripts/prune-audio-retention.ts`, `scripts/migrate-audio-storage.ts`, and `playwright.config.ts`.
+  - `pnpm build`
+  - `pnpm tsx scripts/migrate-audio-storage.ts --dry-run --limit=20`
+  - `systemctl restart aialra-babbledeck.service aialra-babbledeck-ws.service`
+  - `curl -fsSI https://babbledeck.aialra.online/`
+  - `pnpm e2e` with a temporary smoke admin and `E2E_RUN_BUDGET_TEST=true`.
+- Browser/device:
+  - Playwright Chromium desktop, `1440x960`.
+  - Playwright Chromium mobile, Pixel 7 profile.
+- Results:
+  - Production services restarted successfully and remained active with `NRestarts=0`.
+  - HTTPS returned `HTTP/2 200` with expected security headers.
+  - Production audio migration dry-run scanned 20 uploaded chunks, read 20 source objects, and found no missing files, size mismatches, or checksum mismatches.
+  - Production Playwright passed 4/4 tests, including WebSocket backup and low-budget Soniox-mode degraded-provider coverage.
+  - Smoke cleanup removed 4 temporary sessions and 13 local audio objects.
+
 ## 2026-07-04
 
 - Environment: local workspace with Docker Postgres on `localhost:55432`.

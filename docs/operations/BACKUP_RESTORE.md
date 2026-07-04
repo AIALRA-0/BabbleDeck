@@ -72,3 +72,34 @@ Manual cleanup run:
 ```bash
 pnpm tsx scripts/prune-audio-retention.ts --retention-days=30 --batch-size=500
 ```
+
+## Raw Audio Storage Migration
+
+Use `scripts/migrate-audio-storage.ts` when moving uploaded raw audio chunks
+from the local object directory to R2/S3-compatible storage. The script scans
+`UPLOADED` audio chunks, reads each existing object from
+`SOURCE_AUDIO_STORAGE_DIR`, validates the stored byte size and SHA-256 checksum
+when available, writes the object through the configured audio storage adapter,
+and records migration metadata on each chunk row.
+
+Dry run:
+
+```bash
+SOURCE_AUDIO_STORAGE_DIR=/srv/aialra/storage/babbledeck \
+  pnpm tsx scripts/migrate-audio-storage.ts --dry-run --limit=500
+```
+
+R2/S3 run:
+
+```bash
+SOURCE_AUDIO_STORAGE_DIR=/srv/aialra/storage/babbledeck \
+AUDIO_STORAGE_DRIVER=r2 \
+R2_BUCKET=babbledeck-prod \
+R2_ENDPOINT=https://ACCOUNT_ID.r2.cloudflarestorage.com \
+R2_ACCESS_KEY_ID=... \
+R2_SECRET_ACCESS_KEY=... \
+  pnpm tsx scripts/migrate-audio-storage.ts --limit=500
+```
+
+Repeat the non-dry run while `hasMore` is `true`. The script refuses to copy
+local audio onto the same local target directory.

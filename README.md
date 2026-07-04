@@ -63,6 +63,13 @@ The current production instance follows the server's existing systemd + Nginx pa
 
 Soniox realtime requires `SONIOX_API_KEY`. Without it, Soniox-mode sessions are marked degraded while local backup continues.
 
+To migrate existing raw audio from the local object root to R2/S3-compatible storage, configure the target `AUDIO_STORAGE_*` or `R2_*` variables, keep `SOURCE_AUDIO_STORAGE_DIR` pointed at the previous local root, run:
+
+```bash
+pnpm tsx scripts/migrate-audio-storage.ts --dry-run --limit=500
+pnpm tsx scripts/migrate-audio-storage.ts --limit=500
+```
+
 Do not commit secrets, `.env.local`, raw recordings, provider keys, or production logs.
 
 ## Document Map

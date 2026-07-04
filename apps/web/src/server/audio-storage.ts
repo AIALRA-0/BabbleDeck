@@ -25,6 +25,14 @@ type UploadAudioChunkResult = {
   bucket?: string;
 };
 
+type PutAudioObjectInput = {
+  objectKey: string;
+  body: Buffer;
+  mimeType: string;
+  checksumSha256?: string | null;
+  metadata?: Record<string, string | number | boolean | null | undefined>;
+};
+
 type DeleteAudioObjectResult = {
   objectKey: string;
   driver: StorageDriver;
@@ -194,37 +202,60 @@ function createS3Client(config: S3StorageConfig) {
 async function writeS3Object(
   config: S3StorageConfig,
   objectKey: string,
-  input: UploadAudioChunkInput,
+  input: Omit<PutAudioObjectInput, "objectKey">,
 ) {
   const client = createS3Client(config);
+  const metadata = {
+    ...(input.checksumSha256
+      ? { "checksum-sha256": input.checksumSha256 }
+      : {}),
+    ...Object.fromEntries(
+      Object.entries(input.metadata ?? {})
+        .filter((entry): entry is [string, string | number | boolean] => {
+          return entry[1] != null;
+        })
+        .map(([key, value]) => [key, String(value)]),
+    ),
+  };
   await client.send(
     new PutObjectCommand({
       Bucket: config.bucket,
       Key: objectKey,
       Body: input.body,
       ContentType: input.mimeType,
-      Metadata: {
-        "checksum-sha256": input.checksumSha256,
-        "session-id": input.sessionId,
-        "chunk-index": String(input.chunkIndex),
-      },
+      Metadata: metadata,
     }),
   );
+}
+
+export async function putAudioObject(
+  input: PutAudioObjectInput,
+): Promise<UploadAudioChunkResult> {
+  const config = resolveAudioStorageConfig();
+
+  if (config.driver === "local") {
+    await writeLocalObject(config, input.objectKey, input.body);
+    return { objectKey: input.objectKey, driver: "local" };
+  }
+
+  await writeS3Object(config, input.objectKey, input);
+  return { objectKey: input.objectKey, driver: "s3", bucket: config.bucket };
 }
 
 export async function uploadAudioChunk(
   input: UploadAudioChunkInput,
 ): Promise<UploadAudioChunkResult> {
-  const config = resolveAudioStorageConfig();
   const objectKey = objectKeyFor(input);
-
-  if (config.driver === "local") {
-    await writeLocalObject(config, objectKey, input.body);
-    return { objectKey, driver: "local" };
-  }
-
-  await writeS3Object(config, objectKey, input);
-  return { objectKey, driver: "s3", bucket: config.bucket };
+  return putAudioObject({
+    objectKey,
+    body: input.body,
+    mimeType: input.mimeType,
+    checksumSha256: input.checksumSha256,
+    metadata: {
+      "session-id": input.sessionId,
+      "chunk-index": input.chunkIndex,
+    },
+  });
 }
 
 export async function deleteAudioObject(

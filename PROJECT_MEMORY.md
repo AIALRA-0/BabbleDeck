@@ -28,16 +28,18 @@
 - Production deployment is live at `https://babbledeck.aialra.online` through systemd service `aialra-babbledeck.service`, Nginx TLS, and production database `babbledeck_prod`.
 - Production recorder WebSocket transport is live through `aialra-babbledeck-ws.service` on `127.0.0.1:11971` and Nginx `/ws/recorder` upgrade proxying.
 - Production audio object storage currently uses local root `/srv/aialra/storage/babbledeck` with S3/R2-compatible env hooks available for later off-host storage.
-- Production `SONIOX_API_KEY` is not configured yet. Soniox-mode sessions enter `provider_degraded` while local backup continues until the key is added and validated.
+- Raw audio storage migration tooling exists in `scripts/migrate-audio-storage.ts`; it dry-runs local source readability, validates byte size/checksum, and can copy existing chunks to configured R2/S3-compatible storage once credentials are provided.
+- Production `SONIOX_API_KEY` is configured. Direct Soniox realtime staging and BabbleDeck adapter write-path checks with a public speech sample returned transcript and translation events without provider errors.
 - Production backup/restore automation is installed through `aialra-babbledeck-backup.timer`; verified backups restore into a temporary database and temporary audio directory.
 - Production raw audio retention automation is installed through `aialra-babbledeck-audio-retention.timer`; it deletes uploaded raw audio objects for ended sessions after the configured retention window and marks chunks `DELETED`.
 - Production smoke passed with Playwright desktop/mobile using a temporary smoke admin that was cleaned up afterward, including verification that binary audio chunk files were written before cleanup.
 - Budget-cap enforcement and degraded-provider UI are deployed to production; smoke coverage verifies that low-cap Soniox-mode sessions enter `provider_degraded` while audio backup continues.
+- After Soniox key configuration, production web and recorder WS services were restarted successfully and Playwright desktop/mobile E2E passed with WebSocket backup plus budget-degraded Soniox coverage.
 
 ## Next Recommended Tasks
 
-1. Configure production `SONIOX_API_KEY` and run real Soniox staging validation.
-2. Configure production R2/S3 credentials and migrate raw audio storage off the local object directory.
+1. Configure production R2/S3 credentials, run the raw audio migration dry-run, and migrate storage off the local object directory.
+2. Run live microphone Soniox validation through the production recorder UI with real speech.
 3. Harden Soniox token-to-segment alignment against long multilingual conversations after real-provider traces are available.
 4. Add operator-facing retention settings and per-session legal hold controls.
 5. Add richer recorder reconnect/replay controls for pending local chunks.

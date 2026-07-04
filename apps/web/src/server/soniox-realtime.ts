@@ -4,6 +4,8 @@ import { markProviderDegraded } from "./provider-health";
 
 const DEFAULT_SONIOX_ENDPOINT = "wss://stt-rt.soniox.com/transcribe-websocket";
 const DEFAULT_SONIOX_MODEL = "stt-rt-v5";
+const SONIOX_KEEPALIVE_INTERVAL_MS = 10_000;
+const SONIOX_CLOSE_GRACE_MS = 15_000;
 
 type SonioxToken = {
   text?: string;
@@ -190,7 +192,11 @@ export class SonioxRealtimeBridge {
   private socket: WebSocket | null = null;
   private connectPromise: Promise<boolean> | null = null;
   private readonly state = createSonioxMappingState();
+  private keepAliveTimer: ReturnType<typeof setInterval> | null = null;
+  private closeTimer: ReturnType<typeof setTimeout> | null = null;
+  private messageQueue: Promise<void> = Promise.resolve();
   private degraded = false;
+  private ending = false;
 
   constructor(
     private readonly input: {
@@ -227,6 +233,7 @@ export class SonioxRealtimeBridge {
 
       socket.on("open", () => {
         clearTimeout(timeout);
+        this.startKeepAlive();
         socket.send(
           JSON.stringify(
             buildSonioxConfig({
@@ -241,15 +248,36 @@ export class SonioxRealtimeBridge {
       });
 
       socket.on("message", (raw: RawData) => {
-        void this.handleMessage(raw.toString());
+        this.messageQueue = this.messageQueue
+          .then(() => this.handleMessage(raw.toString()))
+          .catch(async (error) => {
+            await this.degrade(
+              "SONIOX_MESSAGE_ERROR",
+              "Soniox realtime provider message handling failed. Local audio backup continues.",
+              {
+                message:
+                  error instanceof Error
+                    ? error.message
+                    : "Unknown message handling error.",
+              },
+            ).catch(() => undefined);
+          });
       });
 
       socket.on("error", () => {
         clearTimeout(timeout);
+        this.clearTimers();
         void this.degrade(
           "SONIOX_SOCKET_ERROR",
           "Soniox realtime provider connection failed. Local audio backup continues.",
         );
+        resolve(false);
+      });
+
+      socket.on("close", () => {
+        clearTimeout(timeout);
+        this.clearTimers();
+        this.socket = null;
         resolve(false);
       });
     }).finally(() => {
@@ -270,10 +298,18 @@ export class SonioxRealtimeBridge {
   }
 
   close() {
-    if (this.socket?.readyState === WebSocket.OPEN) {
-      this.socket.send(Buffer.alloc(0));
-      this.socket.close();
+    if (this.ending) return;
+    this.ending = true;
+    this.clearKeepAlive();
+
+    if (this.socket?.readyState === WebSocket.CONNECTING) {
+      this.socket.once("open", () => {
+        this.sendEndOfAudio();
+      });
+      return;
     }
+
+    this.sendEndOfAudio();
   }
 
   private async handleMessage(raw: string) {
@@ -285,12 +321,28 @@ export class SonioxRealtimeBridge {
     }
 
     if (response.error_type || response.error_message) {
+      const socket = this.socket;
+      this.clearTimers();
+      this.socket = null;
+      if (socket?.readyState === WebSocket.OPEN) {
+        socket.close();
+      }
       await this.degrade(
         response.error_type ?? "SONIOX_ERROR",
         response.error_message ??
           "Soniox realtime provider returned an error. Local audio backup continues.",
         { requestId: response.request_id, errorCode: response.error_code },
       );
+      return;
+    }
+
+    if (response.finished) {
+      const socket = this.socket;
+      this.clearTimers();
+      this.socket = null;
+      if (socket?.readyState === WebSocket.OPEN) {
+        socket.close();
+      }
       return;
     }
 
@@ -305,6 +357,52 @@ export class SonioxRealtimeBridge {
       actorUserId: this.input.actorUserId,
       events,
     });
+  }
+
+  private sendEndOfAudio() {
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+      this.clearTimers();
+      return;
+    }
+
+    this.socket.send("");
+    this.closeTimer = setTimeout(() => {
+      if (
+        this.socket?.readyState === WebSocket.OPEN ||
+        this.socket?.readyState === WebSocket.CLOSING
+      ) {
+        this.socket.terminate();
+      }
+      this.socket = null;
+      this.clearTimers();
+    }, SONIOX_CLOSE_GRACE_MS);
+  }
+
+  private startKeepAlive() {
+    this.clearKeepAlive();
+    this.keepAliveTimer = setInterval(() => {
+      if (
+        this.ending ||
+        !this.socket ||
+        this.socket.readyState !== WebSocket.OPEN
+      ) {
+        return;
+      }
+      this.socket.send(JSON.stringify({ type: "keepalive" }));
+    }, SONIOX_KEEPALIVE_INTERVAL_MS);
+  }
+
+  private clearKeepAlive() {
+    if (!this.keepAliveTimer) return;
+    clearInterval(this.keepAliveTimer);
+    this.keepAliveTimer = null;
+  }
+
+  private clearTimers() {
+    this.clearKeepAlive();
+    if (!this.closeTimer) return;
+    clearTimeout(this.closeTimer);
+    this.closeTimer = null;
   }
 
   private async degrade(
