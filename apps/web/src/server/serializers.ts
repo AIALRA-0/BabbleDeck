@@ -1,6 +1,7 @@
 import type {
   AudioChunk,
   LiveSession,
+  ProviderUsage,
   ProviderName,
   SessionStatus,
   TranscriptEvent,
@@ -39,6 +40,7 @@ export function apiEventType(type: TranscriptEvent["eventType"]) {
 export function serializeSession(
   session: LiveSession & {
     audioChunks?: AudioChunk[];
+    providerUsage?: ProviderUsage[];
     transcriptSegments?: (TranscriptSegment & {
       translations: Translation[];
     })[];
@@ -53,6 +55,11 @@ export function serializeSession(
       : session.startedAt
         ? Date.now() - session.startedAt.getTime()
         : 0;
+  const providerUsage = session.providerUsage ?? [];
+  const providerAudioMs = providerUsage.reduce(
+    (sum, usage) => sum + (usage.audioMs ?? 0),
+    0,
+  );
 
   return {
     id: session.id,
@@ -76,6 +83,10 @@ export function serializeSession(
       uploadedChunks:
         session.audioChunks?.filter((chunk) => chunk.status === "UPLOADED")
           .length ?? 0,
+    },
+    usage: {
+      audioMs: providerAudioMs,
+      eventCount: providerUsage.length,
     },
     transcriptSegmentCount: session.transcriptSegments?.length ?? 0,
   };

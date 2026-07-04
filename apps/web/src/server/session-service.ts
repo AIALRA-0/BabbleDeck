@@ -78,6 +78,7 @@ export async function getSessionForAdmin(id: string, ownerUserId: string) {
     where: { id, ownerUserId, archivedAt: null },
     include: {
       audioChunks: true,
+      providerUsage: true,
       transcriptSegments: {
         include: { translations: true },
         orderBy: { segmentIndex: "asc" },
@@ -90,6 +91,7 @@ export async function getSessionByShareToken(shareToken: string) {
   return prisma.liveSession.findUnique({
     where: { shareTokenHash: hashToken(shareToken) },
     include: {
+      providerUsage: true,
       transcriptSegments: {
         include: { translations: true },
         orderBy: { segmentIndex: "asc" },

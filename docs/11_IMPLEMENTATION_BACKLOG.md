@@ -179,11 +179,11 @@ Acceptance:
 
 - Log audio seconds.
 - Estimate cost.
-- Budget warnings.
+- Budget warnings. (pending)
 
 Acceptance:
 
-- Session usage visible in admin.
+- Session usage visible in admin. (implemented)
 
 ## Epic 6: History and exports
 

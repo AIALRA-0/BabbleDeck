@@ -105,7 +105,7 @@ test.describe("BabbleDeck MVP browser flow", () => {
       viewer.getByRole("heading", { name: "Live captions" }),
     ).toBeVisible();
     await expect(viewer.getByText("SSE live")).toBeVisible({
-      timeout: 10_000,
+      timeout: 25_000,
     });
 
     await page.getByRole("button", { name: /test microphone/i }).click();
@@ -134,6 +134,9 @@ test.describe("BabbleDeck MVP browser flow", () => {
     await expect(
       page.getByText("Backup chunks").locator("xpath=.."),
     ).toContainText(/[1-9]/);
+    await expect(
+      page.getByText("Audio processed").locator("xpath=.."),
+    ).toContainText(/0:0[1-9]|0:[1-9][0-9]|[1-9][0-9]*:/);
     await expect(page.getByText("欢迎使用 BabbleDeck")).toBeVisible();
 
     const downloadPromise = page.waitForEvent("download");

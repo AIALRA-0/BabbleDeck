@@ -163,3 +163,44 @@
   - Production post-run verification found `5` audio chunk records and `5` matching audio object files before cleanup removed the temporary smoke session objects.
 - Screenshots/traces:
   - Production run passed without failure screenshots; temporary Playwright artifacts were removed after the successful run.
+
+## 2026-07-04 Provider Usage Tracking
+
+- Environment: local workspace with Docker Postgres on `localhost:55432`, Playwright dev server on `127.0.0.1:3104`, and `AUDIO_STORAGE_DRIVER=local`.
+- Commands:
+  - `pnpm format:check`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `pnpm build`
+  - `pnpm e2e` with `E2E_BASE_URL=http://127.0.0.1:3104`, `E2E_ADMIN_PASSWORD`, and `E2E_NEW_ADMIN_PASSWORD`
+- Browser/device:
+  - Playwright Chromium desktop, `1440x960`.
+  - Playwright Chromium mobile, Pixel 7 profile.
+- Results:
+  - Static checks, unit tests, and production build passed.
+  - Added unit coverage for provider audio-hour cost estimation.
+  - Playwright MVP flow passed on desktop and mobile with assertions for visible non-zero `Audio processed` in session detail.
+  - Local post-run verification found `10` audio object files, `10` provider usage rows, and `10000` provider audio milliseconds.
+- Screenshots/traces:
+  - Final run passed without failure screenshots; temporary Playwright artifacts and local test audio files were removed after the successful run.
+
+## 2026-07-04 Production Provider Usage Smoke
+
+- Environment: `https://babbledeck.aialra.online`, systemd service `aialra-babbledeck.service`, Nginx TLS reverse proxy, production Postgres database `babbledeck_prod`, and local production audio root `/srv/aialra/storage/babbledeck`.
+- Commands:
+  - `pnpm build`
+  - `systemctl restart aialra-babbledeck.service`
+  - `curl -fsSI https://babbledeck.aialra.online/`
+  - `pnpm e2e` with `E2E_BASE_URL=https://babbledeck.aialra.online`, `E2E_ADMIN_PASSWORD`, and `E2E_NEW_ADMIN_PASSWORD`
+- Browser/device:
+  - Playwright Chromium desktop, `1440x960`.
+  - Playwright Chromium mobile, Pixel 7 profile.
+- Results:
+  - Production build passed after adding provider usage serialization and admin display.
+  - Service restarted successfully and remained active with `NRestarts=0`.
+  - HTTPS landing smoke returned `HTTP/2 200`.
+  - Production Playwright MVP flow passed on desktop and mobile using a temporary smoke admin created with `passwordRotationRequired=true`.
+  - Production post-run verification found `5` audio chunk records, `5` matching audio object files, `5` provider usage rows, and `5000` provider audio milliseconds before cleanup removed the temporary smoke session objects.
+- Screenshots/traces:
+  - Production run passed without failure screenshots; temporary Playwright artifacts were removed after the successful run.

@@ -20,6 +20,7 @@ export async function GET() {
     where: { ownerUserId: user.id, archivedAt: null },
     include: {
       audioChunks: true,
+      providerUsage: true,
       transcriptSegments: { include: { translations: true } },
     },
     orderBy: { createdAt: "desc" },

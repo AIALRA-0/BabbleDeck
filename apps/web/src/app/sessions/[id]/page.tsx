@@ -4,7 +4,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { SessionHistoryClient } from "@/components/SessionHistoryClient";
 import { SessionStatusBadge } from "@/components/SessionStatusBadge";
 import { Button } from "@/components/ui/button";
-import { formatDateTime } from "@/lib/utils";
+import { formatDateTime, formatDuration } from "@/lib/utils";
 import { requireUser } from "@/server/auth";
 import { getSessionForAdmin } from "@/server/session-service";
 import { serializeSegment, serializeSession } from "@/server/serializers";
@@ -46,11 +46,12 @@ export default async function SessionDetailPage({
             </Link>
           </Button>
         </div>
-        <div className="mt-6 grid gap-3 sm:grid-cols-4">
+        <div className="mt-6 grid gap-3 sm:grid-cols-5">
           {[
             ["Target", serialized.targetLanguage],
             ["Provider", serialized.providerName],
             ["Backup chunks", String(serialized.backup.uploadedChunks)],
+            ["Audio processed", formatDuration(serialized.usage.audioMs)],
             ["Cost", `$${serialized.estimatedCostUsd.toFixed(4)}`],
           ].map(([label, value]) => (
             <div

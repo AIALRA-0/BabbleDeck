@@ -5,6 +5,7 @@ import {
   uploadAudioChunk,
 } from "@/server/audio-storage";
 import { prisma } from "@/server/db";
+import { recordProviderAudioUsage } from "@/server/provider-usage";
 import { audioChunkSchema } from "@/server/schemas";
 
 export const runtime = "nodejs";
@@ -77,41 +78,69 @@ export async function POST(
     return fail("INTERNAL_ERROR", "Audio chunk storage failed.", 500);
   }
 
-  const chunk = await prisma.audioChunk.upsert({
+  const existingChunk = await prisma.audioChunk.findUnique({
     where: {
       sessionId_chunkIndex: {
         sessionId: id,
         chunkIndex: parsed.chunkIndex,
       },
     },
-    update: {
-      objectKey: storage.objectKey,
-      mimeType: parsed.mimeType,
-      byteSize: BigInt(file.size),
-      durationMs: parsed.durationMs,
-      checksumSha256,
-      status: "UPLOADED",
-      uploadedAt: new Date(),
-      metadata: {
-        storageDriver: storage.driver,
-        storageBucket: storage.bucket ?? null,
+  });
+  const chunk = await prisma.$transaction(async (tx) => {
+    const savedChunk = await tx.audioChunk.upsert({
+      where: {
+        sessionId_chunkIndex: {
+          sessionId: id,
+          chunkIndex: parsed.chunkIndex,
+        },
       },
-    },
-    create: {
-      sessionId: id,
-      chunkIndex: parsed.chunkIndex,
-      objectKey: storage.objectKey,
-      mimeType: parsed.mimeType,
-      byteSize: BigInt(file.size),
-      durationMs: parsed.durationMs,
-      checksumSha256,
-      startedAt: parsed.startedAt ? new Date(parsed.startedAt) : undefined,
-      status: "UPLOADED",
-      metadata: {
-        storageDriver: storage.driver,
-        storageBucket: storage.bucket ?? null,
+      update: {
+        objectKey: storage.objectKey,
+        mimeType: parsed.mimeType,
+        byteSize: BigInt(file.size),
+        durationMs: parsed.durationMs,
+        checksumSha256,
+        status: "UPLOADED",
+        uploadedAt: new Date(),
+        metadata: {
+          storageDriver: storage.driver,
+          storageBucket: storage.bucket ?? null,
+        },
       },
-    },
+      create: {
+        sessionId: id,
+        chunkIndex: parsed.chunkIndex,
+        objectKey: storage.objectKey,
+        mimeType: parsed.mimeType,
+        byteSize: BigInt(file.size),
+        durationMs: parsed.durationMs,
+        checksumSha256,
+        startedAt: parsed.startedAt ? new Date(parsed.startedAt) : undefined,
+        status: "UPLOADED",
+        metadata: {
+          storageDriver: storage.driver,
+          storageBucket: storage.bucket ?? null,
+        },
+      },
+    });
+
+    if (!existingChunk && parsed.durationMs) {
+      await recordProviderAudioUsage(tx, {
+        sessionId: id,
+        providerName: session.providerName,
+        qualityMode: session.qualityMode,
+        audioMs: parsed.durationMs,
+        targetLanguage: session.targetLanguage,
+        payload: {
+          chunkId: savedChunk.id,
+          chunkIndex: parsed.chunkIndex,
+          byteSize: file.size,
+          mimeType: parsed.mimeType,
+        },
+      });
+    }
+
+    return savedChunk;
   });
 
   return ok({

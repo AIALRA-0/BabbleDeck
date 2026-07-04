@@ -3,7 +3,7 @@ import { Plus, Radio } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { SessionStatusBadge } from "@/components/SessionStatusBadge";
 import { Button } from "@/components/ui/button";
-import { formatDateTime } from "@/lib/utils";
+import { formatDateTime, formatDuration } from "@/lib/utils";
 import { requireUser } from "@/server/auth";
 import { prisma } from "@/server/db";
 import { serializeSession } from "@/server/serializers";
@@ -14,6 +14,7 @@ export default async function DashboardPage() {
     where: { ownerUserId: user.id, archivedAt: null },
     include: {
       audioChunks: true,
+      providerUsage: true,
       transcriptSegments: { include: { translations: true } },
     },
     orderBy: { createdAt: "desc" },
@@ -76,7 +77,8 @@ export default async function DashboardPage() {
                   <p className="font-semibold">{session.title}</p>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {session.transcriptSegmentCount} segments ·{" "}
-                    {session.backup.uploadedChunks} chunks
+                    {session.backup.uploadedChunks} chunks ·{" "}
+                    {formatDuration(session.usage.audioMs)} audio
                   </p>
                 </div>
                 <SessionStatusBadge status={session.status} />

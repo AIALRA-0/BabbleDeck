@@ -212,7 +212,19 @@ Response:
 
 ### GET /api/sessions/:id
 
-Returns session detail, transcript summary, cost, backup state.
+Returns session detail, transcript summary, cost, backup state, and provider usage.
+
+Usage shape:
+
+```json
+{
+  "usage": {
+    "audioMs": 10000,
+    "eventCount": 10
+  },
+  "estimatedCostUsd": 0
+}
+```
 
 ### PATCH /api/sessions/:id
 

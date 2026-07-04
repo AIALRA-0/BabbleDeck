@@ -10,3 +10,4 @@
 - Added binary audio chunk upload with local and S3/R2-compatible object storage adapters.
 - Deployed production local audio storage under `/srv/aialra/storage/babbledeck` and verified it through Playwright smoke tests.
 - Added enforced password rotation UI/API for seed admins.
+- Added provider audio usage/cost tracking and admin usage visibility.
