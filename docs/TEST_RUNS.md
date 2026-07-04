@@ -1,5 +1,25 @@
 # Test Runs
 
+## 2026-07-05 Audio Storage Cutover Audit Tooling
+
+- Environment: production secret env loaded without printing secrets, current production storage target still local through `AUDIO_STORAGE_DRIVER=local`.
+- Commands:
+  - Checked R2/S3/Cloudflare credential presence as booleans only.
+  - `pnpm prettier --write apps/web/src/server/audio-storage.ts apps/web/src/server/audio-storage.test.ts scripts/audit-audio-storage.ts scripts/check-production-readiness.ts`
+  - `pnpm format:check`
+  - `pnpm typecheck`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/recorder-ws-server.ts scripts/prune-audio-retention.ts scripts/migrate-audio-storage.ts scripts/audit-audio-storage.ts scripts/check-production-readiness.ts scripts/sync-seed-admin.ts playwright.config.ts`
+  - `pnpm --filter @babbledeck/web test -- --run src/server/audio-storage.test.ts`
+  - `pnpm tsx scripts/audit-audio-storage.ts --limit=500`
+  - `pnpm tsx scripts/audit-audio-storage.ts --limit=500 --require-current-target`
+  - `pnpm tsx scripts/check-production-readiness.ts --strict`
+- Results:
+  - Server secret env currently has no R2/S3-compatible bucket, endpoint, access key, or secret key variables configured.
+  - Format, app typecheck, script typecheck, and targeted audio storage tests passed.
+  - Audio storage audit scanned 21 uploaded chunks; all 21 objects were present with no missing objects and no size mismatches.
+  - Current-target audit also passed for the current local target.
+  - Strict production readiness still fails only because `AUDIO_STORAGE_DRIVER=local`; when R2/S3 env is configured, strict readiness now also checks that all uploaded chunks are marked on the current off-host target.
+
 ## 2026-07-04 Recorder Token No-Cookie Access
 
 - Environment: local workspace with Docker Postgres on `localhost:55432`, Playwright dev server on `127.0.0.1:3106`, production deployment at `https://babbledeck.aialra.online`, production secret env loaded without printing secrets.

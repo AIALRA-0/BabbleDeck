@@ -40,10 +40,11 @@
 - Production seed admin credentials were reset to match `SEED_ADMIN_PASSWORD` and verified through the HTTPS login API without printing the password.
 - Recorder pages can now restore the one-time viewer link from same-browser local token cache after reopening from history; the fix is deployed to production and keeps plaintext share tokens out of server-side storage.
 - Generated recorder tokens now authorize recorder-page rendering plus start/stop/events/audio upload over HTTP and recorder WebSocket transport, so recorder links work from a no-cookie browser while remaining scoped to one session.
+- Raw audio storage cutover now has an audit script that verifies object presence and byte sizes against the configured storage target; production local storage audit currently finds 21 uploaded chunks present with no size mismatches.
 
 ## Next Recommended Tasks
 
-1. Configure production R2/S3 credentials, run the raw audio migration dry-run, and migrate storage off the local object directory.
+1. Configure production R2/S3 credentials, run the raw audio audit plus migration dry-run, migrate storage off the local object directory, then pass strict readiness.
 2. Run one manual live microphone check from a physical browser/device for final hardware confidence.
 3. Harden Soniox token-to-segment alignment against long multilingual conversations after real-provider traces are available.
 4. Add operator-facing retention settings and per-session legal hold controls.

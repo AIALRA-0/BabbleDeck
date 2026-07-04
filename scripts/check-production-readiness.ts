@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../apps/web/src/server/db";
 import { verifyPassword } from "../apps/web/src/server/password";
 
@@ -181,6 +182,46 @@ function offHostAudioStorageStatus() {
   };
 }
 
+async function audioChunksOnCurrentTarget() {
+  const driverSetting = process.env.AUDIO_STORAGE_DRIVER?.toLowerCase();
+  const bucket =
+    process.env.AUDIO_STORAGE_BUCKET ??
+    process.env.R2_BUCKET ??
+    process.env.S3_BUCKET ??
+    "";
+  const targetDriver =
+    driverSetting === "r2" || driverSetting === "s3" || bucket ? "s3" : "local";
+
+  if (targetDriver !== "s3") {
+    return {
+      ok: false,
+      message: "Current audio storage target is local.",
+    };
+  }
+
+  const rows = await prisma.$queryRaw<
+    { total: bigint; matching: bigint }[]
+  >(Prisma.sql`
+    select
+      count(*)::bigint as total,
+      count(*) filter (
+        where metadata->>'storageDriver' = ${targetDriver}
+          and coalesce(metadata->>'storageBucket', '') = ${bucket}
+      )::bigint as matching
+    from audio_chunks
+    where status = 'UPLOADED'
+  `);
+  const total = Number(rows[0]?.total ?? 0n);
+  const matching = Number(rows[0]?.matching ?? 0n);
+  return {
+    ok: total === matching,
+    message:
+      total === matching
+        ? `All ${total} uploaded audio chunks are marked on the current off-host target.`
+        : `${total - matching} of ${total} uploaded audio chunks are not marked on the current off-host target.`,
+  };
+}
+
 async function latestBackupOk() {
   const backupRoot =
     process.env.BABBLEDECK_BACKUP_ROOT ?? "/srv/aialra/backups/babbledeck";
@@ -263,6 +304,16 @@ async function main() {
     severity: "external",
     message: remoteStorage.message,
   });
+
+  if (remoteStorage.ok) {
+    const migrated = await audioChunksOnCurrentTarget();
+    check(checks, {
+      name: "off_host_audio_migration",
+      ok: migrated.ok,
+      severity: "external",
+      message: migrated.message,
+    });
+  }
 
   const requiredOk = checks.every(
     (item) => item.severity !== "required" || item.ok,

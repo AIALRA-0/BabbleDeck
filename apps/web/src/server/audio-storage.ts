@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import {
   DeleteObjectCommand,
+  HeadObjectCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -37,6 +38,13 @@ type DeleteAudioObjectResult = {
   objectKey: string;
   driver: StorageDriver;
   bucket?: string;
+};
+
+type HeadAudioObjectResult = {
+  objectKey: string;
+  driver: StorageDriver;
+  bucket?: string;
+  byteSize: number | null;
 };
 
 type LocalStorageConfig = {
@@ -278,4 +286,36 @@ export async function deleteAudioObject(
     }),
   );
   return { objectKey, driver: "s3", bucket: config.bucket };
+}
+
+export async function headAudioObject(
+  objectKey: string,
+): Promise<HeadAudioObjectResult> {
+  const config = resolveAudioStorageConfig();
+
+  if (config.driver === "local") {
+    const stat = await fs.stat(
+      resolveLocalObjectPath(config.rootDir, objectKey),
+    );
+    return {
+      objectKey,
+      driver: "local",
+      byteSize: stat.size,
+    };
+  }
+
+  const client = createS3Client(config);
+  const response = await client.send(
+    new HeadObjectCommand({
+      Bucket: config.bucket,
+      Key: objectKey,
+    }),
+  );
+  return {
+    objectKey,
+    driver: "s3",
+    bucket: config.bucket,
+    byteSize:
+      response.ContentLength == null ? null : Number(response.ContentLength),
+  };
 }

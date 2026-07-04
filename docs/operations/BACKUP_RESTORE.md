@@ -110,6 +110,13 @@ SOURCE_AUDIO_STORAGE_DIR=/srv/aialra/storage/babbledeck \
   pnpm tsx scripts/migrate-audio-storage.ts --dry-run --limit=500
 ```
 
+Audit the currently configured storage target before and after a migration:
+
+```bash
+pnpm tsx scripts/audit-audio-storage.ts --limit=500
+pnpm tsx scripts/audit-audio-storage.ts --limit=500 --require-current-target
+```
+
 R2/S3 run:
 
 ```bash
@@ -123,4 +130,7 @@ R2_SECRET_ACCESS_KEY=... \
 ```
 
 Repeat the non-dry run while `hasMore` is `true`. The script refuses to copy
-local audio onto the same local target directory.
+local audio onto the same local target directory. After switching
+`AUDIO_STORAGE_DRIVER` to `r2` or `s3`, strict production readiness also checks
+that all `UPLOADED` chunk rows are marked as migrated to the current off-host
+target.
