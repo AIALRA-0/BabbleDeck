@@ -1,5 +1,29 @@
 # Test Runs
 
+## 2026-07-04 Recorder Token No-Cookie Access
+
+- Environment: local workspace with Docker Postgres on `localhost:55432`, Playwright dev server on `127.0.0.1:3106`, production deployment at `https://babbledeck.aialra.online`, production secret env loaded without printing secrets.
+- Commands:
+  - `pnpm format:check`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/recorder-ws-server.ts scripts/prune-audio-retention.ts scripts/migrate-audio-storage.ts scripts/check-production-readiness.ts scripts/sync-seed-admin.ts playwright.config.ts`
+  - `E2E_BASE_URL=http://127.0.0.1:3106 pnpm e2e e2e/mvp.spec.ts --project=chromium-desktop --grep "admin creates a live session"`
+  - `pnpm build`
+  - `systemctl restart aialra-babbledeck.service aialra-babbledeck-ws.service`
+  - `curl -fsSI https://babbledeck.aialra.online/`
+  - `pnpm tsx scripts/check-production-readiness.ts`
+  - `E2E_BASE_URL=https://babbledeck.aialra.online pnpm e2e e2e/mvp.spec.ts --project=chromium-desktop --grep "admin creates a live session"`
+- Results:
+  - Format, lint, app typecheck, script typecheck, full unit tests, and production build passed.
+  - Unit tests passed with `7` files and `18` tests, including recorder token header/query parsing coverage.
+  - Local and production Playwright desktop MVP passed while opening the generated recorder URL in a fresh no-cookie browser context, hiding admin-only History controls there, recording through recorder-token HTTP and WebSocket auth, streaming captions to the viewer, stopping, then exporting from the admin history page.
+  - Production services restarted successfully and remained active with `NRestarts=0`.
+  - Production HTTPS returned `HTTP/2 200`.
+  - Production readiness returned `requiredOk=true`; strict completion remains blocked only by local audio storage until R2/S3-compatible credentials are configured.
+  - Production smoke cleanup removed 1 temporary Playwright session and 2 local audio objects.
+
 ## 2026-07-04 Recorder Viewer Link Restore
 
 - Environment: local workspace with Docker Postgres on `localhost:55432`, Playwright dev server on `127.0.0.1:3105`, and production secret env loaded without printing secrets for admin password sync.

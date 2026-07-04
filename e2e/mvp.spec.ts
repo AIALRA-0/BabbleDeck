@@ -111,6 +111,9 @@ test.describe("BabbleDeck MVP browser flow", () => {
     await createButton.click();
 
     await expect(page.getByRole("heading", { name: title })).toBeVisible();
+    const recorderUrl = page.url();
+    expect(recorderUrl).toContain("recorder=");
+    const sessionId = new URL(recorderUrl).pathname.split("/")[2];
     await expect(page.getByText("Viewer link", { exact: true })).toBeVisible();
     const viewerUrl = await page
       .locator("aside p")
@@ -128,6 +131,20 @@ test.describe("BabbleDeck MVP browser flow", () => {
       .textContent();
     expect(restoredViewerUrl).toBe(viewerUrl);
 
+    const recorderContext = await browser.newContext({
+      viewport: { width: 900, height: 900 },
+      permissions: ["microphone"],
+    });
+    const recorder = await recorderContext.newPage();
+    await recorder.goto(recorderUrl);
+    await expect(recorder.getByRole("heading", { name: title })).toBeVisible();
+    await expect(recorder.getByRole("link", { name: /history/i })).toHaveCount(
+      0,
+    );
+    await expect(
+      recorder.locator("aside p").filter({ hasText: "/s/" }),
+    ).toHaveText(viewerUrl ?? "");
+
     const viewerContext = await browser.newContext({
       viewport: { width: 390, height: 844 },
     });
@@ -140,24 +157,29 @@ test.describe("BabbleDeck MVP browser flow", () => {
       timeout: 25_000,
     });
 
-    await page.getByRole("button", { name: /test microphone/i }).click();
-    await expect(page.getByText("granted")).toBeVisible({ timeout: 10_000 });
+    await recorder.getByRole("button", { name: /test microphone/i }).click();
+    await expect(recorder.getByText("granted")).toBeVisible({
+      timeout: 10_000,
+    });
 
-    await page.getByRole("button", { name: /start recording/i }).click();
-    await expect(page.getByText("Mock realtime")).toBeVisible();
+    await recorder.getByRole("button", { name: /start recording/i }).click();
+    await expect(recorder.getByText("Mock realtime")).toBeVisible();
     await expect(
-      page.getByText(/[1-9][0-9]*\/[1-9][0-9]* uploaded/),
+      recorder.getByText(/[1-9][0-9]*\/[1-9][0-9]* uploaded/),
     ).toBeVisible({
       timeout: 12_000,
     });
-    await expect(page.getByText("WebSocket backup")).toBeVisible();
+    await expect(recorder.getByText("WebSocket backup")).toBeVisible();
     await expect(viewer.getByText("欢迎使用 BabbleDeck")).toBeVisible({
       timeout: 12_000,
     });
     await expect(viewer.getByText(/final segments/i)).toBeVisible();
 
-    await page.getByRole("button", { name: /stop recording/i }).click();
-    await page.waitForURL(/\/sessions\/[0-9a-f-]+$/, { timeout: 20_000 });
+    await recorder.getByRole("button", { name: /stop recording/i }).click();
+    await expect(
+      recorder.getByRole("button", { name: /start recording/i }),
+    ).toBeVisible({ timeout: 20_000 });
+    await page.goto(`/sessions/${sessionId}`);
     await expect(page.getByRole("heading", { name: title })).toBeVisible({
       timeout: 20_000,
     });
@@ -177,6 +199,7 @@ test.describe("BabbleDeck MVP browser flow", () => {
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toMatch(/\.markdown$/);
 
+    await recorderContext.close();
     await viewerContext.close();
   });
 

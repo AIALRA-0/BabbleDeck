@@ -17,3 +17,4 @@
 - Switched production web service to the Next standalone server with copied static assets.
 - Added opt-in real Soniox recorder UI smoke coverage with Chromium fake microphone audio, and limited mock caption injection to the mock provider.
 - Restored one-time viewer links on reopened recorder pages through same-browser token caching, without storing plaintext share tokens server-side.
+- Scoped recorder tokens now authorize no-cookie recorder links for page access, start/stop, transcript events, audio upload, and WebSocket backup.

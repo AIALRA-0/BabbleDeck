@@ -1,20 +1,18 @@
 import { auditLog } from "@/server/audit";
-import { fail, ok, requireApiUser } from "@/server/api";
-import { prisma } from "@/server/db";
+import { ok } from "@/server/api";
 import { serializeSession } from "@/server/serializers";
+import { prisma } from "@/server/db";
+import { requireRecorderAccess } from "@/server/recorder-route-access";
 
 export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const auth = await requireApiUser();
-  if ("response" in auth) return auth.response;
-  const { user } = auth;
   const { id } = await context.params;
-  const existing = await prisma.liveSession.findFirst({
-    where: { id, ownerUserId: user.id },
-  });
-  if (!existing) return fail("NOT_FOUND", "Session not found.", 404);
+  const auth = await requireRecorderAccess(request, id);
+  if ("response" in auth) return auth.response;
+  const { access } = auth;
+  const existing = access.session;
   const session = await prisma.liveSession.update({
     where: { id },
     data: {
@@ -26,12 +24,13 @@ export async function POST(
     },
   });
   await auditLog({
-    actorUserId: user.id,
+    actorUserId: access.actorUserId,
     sessionId: id,
     action: "session.recording_stopped",
     entityType: "live_session",
     entityId: id,
     userAgent: request.headers.get("user-agent"),
+    metadata: { authVia: access.kind },
   });
   return ok({ session: serializeSession(session) });
 }

@@ -1,8 +1,11 @@
 import { notFound } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
 import { RecorderClient } from "@/components/RecorderClient";
-import { requireUser } from "@/server/auth";
-import { getSessionForAdmin } from "@/server/session-service";
+import { getCurrentUser, requireUser } from "@/server/auth";
+import {
+  getSessionForAdmin,
+  getSessionForRecorderToken,
+} from "@/server/session-service";
 import { serializeSession } from "@/server/serializers";
 
 export default async function RecorderPage({
@@ -10,12 +13,25 @@ export default async function RecorderPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ share?: string }>;
+  searchParams: Promise<{ share?: string; recorder?: string }>;
 }) {
-  const user = await requireUser();
   const { id } = await params;
-  const { share } = await searchParams;
-  const session = await getSessionForAdmin(id, user.id);
+  const { share, recorder } = await searchParams;
+  const currentUser = await getCurrentUser();
+  const adminSession =
+    currentUser && !currentUser.passwordRotationRequired
+      ? await getSessionForAdmin(id, currentUser.id)
+      : null;
+  const tokenSession =
+    adminSession || !recorder
+      ? null
+      : await getSessionForRecorderToken(id, recorder);
+
+  if (!adminSession && !tokenSession && !recorder) {
+    await requireUser();
+  }
+
+  const session = adminSession ?? tokenSession;
   if (!session) notFound();
   const serialized = serializeSession(session);
   return (
@@ -31,6 +47,8 @@ export default async function RecorderPage({
           budgetCapUsd={serialized.budgetCapUsd}
           estimatedCostUsd={serialized.estimatedCostUsd}
           viewerUrl={share ? `/s/${share}` : null}
+          recorderToken={recorder ?? null}
+          historyUrl={adminSession ? `/sessions/${serialized.id}` : null}
         />
       </main>
     </>

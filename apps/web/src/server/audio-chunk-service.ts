@@ -5,11 +5,12 @@ import {
 } from "./audio-storage";
 import { prisma } from "./db";
 import { recordProviderAudioUsage } from "./provider-usage";
+import type { RecorderSession } from "./recorder-access";
 import { apiStatus } from "./serializers";
 
 export type SaveSessionAudioChunkInput = {
-  sessionId: string;
-  ownerUserId: string;
+  session: RecorderSession;
+  actorUserId?: string | null;
   chunkIndex: number;
   startedAt?: string;
   durationMs?: number;
@@ -46,13 +47,6 @@ export class AudioChunkUploadError extends Error {
 export async function saveSessionAudioChunk(
   input: SaveSessionAudioChunkInput,
 ): Promise<SaveSessionAudioChunkResult> {
-  const session = await prisma.liveSession.findFirst({
-    where: { id: input.sessionId, ownerUserId: input.ownerUserId },
-  });
-  if (!session) {
-    throw new AudioChunkUploadError("NOT_FOUND", "Session not found.", 404);
-  }
-
   if (input.body.length === 0 || input.body.length > AUDIO_CHUNK_MAX_BYTES) {
     throw new AudioChunkUploadError(
       "AUDIO_CHUNK_TOO_LARGE",
@@ -73,7 +67,7 @@ export async function saveSessionAudioChunk(
   let storage;
   try {
     storage = await uploadAudioChunk({
-      sessionId: input.sessionId,
+      sessionId: input.session.id,
       chunkIndex: input.chunkIndex,
       body: input.body,
       mimeType: input.mimeType,
@@ -90,7 +84,7 @@ export async function saveSessionAudioChunk(
   const existingChunk = await prisma.audioChunk.findUnique({
     where: {
       sessionId_chunkIndex: {
-        sessionId: input.sessionId,
+        sessionId: input.session.id,
         chunkIndex: input.chunkIndex,
       },
     },
@@ -99,7 +93,7 @@ export async function saveSessionAudioChunk(
     const savedChunk = await tx.audioChunk.upsert({
       where: {
         sessionId_chunkIndex: {
-          sessionId: input.sessionId,
+          sessionId: input.session.id,
           chunkIndex: input.chunkIndex,
         },
       },
@@ -117,7 +111,7 @@ export async function saveSessionAudioChunk(
         },
       },
       create: {
-        sessionId: input.sessionId,
+        sessionId: input.session.id,
         chunkIndex: input.chunkIndex,
         objectKey: storage.objectKey,
         mimeType: input.mimeType,
@@ -137,12 +131,12 @@ export async function saveSessionAudioChunk(
       null;
     if (!existingChunk && input.durationMs) {
       usageResult = await recordProviderAudioUsage(tx, {
-        sessionId: input.sessionId,
-        actorUserId: input.ownerUserId,
-        providerName: session.providerName,
-        qualityMode: session.qualityMode,
+        sessionId: input.session.id,
+        actorUserId: input.actorUserId ?? null,
+        providerName: input.session.providerName,
+        qualityMode: input.session.qualityMode,
         audioMs: input.durationMs,
-        targetLanguage: session.targetLanguage,
+        targetLanguage: input.session.targetLanguage,
         payload: {
           chunkId: savedChunk.id,
           chunkIndex: input.chunkIndex,

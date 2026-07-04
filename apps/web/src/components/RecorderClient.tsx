@@ -34,6 +34,8 @@ type RecorderClientProps = {
   budgetCapUsd: number | null;
   estimatedCostUsd: number;
   viewerUrl: string | null;
+  recorderToken: string | null;
+  historyUrl: string | null;
 };
 
 type AudioChunkUploadResponse =
@@ -44,6 +46,9 @@ type AudioChunkUploadResponse =
   | { ok: false };
 
 type StartSessionResponse =
+  { ok: true; data: { session: { status: string } } } | { ok: false };
+
+type StopSessionResponse =
   { ok: true; data: { session: { status: string } } } | { ok: false };
 
 type SessionSnapshotResponse =
@@ -111,6 +116,8 @@ export function RecorderClient({
   budgetCapUsd,
   estimatedCostUsd: initialEstimatedCostUsd,
   viewerUrl,
+  recorderToken,
+  historyUrl,
 }: RecorderClientProps) {
   const router = useRouter();
   const [permission, setPermission] = useState<
@@ -139,6 +146,10 @@ export function RecorderClient({
     useState("字幕会在这里显示。");
   const [eventsSent, setEventsSent] = useState(0);
   const [cachedViewerUrl, setCachedViewerUrl] = useState<string | null>(null);
+  const [cachedRecorderToken, setCachedRecorderToken] = useState<string | null>(
+    null,
+  );
+  const [clientOrigin, setClientOrigin] = useState<string | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -158,11 +169,10 @@ export function RecorderClient({
   const chunkIndexRef = useRef(0);
   const timerRef = useRef<number | null>(null);
   const viewerUrlFromCache = viewerUrl ?? cachedViewerUrl;
+  const effectiveRecorderToken = recorderToken ?? cachedRecorderToken;
   const effectiveViewerUrl =
-    viewerUrlFromCache &&
-    typeof window !== "undefined" &&
-    viewerUrlFromCache.startsWith("/")
-      ? new URL(viewerUrlFromCache, window.location.origin).toString()
+    viewerUrlFromCache && clientOrigin && viewerUrlFromCache.startsWith("/")
+      ? new URL(viewerUrlFromCache, clientOrigin).toString()
       : viewerUrlFromCache;
   const providerLabel =
     providerName === "soniox" ? "Soniox realtime" : "Mock realtime";
@@ -188,24 +198,44 @@ export function RecorderClient({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    const timeout = window.setTimeout(() => {
+      setClientOrigin(window.location.origin);
+    }, 0);
+    return () => window.clearTimeout(timeout);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
 
     const shareToken = shareTokenFromViewerUrl(
       viewerUrl,
       window.location.origin,
     );
     if (shareToken) {
-      storeSessionTokens(sessionId, { shareToken });
+      storeSessionTokens(sessionId, {
+        shareToken,
+        recorderToken: recorderToken ?? undefined,
+      });
+    } else if (recorderToken) {
+      storeSessionTokens(sessionId, { recorderToken });
     }
 
     const timeout = window.setTimeout(() => {
-      const storedShareToken =
-        shareToken ?? readStoredSessionTokens(sessionId)?.shareToken;
+      const stored = readStoredSessionTokens(sessionId);
+      const storedShareToken = shareToken ?? stored?.shareToken;
       setCachedViewerUrl(
         storedShareToken ? viewerPathForShareToken(storedShareToken) : null,
       );
+      setCachedRecorderToken(recorderToken ?? stored?.recorderToken ?? null);
     }, 0);
     return () => window.clearTimeout(timeout);
-  }, [sessionId, viewerUrl]);
+  }, [recorderToken, sessionId, viewerUrl]);
+
+  function recorderAuthHeaders() {
+    return effectiveRecorderToken
+      ? { "X-BabbleDeck-Recorder-Token": effectiveRecorderToken }
+      : undefined;
+  }
 
   useEffect(() => {
     if (!recording) return;
@@ -266,6 +296,9 @@ export function RecorderClient({
     if (url.protocol === "http:") url.protocol = "ws:";
     if (url.protocol === "https:") url.protocol = "wss:";
     url.searchParams.set("sessionId", sessionId);
+    if (effectiveRecorderToken) {
+      url.searchParams.set("recorder", effectiveRecorderToken);
+    }
     return url.toString();
   }
 
@@ -407,6 +440,7 @@ export function RecorderClient({
 
     const response = await fetch(`/api/sessions/${sessionId}/audio-chunks`, {
       method: "POST",
+      headers: recorderAuthHeaders(),
       body: formData,
     });
     if (!response.ok) {
@@ -527,7 +561,10 @@ export function RecorderClient({
     setLatestTranslation(item.translation);
     await fetch(`/api/sessions/${sessionId}/events`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(recorderAuthHeaders() ?? {}),
+      },
       body: JSON.stringify({
         events: [
           {
@@ -578,6 +615,7 @@ export function RecorderClient({
     await ensureMic();
     const startResponse = await fetch(`/api/sessions/${sessionId}/start`, {
       method: "POST",
+      headers: recorderAuthHeaders(),
     });
     if (!startResponse.ok) {
       setPending(false);
@@ -621,11 +659,22 @@ export function RecorderClient({
     recorderRef.current?.stop();
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
-    await fetch(`/api/sessions/${sessionId}/stop`, { method: "POST" });
+    const stopResponse = await fetch(`/api/sessions/${sessionId}/stop`, {
+      method: "POST",
+      headers: recorderAuthHeaders(),
+    });
+    const stopPayload = stopResponse.ok
+      ? ((await stopResponse.json()) as StopSessionResponse)
+      : null;
+    if (stopPayload?.ok) {
+      setSessionStatus(stopPayload.data.session.status);
+    }
     setRecording(false);
     setPending(false);
-    router.push(`/sessions/${sessionId}`);
-    router.refresh();
+    if (historyUrl) {
+      router.push(historyUrl);
+      router.refresh();
+    }
   }
 
   return (
@@ -760,11 +809,13 @@ export function RecorderClient({
                 Stop recording
               </Button>
             )}
-            <Button asChild variant="ghost">
-              <Link href={`/sessions/${sessionId}`}>
-                <History className="h-4 w-4" /> History
-              </Link>
-            </Button>
+            {historyUrl ? (
+              <Button asChild variant="ghost">
+                <Link href={historyUrl}>
+                  <History className="h-4 w-4" /> History
+                </Link>
+              </Button>
+            ) : null}
           </div>
         </div>
       </section>

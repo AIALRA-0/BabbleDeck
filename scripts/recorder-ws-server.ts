@@ -3,6 +3,11 @@ import crypto from "node:crypto";
 import type { Duplex } from "node:stream";
 import { WebSocket, WebSocketServer } from "ws";
 import { prisma } from "../apps/web/src/server/db";
+import {
+  findRecorderSessionForOwner,
+  findRecorderSessionForToken,
+  type RecorderSession,
+} from "../apps/web/src/server/recorder-access";
 import { hashToken } from "../apps/web/src/server/security";
 import { audioChunkSchema } from "../apps/web/src/server/schemas";
 import {
@@ -24,10 +29,12 @@ type RecorderContext = {
   connectionId: string;
   recorderConnectionId: string;
   sessionId: string;
+  session: RecorderSession;
   providerName: "MOCK" | "SONIOX";
   targetLanguage: string;
   sourceLanguageMode: string;
-  user: AuthenticatedUser;
+  actorUserId: string | null;
+  authVia: "admin" | "recorder_token";
 };
 
 function sendJson(socket: WebSocket, value: unknown) {
@@ -124,7 +131,7 @@ async function handleRecorderConnection(
     context.providerName === "SONIOX"
       ? new SonioxRealtimeBridge({
           sessionId: context.sessionId,
-          actorUserId: context.user.id,
+          actorUserId: context.actorUserId,
           targetLanguage: context.targetLanguage,
           sourceLanguageMode: context.sourceLanguageMode,
         })
@@ -152,8 +159,8 @@ async function handleRecorderConnection(
         }
 
         const result = await saveSessionAudioChunk({
-          sessionId: context.sessionId,
-          ownerUserId: context.user.id,
+          session: context.session,
+          actorUserId: context.actorUserId,
           chunkIndex: message.parsed.chunkIndex,
           startedAt: message.parsed.startedAt,
           durationMs: message.parsed.durationMs,
@@ -196,21 +203,23 @@ async function buildContext(request: http.IncomingMessage) {
   const sessionId = url.searchParams.get("sessionId");
   if (!sessionId) return null;
   const user = await authenticate(request);
-  if (!user) return null;
-  const session = await prisma.liveSession.findFirst({
-    where: { id: sessionId, ownerUserId: user.id, archivedAt: null },
-    select: {
-      id: true,
-      providerName: true,
-      targetLanguage: true,
-      sourceLanguageMode: true,
-    },
-  });
+  const recorderToken =
+    url.searchParams.get("recorder") ?? url.searchParams.get("recorderToken");
+  const ownerSession = user
+    ? await findRecorderSessionForOwner(sessionId, user.id)
+    : null;
+  const tokenSession = ownerSession
+    ? null
+    : await findRecorderSessionForToken(sessionId, recorderToken);
+  const session = ownerSession ?? tokenSession;
   if (!session) return null;
 
   const connectionId = crypto.randomUUID();
   const providerName: RecorderContext["providerName"] =
     session.providerName === "SONIOX" ? "SONIOX" : "MOCK";
+  const authVia: RecorderContext["authVia"] = ownerSession
+    ? "admin"
+    : "recorder_token";
   const recorderConnection = await prisma.recorderConnection.create({
     data: {
       sessionId,
@@ -218,6 +227,7 @@ async function buildContext(request: http.IncomingMessage) {
       transport: "websocket",
       status: "connected",
       clientInfo: {
+        authVia,
         userAgent: request.headers["user-agent"] ?? null,
         remoteAddress: request.socket.remoteAddress ?? null,
         forwardedFor: request.headers["x-forwarded-for"] ?? null,
@@ -229,10 +239,12 @@ async function buildContext(request: http.IncomingMessage) {
     connectionId,
     recorderConnectionId: recorderConnection.id,
     sessionId,
+    session,
     providerName,
     targetLanguage: session.targetLanguage,
     sourceLanguageMode: session.sourceLanguageMode,
-    user,
+    actorUserId: user && ownerSession ? user.id : null,
+    authVia,
   };
 }
 

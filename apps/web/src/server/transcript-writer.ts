@@ -4,7 +4,7 @@ import { eventTypeFromApi, serializeEvent } from "./serializers";
 
 export async function appendTranscriptEvents(input: {
   sessionId: string;
-  actorUserId: string;
+  actorUserId?: string | null;
   events: {
     type: string;
     text?: string;

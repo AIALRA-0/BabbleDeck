@@ -201,7 +201,7 @@ export class SonioxRealtimeBridge {
   constructor(
     private readonly input: {
       sessionId: string;
-      actorUserId: string;
+      actorUserId?: string | null;
       targetLanguage: string;
       sourceLanguageMode?: string;
     },

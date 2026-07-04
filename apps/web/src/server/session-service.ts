@@ -86,6 +86,27 @@ export async function getSessionForAdmin(id: string, ownerUserId: string) {
   });
 }
 
+export async function getSessionForRecorderToken(
+  id: string,
+  recorderToken: string,
+) {
+  return prisma.liveSession.findFirst({
+    where: {
+      id,
+      recorderTokenHash: hashToken(recorderToken),
+      archivedAt: null,
+    },
+    include: {
+      audioChunks: true,
+      providerUsage: true,
+      transcriptSegments: {
+        include: { translations: true },
+        orderBy: { segmentIndex: "asc" },
+      },
+    },
+  });
+}
+
 export async function getSessionByShareToken(shareToken: string) {
   return prisma.liveSession.findUnique({
     where: { shareTokenHash: hashToken(shareToken) },

@@ -1,8 +1,9 @@
-import { fail, ok, requireApiUser, validationError } from "@/server/api";
+import { fail, ok, validationError } from "@/server/api";
 import {
   AudioChunkUploadError,
   saveSessionAudioChunk,
 } from "@/server/audio-chunk-service";
+import { requireRecorderAccess } from "@/server/recorder-route-access";
 import { audioChunkSchema } from "@/server/schemas";
 
 export const runtime = "nodejs";
@@ -16,10 +17,10 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const auth = await requireApiUser();
-  if ("response" in auth) return auth.response;
-  const { user } = auth;
   const { id } = await context.params;
+  const auth = await requireRecorderAccess(request, id);
+  if ("response" in auth) return auth.response;
+  const { access } = auth;
 
   let parsed;
   let file: File | null = null;
@@ -49,8 +50,8 @@ export async function POST(
   const body = Buffer.from(await file.arrayBuffer());
   try {
     const result = await saveSessionAudioChunk({
-      sessionId: id,
-      ownerUserId: user.id,
+      session: access.session,
+      actorUserId: access.actorUserId,
       chunkIndex: parsed.chunkIndex,
       startedAt: parsed.startedAt,
       durationMs: parsed.durationMs,
