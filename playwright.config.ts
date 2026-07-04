@@ -8,6 +8,15 @@ const shouldStartWebServer =
 const webServerPort =
   parsedBaseURL.port || (parsedBaseURL.protocol === "https:" ? "443" : "80");
 const recorderWsPort = String(Number(webServerPort) + 1);
+const fakeAudioFile = process.env.E2E_FAKE_AUDIO_FILE;
+const browserArgs = [
+  "--use-fake-device-for-media-stream",
+  "--use-fake-ui-for-media-stream",
+  "--autoplay-policy=no-user-gesture-required",
+  ...(fakeAudioFile
+    ? [`--use-file-for-fake-audio-capture=${fakeAudioFile}`]
+    : []),
+];
 const localWebServerCommand = [
   "env -u NO_COLOR NODE_ENV=development",
   `NEXT_PUBLIC_RECORDER_WS_URL=ws://${parsedBaseURL.hostname}:${recorderWsPort}/ws/recorder`,
@@ -36,11 +45,7 @@ export default defineConfig({
     screenshot: "only-on-failure",
     permissions: ["microphone"],
     launchOptions: {
-      args: [
-        "--use-fake-device-for-media-stream",
-        "--use-fake-ui-for-media-stream",
-        "--autoplay-policy=no-user-gesture-required",
-      ],
+      args: browserArgs,
     },
   },
   webServer: shouldStartWebServer

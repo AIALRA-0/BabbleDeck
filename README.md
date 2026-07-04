@@ -34,6 +34,8 @@ pnpm e2e
 
 Set `E2E_RUN_BUDGET_TEST=true` to include low-budget Soniox-mode degraded-provider coverage.
 
+Set `E2E_RUN_SONIOX_UI_TEST=true` with `E2E_FAKE_AUDIO_FILE=/path/to/speech.wav` to run the opt-in real Soniox recorder UI smoke. The fake audio file is passed to Chromium as the microphone source, so this test should only be used where `SONIOX_API_KEY` is configured.
+
 ## Verification
 
 ```bash
@@ -50,6 +52,7 @@ pnpm e2e
 The current production instance follows the server's existing systemd + Nginx pattern:
 
 - Service: `aialra-babbledeck.service`
+- Web start: standalone Next server at `apps/web/.next/standalone/apps/web/server.js`
 - App port: `127.0.0.1:11970`
 - Recorder WebSocket service: `aialra-babbledeck-ws.service`
 - Recorder WebSocket port: `127.0.0.1:11971`
@@ -62,6 +65,8 @@ The current production instance follows the server's existing systemd + Nginx pa
 - Backup root: `/srv/aialra/backups/babbledeck`
 
 Soniox realtime requires `SONIOX_API_KEY`. Without it, Soniox-mode sessions are marked degraded while local backup continues.
+
+`pnpm build` also copies `.next/static` and `public` into the standalone output through `scripts/prepare-standalone-assets.sh`; this keeps the production unit aligned with Next standalone hosting requirements.
 
 To migrate existing raw audio from the local object root to R2/S3-compatible storage, configure the target `AUDIO_STORAGE_*` or `R2_*` variables, keep `SOURCE_AUDIO_STORAGE_DIR` pointed at the previous local root, run:
 

@@ -40,6 +40,30 @@
   - Production Playwright passed 4/4 tests, including WebSocket backup and low-budget Soniox-mode degraded-provider coverage.
   - Smoke cleanup removed 4 temporary sessions and 13 local audio objects.
 
+## 2026-07-04 Production Standalone and Soniox UI Smoke
+
+- Environment: `https://babbledeck.aialra.online`, standalone Next server under `aialra-babbledeck.service`, recorder WebSocket sidecar under `aialra-babbledeck-ws.service`, production Postgres database `babbledeck_prod`, configured `SONIOX_API_KEY`, and local production audio root `/srv/aialra/storage/babbledeck`.
+- Commands:
+  - `pnpm --filter @babbledeck/web typecheck`
+  - `pnpm --filter @babbledeck/web test`
+  - Script typecheck for `scripts/recorder-ws-server.ts`, `scripts/prune-audio-retention.ts`, `scripts/migrate-audio-storage.ts`, and `playwright.config.ts`.
+  - `pnpm lint`
+  - `pnpm build`
+  - `scripts/prepare-standalone-assets.sh`
+  - `systemctl restart aialra-babbledeck.service aialra-babbledeck-ws.service`
+  - HTTPS smoke for `/` and a static `_next/static` CSS chunk.
+  - Minimal Playwright login probe with fake microphone audio.
+  - `pnpm e2e` with a temporary smoke admin, `E2E_RUN_BUDGET_TEST=true`, `E2E_RUN_SONIOX_UI_TEST=true`, and a fake microphone WAV converted from the public `brooklyn_bridge.flac` sample.
+- Browser/device:
+  - Playwright Chromium desktop, `1440x960`.
+  - Playwright Chromium mobile, Pixel 7 profile.
+- Results:
+  - Standalone server returned `HTTP/2 200` for the app and static assets with correct CSS MIME type after `.next/static` was copied into the standalone tree.
+  - Minimal Playwright login probe reached `/dashboard` with no browser console errors.
+  - Production Playwright passed 5/6 tests with 1 intentional mobile skip for the desktop-only real Soniox UI smoke.
+  - The Soniox UI smoke created a real Soniox session, used Chromium fake microphone speech, observed expected `Brooklyn` transcript text in the recorder UI and viewer, and confirmed backup chunks.
+  - Smoke cleanup removed 5 temporary sessions and 15 local audio objects.
+
 ## 2026-07-04
 
 - Environment: local workspace with Docker Postgres on `localhost:55432`.

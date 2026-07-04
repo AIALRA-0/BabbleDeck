@@ -1,0 +1,24 @@
+[Unit]
+Description=AIALRA BabbleDeck
+After=network-online.target docker.service
+Wants=network-online.target docker.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/srv/aialra/apps/codexapp/state/browser-workspaces/2026-07-04-babbledeck
+EnvironmentFile=/srv/aialra/config/secrets/babbledeck.env
+Environment=NODE_ENV=production
+Environment=HOSTNAME=127.0.0.1
+Environment=PORT=11970
+ExecStart=/usr/bin/node apps/web/.next/standalone/apps/web/server.js
+Restart=always
+RestartSec=5
+KillSignal=SIGINT
+StandardOutput=append:/srv/aialra/logs/babbledeck/service.log
+StandardError=append:/srv/aialra/logs/babbledeck/service.log
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

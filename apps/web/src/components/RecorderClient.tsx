@@ -40,6 +40,22 @@ type AudioChunkUploadResponse =
 type StartSessionResponse =
   { ok: true; data: { session: { status: string } } } | { ok: false };
 
+type SessionSnapshotResponse =
+  | {
+      ok: true;
+      data: {
+        session: {
+          status: string;
+          estimatedCostUsd: number;
+        };
+        segments: {
+          originalText: string;
+          translationText: string | null;
+        }[];
+      };
+    }
+  | { ok: false };
+
 type AudioChunkUploadData = {
   chunkId: string;
   objectKey: string;
@@ -159,6 +175,45 @@ export function RecorderClient({
       void audioContextRef.current?.close();
     };
   }, [sessionId]);
+
+  useEffect(() => {
+    if (!recording) return;
+    let cancelled = false;
+
+    async function refreshSnapshot() {
+      try {
+        const response = await fetch(`/api/sessions/${sessionId}`, {
+          cache: "no-store",
+        });
+        if (!response.ok || cancelled) return;
+        const payload = (await response.json()) as SessionSnapshotResponse;
+        if (!payload.ok || cancelled) return;
+        setSessionStatus(payload.data.session.status);
+        setEstimatedCostUsd(payload.data.session.estimatedCostUsd);
+        if (payload.data.session.status === "provider_degraded") {
+          setProviderNotice("Provider degraded. Local backup continues.");
+        }
+        const latestSegment = [...payload.data.segments]
+          .reverse()
+          .find((segment) => segment.originalText || segment.translationText);
+        if (latestSegment?.originalText) {
+          setLatestOriginal(latestSegment.originalText);
+        }
+        if (latestSegment?.translationText) {
+          setLatestTranslation(latestSegment.translationText);
+        }
+      } catch {
+        // Recorder backup should continue even if the live transcript snapshot lags.
+      }
+    }
+
+    void refreshSnapshot();
+    const interval = window.setInterval(() => void refreshSnapshot(), 1000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [recording, sessionId]);
 
   function applyProviderResult(provider: AudioChunkUploadData["provider"]) {
     if (provider?.sessionStatus) {
@@ -515,16 +570,18 @@ export function RecorderClient({
       recorder.start(1000);
     }
 
-    await postMockSegment(0);
-    let index = 1;
-    timerRef.current = window.setInterval(() => {
-      void postMockSegment(index);
-      index += 1;
-      if (index >= script.length && timerRef.current) {
-        window.clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-    }, 1200);
+    if (providerName === "mock") {
+      await postMockSegment(0);
+      let index = 1;
+      timerRef.current = window.setInterval(() => {
+        void postMockSegment(index);
+        index += 1;
+        if (index >= script.length && timerRef.current) {
+          window.clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+      }, 1200);
+    }
   }
 
   async function stopRecording() {

@@ -4,6 +4,12 @@ const adminEmail = process.env.E2E_ADMIN_EMAIL ?? "admin@example.invalid";
 const adminPassword = process.env.E2E_ADMIN_PASSWORD;
 const rotatedAdminPassword = process.env.E2E_NEW_ADMIN_PASSWORD;
 const runBudgetTest = process.env.E2E_RUN_BUDGET_TEST === "true";
+const runSonioxUiTest = process.env.E2E_RUN_SONIOX_UI_TEST === "true";
+const fakeAudioFile = process.env.E2E_FAKE_AUDIO_FILE;
+
+function sonioxExpectedText() {
+  return new RegExp(process.env.E2E_SONIOX_EXPECTED_TEXT ?? "Brooklyn", "i");
+}
 
 async function signIn(page: Page) {
   const passwords = [rotatedAdminPassword, adminPassword].filter(
@@ -15,12 +21,21 @@ async function signIn(page: Page) {
     await page.getByLabel("Password").fill(password);
     const signInButton = page.getByRole("button", { name: /sign in/i });
     await expect(signInButton).toBeEnabled();
+    const loginResponsePromise = page
+      .waitForResponse(
+        (response) =>
+          response.url().includes("/api/auth/login") &&
+          response.request().method() === "POST",
+        { timeout: 15_000 },
+      )
+      .catch(() => null);
     await signInButton.click();
+    const loginResponse = await loginResponsePromise;
 
     const destination = await Promise.race([
       page
         .waitForURL(/\/(dashboard|account\/password)(\?|$)/, {
-          timeout: 5_000,
+          timeout: 15_000,
         })
         .then(() => "signed-in" as const)
         .catch(() => null),
@@ -31,7 +46,13 @@ async function signIn(page: Page) {
         .catch(() => null),
     ]);
 
-    if (destination === "signed-in") {
+    if (destination === "signed-in" || loginResponse?.ok()) {
+      if (!page.url().match(/\/(dashboard|account\/password)(\?|$)/)) {
+        await page.goto("/dashboard");
+        await page.waitForURL(/\/(dashboard|account\/password)(\?|$)/, {
+          timeout: 15_000,
+        });
+      }
       if (page.url().includes("/account/password")) {
         if (!rotatedAdminPassword) {
           throw new Error(
@@ -211,5 +232,90 @@ test.describe("BabbleDeck MVP browser flow", () => {
     await expect(page.getByText("Cost").locator("xpath=..")).toContainText(
       /\$0\.000[1-9]|\$0\.00[1-9]|\$0\.[1-9]/,
     );
+  });
+
+  test("soniox provider streams fake microphone speech into live captions", async ({
+    browser,
+    page,
+  }, testInfo) => {
+    test.skip(
+      !runSonioxUiTest,
+      "Set E2E_RUN_SONIOX_UI_TEST=true to run real Soniox UI coverage.",
+    );
+    test.skip(
+      !fakeAudioFile,
+      "Set E2E_FAKE_AUDIO_FILE to a WAV file for fake microphone capture.",
+    );
+    test.skip(
+      testInfo.project.name !== "chromium-desktop",
+      "Real Soniox UI smoke only runs once on desktop.",
+    );
+
+    const title = `Soniox UI session ${Date.now()}`;
+    const expectedText = sonioxExpectedText();
+
+    await page.goto("/");
+    await page.getByRole("link", { name: /open portal/i }).click();
+    await signIn(page);
+    await expect(
+      page.getByRole("heading", { name: "Live sessions" }),
+    ).toBeVisible();
+
+    await page
+      .getByRole("link", { name: /new live session/i })
+      .first()
+      .click();
+    await page.getByLabel("Title").fill(title);
+    await page.getByLabel("Target language").selectOption("zh");
+    await page.getByLabel("Provider").selectOption("soniox");
+    await page.getByLabel("Budget cap").fill("1.50");
+    await page.getByRole("button", { name: /create session/i }).click();
+
+    await expect(page.getByRole("heading", { name: title })).toBeVisible();
+    await expect(page.getByText("Soniox realtime")).toBeVisible();
+    const viewerUrl = await page
+      .locator("aside p")
+      .filter({ hasText: "/s/" })
+      .textContent();
+    expect(viewerUrl).toContain("/s/");
+
+    const viewerContext = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+    });
+    const viewer = await viewerContext.newPage();
+    await viewer.goto(viewerUrl ?? "");
+    await expect(
+      viewer.getByRole("heading", { name: "Live captions" }),
+    ).toBeVisible();
+    await expect(viewer.getByText("SSE live")).toBeVisible({
+      timeout: 25_000,
+    });
+
+    await page.getByRole("button", { name: /test microphone/i }).click();
+    await expect(page.getByText("granted")).toBeVisible({ timeout: 10_000 });
+    await page.getByRole("button", { name: /start recording/i }).click();
+    await expect(page.getByText("WebSocket backup")).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByText(expectedText).first()).toBeVisible({
+      timeout: 60_000,
+    });
+    await expect(viewer.getByText(expectedText).first()).toBeVisible({
+      timeout: 60_000,
+    });
+
+    await page.getByRole("button", { name: /stop recording/i }).click();
+    await page.waitForURL(/\/sessions\/[0-9a-f-]+$/, { timeout: 20_000 });
+    await expect(page.getByRole("heading", { name: title })).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(page.getByText(expectedText).first()).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(
+      page.getByText("Backup chunks").locator("xpath=.."),
+    ).toContainText(/[1-9]/);
+
+    await viewerContext.close();
   });
 });

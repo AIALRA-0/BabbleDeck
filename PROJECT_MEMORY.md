@@ -35,11 +35,13 @@
 - Production smoke passed with Playwright desktop/mobile using a temporary smoke admin that was cleaned up afterward, including verification that binary audio chunk files were written before cleanup.
 - Budget-cap enforcement and degraded-provider UI are deployed to production; smoke coverage verifies that low-cap Soniox-mode sessions enter `provider_degraded` while audio backup continues.
 - After Soniox key configuration, production web and recorder WS services were restarted successfully and Playwright desktop/mobile E2E passed with WebSocket backup plus budget-degraded Soniox coverage.
+- Production web now runs through the Next standalone server under systemd, with `.next/static` and `public` copied into the standalone output by `scripts/prepare-standalone-assets.sh`.
+- Production recorder UI Soniox validation passed with Chromium fake-microphone speech audio: the UI and viewer received real Soniox transcript text from the fake microphone source without mock caption injection.
 
 ## Next Recommended Tasks
 
 1. Configure production R2/S3 credentials, run the raw audio migration dry-run, and migrate storage off the local object directory.
-2. Run live microphone Soniox validation through the production recorder UI with real speech.
+2. Run one manual live microphone check from a physical browser/device for final hardware confidence.
 3. Harden Soniox token-to-segment alignment against long multilingual conversations after real-provider traces are available.
 4. Add operator-facing retention settings and per-session legal hold controls.
 5. Add richer recorder reconnect/replay controls for pending local chunks.
