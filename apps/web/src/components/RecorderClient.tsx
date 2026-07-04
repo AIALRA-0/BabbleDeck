@@ -13,6 +13,12 @@ import {
   markLocalChunkUploaded,
   saveLocalChunk,
 } from "@/features/recorder/local-backup";
+import {
+  readStoredSessionTokens,
+  shareTokenFromViewerUrl,
+  storeSessionTokens,
+  viewerPathForShareToken,
+} from "@/features/recorder/session-tokens";
 
 type WindowWithWebkitAudio = Window &
   typeof globalThis & {
@@ -132,6 +138,7 @@ export function RecorderClient({
   const [latestTranslation, setLatestTranslation] =
     useState("字幕会在这里显示。");
   const [eventsSent, setEventsSent] = useState(0);
+  const [cachedViewerUrl, setCachedViewerUrl] = useState<string | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -150,10 +157,13 @@ export function RecorderClient({
   );
   const chunkIndexRef = useRef(0);
   const timerRef = useRef<number | null>(null);
+  const viewerUrlFromCache = viewerUrl ?? cachedViewerUrl;
   const effectiveViewerUrl =
-    viewerUrl && typeof window !== "undefined" && viewerUrl.startsWith("/")
-      ? new URL(viewerUrl, window.location.origin).toString()
-      : viewerUrl;
+    viewerUrlFromCache &&
+    typeof window !== "undefined" &&
+    viewerUrlFromCache.startsWith("/")
+      ? new URL(viewerUrlFromCache, window.location.origin).toString()
+      : viewerUrlFromCache;
   const providerLabel =
     providerName === "soniox" ? "Soniox realtime" : "Mock realtime";
   const visibleStatus =
@@ -175,6 +185,27 @@ export function RecorderClient({
       void audioContextRef.current?.close();
     };
   }, [sessionId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const shareToken = shareTokenFromViewerUrl(
+      viewerUrl,
+      window.location.origin,
+    );
+    if (shareToken) {
+      storeSessionTokens(sessionId, { shareToken });
+    }
+
+    const timeout = window.setTimeout(() => {
+      const storedShareToken =
+        shareToken ?? readStoredSessionTokens(sessionId)?.shareToken;
+      setCachedViewerUrl(
+        storedShareToken ? viewerPathForShareToken(storedShareToken) : null,
+      );
+    }, 0);
+    return () => window.clearTimeout(timeout);
+  }, [sessionId, viewerUrl]);
 
   useEffect(() => {
     if (!recording) return;
@@ -768,7 +799,8 @@ export function RecorderClient({
         ) : (
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
             This session was reopened after the one-time share token was shown.
-            Create a new session for a fresh viewer link.
+            Open the original recorder URL on the browser that created it, or
+            create a new session for a fresh viewer link.
           </p>
         )}
       </aside>

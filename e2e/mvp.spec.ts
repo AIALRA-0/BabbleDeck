@@ -118,6 +118,16 @@ test.describe("BabbleDeck MVP browser flow", () => {
       .textContent();
     expect(viewerUrl).toContain("/s/");
 
+    await page.getByRole("link", { name: /history/i }).click();
+    await expect(page.getByRole("heading", { name: title })).toBeVisible();
+    await page.getByRole("link", { name: /open recorder/i }).click();
+    await expect(page.getByRole("heading", { name: title })).toBeVisible();
+    const restoredViewerUrl = await page
+      .locator("aside p")
+      .filter({ hasText: "/s/" })
+      .textContent();
+    expect(restoredViewerUrl).toBe(viewerUrl);
+
     const viewerContext = await browser.newContext({
       viewport: { width: 390, height: 844 },
     });

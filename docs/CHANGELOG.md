@@ -16,3 +16,4 @@
 - Validated configured Soniox realtime credentials with a real speech sample and improved bridge shutdown/keepalive handling.
 - Switched production web service to the Next standalone server with copied static assets.
 - Added opt-in real Soniox recorder UI smoke coverage with Chromium fake microphone audio, and limited mock caption injection to the mock provider.
+- Restored one-time viewer links on reopened recorder pages through same-browser token caching, without storing plaintext share tokens server-side.

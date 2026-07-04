@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { storeSessionTokens } from "@/features/recorder/session-tokens";
 
 type CreateSessionResponse = {
   ok: true;
@@ -52,13 +53,10 @@ export function NewSessionForm() {
           );
           return;
         }
-        sessionStorage.setItem(
-          `babbledeck:${payload.data.session.id}:tokens`,
-          JSON.stringify({
-            shareToken: payload.data.shareToken,
-            recorderToken: payload.data.recorderToken,
-          }),
-        );
+        storeSessionTokens(payload.data.session.id, {
+          shareToken: payload.data.shareToken,
+          recorderToken: payload.data.recorderToken,
+        });
         router.push(payload.data.session.recordUrl);
       }}
     >

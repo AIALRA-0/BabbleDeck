@@ -1,5 +1,33 @@
 # Test Runs
 
+## 2026-07-04 Recorder Viewer Link Restore
+
+- Environment: local workspace with Docker Postgres on `localhost:55432`, Playwright dev server on `127.0.0.1:3105`, and production secret env loaded without printing secrets for admin password sync.
+- Commands:
+  - `pnpm prettier --write apps/web/src/features/recorder/session-tokens.ts apps/web/src/features/recorder/session-tokens.test.ts apps/web/src/components/NewSessionForm.tsx apps/web/src/components/RecorderClient.tsx e2e/mvp.spec.ts`
+  - `pnpm --filter @babbledeck/web test -- --run src/features/recorder/session-tokens.test.ts`
+  - `pnpm --filter @babbledeck/web typecheck`
+  - `pnpm db:migrate`
+  - `pnpm tsx scripts/sync-seed-admin.ts`
+  - `E2E_BASE_URL=http://127.0.0.1:3105 pnpm e2e e2e/mvp.spec.ts --project=chromium-desktop --grep "admin creates a live session"`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `pnpm build`
+  - `systemctl restart aialra-babbledeck.service aialra-babbledeck-ws.service`
+  - `curl -I -sS https://babbledeck.aialra.online/`
+  - `pnpm tsx scripts/check-production-readiness.ts`
+  - `E2E_BASE_URL=https://babbledeck.aialra.online pnpm e2e e2e/mvp.spec.ts --project=chromium-desktop --grep "admin creates a live session"`
+- Results:
+  - Unit tests passed with `6` files and `15` tests.
+  - Format, lint, TypeScript typecheck, full unit tests, and production build passed.
+  - Playwright desktop MVP passed and verified that opening a recorder from the history page, without the original `share` query parameter, restores the same viewer link from same-browser token cache.
+  - Production services restarted successfully and remained active with `NRestarts=0`.
+  - Production HTTPS returned `HTTP/2 200`.
+  - Production readiness returned `requiredOk=true`; strict completion remains blocked only by local audio storage until R2/S3-compatible credentials are configured.
+  - Production Playwright desktop MVP passed against `https://babbledeck.aialra.online`.
+  - Production smoke cleanup removed 1 temporary Playwright session and 2 local audio objects.
+
 ## 2026-07-04 Soniox Realtime Staging Check
 
 - Environment: production secret env file loaded locally without printing secrets; Soniox realtime WebSocket endpoint `wss://stt-rt.soniox.com/transcribe-websocket`.

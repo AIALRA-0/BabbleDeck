@@ -38,11 +38,13 @@
 - Production web now runs through the Next standalone server under systemd, with `.next/static` and `public` copied into the standalone output by `scripts/prepare-standalone-assets.sh`.
 - Production recorder UI Soniox validation passed with Chromium fake-microphone speech audio: the UI and viewer received real Soniox transcript text from the fake microphone source without mock caption injection.
 - Production seed admin credentials were reset to match `SEED_ADMIN_PASSWORD` and verified through the HTTPS login API without printing the password.
+- Recorder pages can now restore the one-time viewer link from same-browser local token cache after reopening from history; the fix is deployed to production and keeps plaintext share tokens out of server-side storage.
 
 ## Next Recommended Tasks
 
 1. Configure production R2/S3 credentials, run the raw audio migration dry-run, and migrate storage off the local object directory.
 2. Run one manual live microphone check from a physical browser/device for final hardware confidence.
-3. Harden Soniox token-to-segment alignment against long multilingual conversations after real-provider traces are available.
-4. Add operator-facing retention settings and per-session legal hold controls.
-5. Add richer recorder reconnect/replay controls for pending local chunks.
+3. Enforce the generated recorder token on recorder upload/start/stop paths so recorder links can work independently of admin cookies.
+4. Harden Soniox token-to-segment alignment against long multilingual conversations after real-provider traces are available.
+5. Add operator-facing retention settings and per-session legal hold controls.
+6. Add richer recorder reconnect/replay controls for pending local chunks.
