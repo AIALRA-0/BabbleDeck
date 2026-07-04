@@ -76,6 +76,48 @@ async function signIn(page: Page) {
   throw new Error("Unable to sign in with the provided E2E credentials.");
 }
 
+async function seedPendingBackupChunk(
+  page: Page,
+  input: { sessionId: string; chunkIndex: number },
+) {
+  await page.evaluate(async ({ sessionId, chunkIndex }) => {
+    await new Promise<void>((resolve, reject) => {
+      const request = window.indexedDB.open("babbledeck-audio-backup", 1);
+      request.onupgradeneeded = () => {
+        const database = request.result;
+        if (!database.objectStoreNames.contains("chunks")) {
+          const store = database.createObjectStore("chunks", {
+            keyPath: "id",
+          });
+          store.createIndex("sessionId", "sessionId");
+        }
+      };
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const database = request.result;
+        const transaction = database.transaction("chunks", "readwrite");
+        transaction.onerror = () => reject(transaction.error);
+        transaction.oncomplete = () => {
+          database.close();
+          resolve();
+        };
+        transaction.objectStore("chunks").put({
+          id: `${sessionId}:${chunkIndex}`,
+          sessionId,
+          chunkIndex,
+          startedAt: new Date().toISOString(),
+          durationMs: 1000,
+          mimeType: "audio/webm",
+          blob: new Blob([`retry smoke chunk ${chunkIndex}`], {
+            type: "audio/webm",
+          }),
+          status: "failed",
+        });
+      };
+    });
+  }, input);
+}
+
 test.describe("BabbleDeck MVP browser flow", () => {
   test.skip(
     !adminPassword,
@@ -158,6 +200,17 @@ test.describe("BabbleDeck MVP browser flow", () => {
     await expect(
       recorder.locator("aside p").filter({ hasText: "/s/" }),
     ).toHaveText(viewerUrl ?? "");
+    await seedPendingBackupChunk(recorder, {
+      sessionId,
+      chunkIndex: 900000,
+    });
+    await recorder.getByRole("button", { name: /reconnect backup/i }).click();
+    await expect(recorder.getByText("1 pending")).toBeVisible();
+    await recorder.getByRole("button", { name: /retry pending/i }).click();
+    await expect(
+      recorder.getByText("Pending backup chunks uploaded."),
+    ).toBeVisible({ timeout: 12_000 });
+    await expect(recorder.getByText("1/1 uploaded")).toBeVisible();
 
     const viewerContext = await browser.newContext({
       viewport: { width: 390, height: 844 },

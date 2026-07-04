@@ -23,7 +23,7 @@
 - `apps/web` contains a Next.js App Router PWA shell.
 - Prisma/PostgreSQL schema covers auth sessions, live sessions, transcript events/segments, translations, audio chunks, exports, glossary terms, provider usage, and audit logs.
 - Seed script creates the bootstrap admin only when no admin exists and `SEED_ADMIN_PASSWORD` is set.
-- Browser MVP path implemented: login, forced password rotation for seed admins, dashboard, session create, recorder shell, mic test, volume meter, IndexedDB backup, WebSocket-first recorder audio chunk transport with HTTP fallback, binary audio chunk upload to local/S3-compatible storage, provider audio usage/cost tracking, Soniox realtime adapter scaffolding, budget-cap enforcement with degraded-provider UI, mock transcript events, public viewer SSE with polling fallback, session history, and transcript export.
+- Browser MVP path implemented: login, forced password rotation for seed admins, dashboard, session create, recorder shell, mic test, volume meter, IndexedDB backup with reconnect/retry controls, WebSocket-first recorder audio chunk transport with HTTP fallback, binary audio chunk upload to local/S3-compatible storage, provider audio usage/cost tracking, Soniox realtime adapter scaffolding, budget-cap enforcement with degraded-provider UI, mock transcript events, public viewer SSE with polling fallback, session history, and transcript export.
 - Verification passed locally: Prisma validate/generate/migrate, format, lint, typecheck, Vitest unit tests, Next build, and Playwright desktop/mobile MVP E2E.
 - Production deployment is live at `https://babbledeck.aialra.online` through systemd service `aialra-babbledeck.service`, Nginx TLS, and production database `babbledeck_prod`.
 - Production recorder WebSocket transport is live through `aialra-babbledeck-ws.service` on `127.0.0.1:11971` and Nginx `/ws/recorder` upgrade proxying.
@@ -42,10 +42,10 @@
 - Generated recorder tokens now authorize recorder-page rendering plus start/stop/events/audio upload over HTTP and recorder WebSocket transport, so recorder links work from a no-cookie browser while remaining scoped to one session.
 - Raw audio storage cutover now has an audit script that verifies object presence and byte sizes against the configured storage target; production local storage audit currently finds 21 uploaded chunks present with no size mismatches.
 - Operators can update raw audio retention days from `/settings`, and session history now exposes per-session raw audio legal hold that prevents retention cleanup for that session.
+- Recorder pages expose backup reconnect and pending-chunk retry controls; Playwright seeds a failed IndexedDB chunk and verifies it replays to the server.
 
 ## Next Recommended Tasks
 
 1. Configure production R2/S3 credentials, run the raw audio audit plus migration dry-run, migrate storage off the local object directory, then pass strict readiness.
 2. Run one manual live microphone check from a physical browser/device for final hardware confidence.
 3. Harden Soniox token-to-segment alignment against long multilingual conversations after real-provider traces are available.
-4. Add richer recorder reconnect/replay controls for pending local chunks.

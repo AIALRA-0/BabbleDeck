@@ -2,7 +2,10 @@
 
 import { openDB } from "idb";
 
-type BackupChunk = {
+export type BackupChunkStatus =
+  "local_only" | "uploading" | "uploaded" | "failed";
+
+export type BackupChunk = {
   id: string;
   sessionId: string;
   chunkIndex: number;
@@ -10,7 +13,7 @@ type BackupChunk = {
   durationMs: number;
   mimeType: string;
   blob: Blob;
-  status: "local_only" | "uploading" | "uploaded" | "failed";
+  status: BackupChunkStatus;
 };
 
 const DB_NAME = "babbledeck-audio-backup";
@@ -42,11 +45,54 @@ export async function markLocalChunkUploaded(
   sessionId: string,
   chunkIndex: number,
 ) {
+  await markLocalChunkStatus(sessionId, chunkIndex, "uploaded");
+}
+
+export async function markLocalChunkUploading(
+  sessionId: string,
+  chunkIndex: number,
+) {
+  await markLocalChunkStatus(sessionId, chunkIndex, "uploading");
+}
+
+export async function markLocalChunkFailed(
+  sessionId: string,
+  chunkIndex: number,
+) {
+  await markLocalChunkStatus(sessionId, chunkIndex, "failed");
+}
+
+async function markLocalChunkStatus(
+  sessionId: string,
+  chunkIndex: number,
+  status: BackupChunkStatus,
+) {
   const database = await db();
   const id = `${sessionId}:${chunkIndex}`;
   const chunk = (await database.get(STORE, id)) as BackupChunk | undefined;
   if (!chunk) return;
-  await database.put(STORE, { ...chunk, status: "uploaded" });
+  await database.put(STORE, { ...chunk, status });
+}
+
+export function summarizeLocalChunks(chunks: Pick<BackupChunk, "status">[]) {
+  return {
+    total: chunks.length,
+    uploaded: chunks.filter((chunk) => chunk.status === "uploaded").length,
+    pending: chunks.filter((chunk) => chunk.status !== "uploaded").length,
+    failed: chunks.filter((chunk) => chunk.status === "failed").length,
+  };
+}
+
+export async function listPendingLocalChunks(sessionId: string) {
+  const database = await db();
+  const chunks = (await database.getAllFromIndex(
+    STORE,
+    "sessionId",
+    sessionId,
+  )) as BackupChunk[];
+  return chunks
+    .filter((chunk) => chunk.status !== "uploaded")
+    .sort((first, second) => first.chunkIndex - second.chunkIndex);
 }
 
 export async function countLocalChunks(sessionId: string) {
@@ -56,9 +102,5 @@ export async function countLocalChunks(sessionId: string) {
     "sessionId",
     sessionId,
   )) as BackupChunk[];
-  return {
-    total: chunks.length,
-    uploaded: chunks.filter((chunk) => chunk.status === "uploaded").length,
-    pending: chunks.filter((chunk) => chunk.status !== "uploaded").length,
-  };
+  return summarizeLocalChunks(chunks);
 }

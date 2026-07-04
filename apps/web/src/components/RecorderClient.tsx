@@ -1,17 +1,30 @@
 "use client";
 
 import { QRCodeSVG } from "qrcode.react";
-import { Copy, History, Loader2, Mic, Square, TestTube2 } from "lucide-react";
+import {
+  Copy,
+  History,
+  Loader2,
+  Mic,
+  RefreshCw,
+  Square,
+  TestTube2,
+  UploadCloud,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { SessionStatusBadge } from "@/components/SessionStatusBadge";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   countLocalChunks,
+  listPendingLocalChunks,
+  markLocalChunkFailed,
   markLocalChunkUploaded,
+  markLocalChunkUploading,
   saveLocalChunk,
+  type BackupChunk,
 } from "@/features/recorder/local-backup";
 import {
   readStoredSessionTokens,
@@ -131,11 +144,20 @@ export function RecorderClient({
   );
   const [pending, setPending] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [backup, setBackup] = useState({ total: 0, uploaded: 0, pending: 0 });
+  const [backup, setBackup] = useState({
+    total: 0,
+    uploaded: 0,
+    pending: 0,
+    failed: 0,
+  });
   const [backupTransport, setBackupTransport] = useState<"http" | "websocket">(
     "http",
   );
+  const [backupAction, setBackupAction] = useState<
+    "idle" | "connecting" | "retrying"
+  >("idle");
   const [backupError, setBackupError] = useState<string | null>(null);
+  const [backupNotice, setBackupNotice] = useState<string | null>(null);
   const [providerNotice, setProviderNotice] = useState<string | null>(
     status === "provider_degraded"
       ? "Budget cap reached. Local backup continues."
@@ -183,11 +205,22 @@ export function RecorderClient({
         ? "recording"
         : sessionStatus;
 
+  const refreshBackupSummary = useCallback(async () => {
+    setBackup(await countLocalChunks(sessionId));
+  }, [sessionId]);
+
   useEffect(() => {
-    countLocalChunks(sessionId)
-      .then(setBackup)
-      .catch(() => undefined);
+    let cancelled = false;
+    const timeout = window.setTimeout(() => {
+      countLocalChunks(sessionId)
+        .then((summary) => {
+          if (!cancelled) setBackup(summary);
+        })
+        .catch(() => undefined);
+    }, 0);
     return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
       if (timerRef.current) window.clearInterval(timerRef.current);
       recorderRef.current?.stop();
       recorderSocketRef.current?.close();
@@ -512,21 +545,119 @@ export function RecorderClient({
       mimeType,
       blob: input.blob,
     });
-    setBackup(await countLocalChunks(sessionId));
+    await refreshBackupSummary();
+    await markLocalChunkUploading(sessionId, input.index);
+    await refreshBackupSummary();
 
+    try {
+      const result = await uploadChunkToServer(input, mimeType);
+      applyProviderResult(result.provider);
+      await markLocalChunkUploaded(sessionId, input.index);
+      await refreshBackupSummary();
+      setBackupError(null);
+      return result;
+    } catch (error) {
+      await markLocalChunkFailed(sessionId, input.index);
+      await refreshBackupSummary();
+      throw error;
+    }
+  }
+
+  async function uploadChunkToServer(
+    input: {
+      index: number;
+      startedAt: string;
+      durationMs: number;
+      blob: Blob;
+    },
+    mimeType: string,
+  ) {
     let result: AudioChunkUploadData | null = null;
     try {
       result = await uploadChunkViaWebSocket(input, mimeType);
     } catch {
       result = null;
     }
-    if (!result) {
-      result = await uploadChunkViaHttp(input, mimeType);
+    return result ?? uploadChunkViaHttp(input, mimeType);
+  }
+
+  async function uploadStoredLocalChunk(chunk: BackupChunk) {
+    await markLocalChunkUploading(sessionId, chunk.chunkIndex);
+    await refreshBackupSummary();
+    try {
+      const result = await uploadChunkToServer(
+        {
+          index: chunk.chunkIndex,
+          startedAt: chunk.startedAt,
+          durationMs: chunk.durationMs,
+          blob: chunk.blob,
+        },
+        chunk.mimeType,
+      );
+      applyProviderResult(result.provider);
+      await markLocalChunkUploaded(sessionId, chunk.chunkIndex);
+      await refreshBackupSummary();
+      return result;
+    } catch (error) {
+      await markLocalChunkFailed(sessionId, chunk.chunkIndex);
+      await refreshBackupSummary();
+      throw error;
     }
-    applyProviderResult(result.provider);
-    await markLocalChunkUploaded(sessionId, input.index);
-    setBackup(await countLocalChunks(sessionId));
+  }
+
+  async function reconnectBackupTransport() {
+    setBackupAction("connecting");
+    setBackupNotice(null);
+    try {
+      const socket = await ensureRecorderSocket();
+      await refreshBackupSummary();
+      if (socket?.readyState === WebSocket.OPEN) {
+        setBackupNotice("WebSocket backup reconnected.");
+        setBackupError(null);
+      } else {
+        setBackupTransport("http");
+        setBackupNotice("HTTP backup is ready.");
+      }
+    } catch {
+      setBackupTransport("http");
+      setBackupNotice("HTTP backup is ready.");
+    } finally {
+      setBackupAction("idle");
+    }
+  }
+
+  async function retryPendingBackups() {
+    setBackupAction("retrying");
+    setBackupNotice(null);
     setBackupError(null);
+    try {
+      const chunks = await listPendingLocalChunks(sessionId);
+      if (!chunks.length) {
+        await refreshBackupSummary();
+        setBackupNotice("No pending chunks.");
+        return;
+      }
+
+      let failed = 0;
+      for (const chunk of chunks) {
+        try {
+          await uploadStoredLocalChunk(chunk);
+        } catch {
+          failed += 1;
+        }
+      }
+
+      await refreshBackupSummary();
+      if (failed > 0) {
+        setBackupError(
+          `${failed} backup chunk${failed === 1 ? "" : "s"} still pending.`,
+        );
+      } else {
+        setBackupNotice("Pending backup chunks uploaded.");
+      }
+    } finally {
+      setBackupAction("idle");
+    }
   }
 
   async function uploadSyntheticChunk(index: number) {
@@ -551,7 +682,7 @@ export function RecorderClient({
       });
     } catch {
       setBackupError("Audio upload failed. Local backup is still saved here.");
-      setBackup(await countLocalChunks(sessionId));
+      await refreshBackupSummary();
     }
   }
 
@@ -606,7 +737,7 @@ export function RecorderClient({
       await uploadSyntheticChunk(index);
     } catch {
       setBackupError("Audio upload failed. Local backup is still saved here.");
-      setBackup(await countLocalChunks(sessionId));
+      await refreshBackupSummary();
     }
   }
 
@@ -751,11 +882,48 @@ export function RecorderClient({
                   ? "WebSocket backup"
                   : "HTTP backup"}
               </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {backup.pending} pending
+                {backup.failed ? ` · ${backup.failed} failed` : ""}
+              </p>
               {backupError ? (
                 <p className="mt-1 text-xs font-medium text-red-700">
                   {backupError}
                 </p>
               ) : null}
+              {backupNotice ? (
+                <p className="mt-1 text-xs font-medium text-emerald-700">
+                  {backupNotice}
+                </p>
+              ) : null}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => void reconnectBackupTransport()}
+                  disabled={backupAction !== "idle"}
+                >
+                  {backupAction === "connecting" ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                  Reconnect backup
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => void retryPendingBackups()}
+                  disabled={backupAction !== "idle" || backup.pending === 0}
+                >
+                  {backupAction === "retrying" ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <UploadCloud className="h-4 w-4" />
+                  )}
+                  Retry pending
+                </Button>
+              </div>
             </div>
             <div className="rounded-md border border-border p-3">
               <p className="text-xs text-muted-foreground">Events</p>
