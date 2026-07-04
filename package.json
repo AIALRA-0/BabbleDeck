@@ -20,10 +20,12 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
-    "@prisma/client": "6"
+    "@prisma/client": "6",
+    "ws": "^8.21.0"
   },
   "devDependencies": {
     "@playwright/test": "latest",
+    "@types/node": "^26.1.0",
     "prettier": "latest",
     "prisma": "6",
     "tsx": "latest",

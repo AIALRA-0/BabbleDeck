@@ -7,6 +7,20 @@ const shouldStartWebServer =
   baseURL.startsWith("http://localhost");
 const webServerPort =
   parsedBaseURL.port || (parsedBaseURL.protocol === "https:" ? "443" : "80");
+const recorderWsPort = String(Number(webServerPort) + 1);
+const localWebServerCommand = [
+  "env -u NO_COLOR NODE_ENV=development",
+  `NEXT_PUBLIC_RECORDER_WS_URL=ws://${parsedBaseURL.hostname}:${recorderWsPort}/ws/recorder`,
+  "bash -lc",
+  JSON.stringify(
+    [
+      `pnpm --filter @babbledeck/web dev --hostname ${parsedBaseURL.hostname} --port ${webServerPort} & web_pid=$!`,
+      `RECORDER_WS_HOST=${parsedBaseURL.hostname} RECORDER_WS_PORT=${recorderWsPort} pnpm tsx scripts/recorder-ws-server.ts & ws_pid=$!`,
+      "trap 'kill $web_pid $ws_pid 2>/dev/null || true' EXIT",
+      "wait $web_pid",
+    ].join("; "),
+  ),
+].join(" ");
 
 export default defineConfig({
   testDir: "./e2e",
@@ -31,9 +45,7 @@ export default defineConfig({
   },
   webServer: shouldStartWebServer
     ? {
-        command:
-          "env -u NO_COLOR NODE_ENV=development pnpm --filter @babbledeck/web dev " +
-          `--hostname ${parsedBaseURL.hostname} --port ${webServerPort}`,
+        command: localWebServerCommand,
         url: baseURL,
         reuseExistingServer: false,
         timeout: 120_000,

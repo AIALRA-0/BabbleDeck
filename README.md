@@ -50,6 +50,8 @@ The current production instance follows the server's existing systemd + Nginx pa
 
 - Service: `aialra-babbledeck.service`
 - App port: `127.0.0.1:11970`
+- Recorder WebSocket service: `aialra-babbledeck-ws.service`
+- Recorder WebSocket port: `127.0.0.1:11971`
 - Nginx site: `/etc/nginx/sites-available/babbledeck.aialra.online`
 - Secret env file: `/srv/aialra/config/secrets/babbledeck.env`
 - Production database: `babbledeck_prod`

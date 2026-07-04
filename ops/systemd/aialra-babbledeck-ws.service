@@ -1,0 +1,23 @@
+[Unit]
+Description=AIALRA BabbleDeck recorder WebSocket
+After=network-online.target docker.service aialra-babbledeck.service
+Wants=network-online.target docker.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/srv/aialra/apps/codexapp/state/browser-workspaces/2026-07-04-babbledeck
+EnvironmentFile=/srv/aialra/config/secrets/babbledeck.env
+Environment=RECORDER_WS_HOST=127.0.0.1
+Environment=RECORDER_WS_PORT=11971
+ExecStart=/usr/bin/pnpm tsx scripts/recorder-ws-server.ts
+Restart=always
+RestartSec=5
+KillSignal=SIGINT
+StandardOutput=append:/srv/aialra/logs/babbledeck/ws.log
+StandardError=append:/srv/aialra/logs/babbledeck/ws.log
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

@@ -441,116 +441,84 @@ Create term.
 Endpoint:
 
 ```text
-/ws/record?sessionId=...&token=...
+/ws/recorder?sessionId=...
 ```
 
-Prefer secure `wss://` in production. If token in query is undesirable, use short-lived WS auth token via preflight endpoint.
+Uses the same `babbledeck_session` auth cookie as the admin app. Production is
+proxied by Nginx to `aialra-babbledeck-ws.service`.
 
 ### Client → server messages
 
-#### recorder.hello
+#### audio_chunk
 
 ```json
 {
-  "type": "recorder.hello",
-  "protocolVersion": 1,
-  "client": {
-    "platform": "web",
-    "userAgent": "...",
-    "sampleRate": 48000
-  }
-}
-```
-
-#### recorder.start
-
-```json
-{
-  "type": "recorder.start",
+  "type": "audio_chunk",
+  "requestId": "uuid",
   "sessionId": "uuid",
-  "audio": {
-    "mimeType": "audio/webm;codecs=opus",
-    "sampleRate": 48000,
-    "channels": 1
-  }
-}
-```
-
-#### recorder.audio
-
-Binary message preferred for audio frames. If JSON wrapper is needed:
-
-```json
-{
-  "type": "recorder.audio",
   "chunkIndex": 1,
-  "timestampMs": 12345,
-  "encoding": "base64",
-  "data": "..."
+  "startedAt": "2026-07-04T01:00:00.000Z",
+  "durationMs": 1000,
+  "mimeType": "audio/webm",
+  "checksumSha256": "optional",
+  "dataBase64": "..."
 }
 ```
 
-#### recorder.stop
+#### ping
 
 ```json
-{
-  "type": "recorder.stop",
-  "reason": "user"
-}
-```
-
-#### recorder.ping
-
-```json
-{ "type": "recorder.ping", "clientTime": 123456 }
+{ "type": "ping", "requestId": "uuid" }
 ```
 
 ### Server → client messages
 
-#### session.state
+#### ready
 
 ```json
 {
-  "type": "session.state",
-  "status": "recording",
-  "serverTime": "2026-07-04T01:00:00.000Z"
+  "type": "ready",
+  "connectionId": "uuid",
+  "sessionId": "uuid"
 }
 ```
 
-#### transcript.event
+#### audio_chunk_ack
 
 ```json
 {
-  "type": "transcript.event",
-  "event": {
-    "id": "uuid",
-    "type": "partial_transcript",
-    "sequenceNo": 42,
-    "text": "Hello every",
-    "language": "en",
-    "isFinal": false
+  "type": "audio_chunk_ack",
+  "requestId": "uuid",
+  "data": {
+    "chunkId": "uuid",
+    "objectKey": "sessions/{id}/audio/chunk-000001.webm",
+    "status": "uploaded",
+    "provider": {
+      "budgetExceeded": false,
+      "sessionStatus": "recording",
+      "estimatedCostUsd": 0.000097
+    }
   }
 }
 ```
 
-#### provider.error
+#### error
 
 ```json
 {
-  "type": "provider.error",
-  "code": "PROVIDER_TIMEOUT",
-  "message": "Realtime provider delayed. Retrying."
+  "type": "error",
+  "requestId": "uuid",
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Audio chunk checksum mismatch."
+  }
 }
 ```
 
-#### budget.warning
+#### pong
 
 ```json
-{
-  "type": "budget.warning",
-  "estimatedCostUsd": 1.2,
-  "budgetCapUsd": 1.5
-}
+{ "type": "pong", "requestId": "uuid" }
 ```
 
 ## 13. Viewer live stream

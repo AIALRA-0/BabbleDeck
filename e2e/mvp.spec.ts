@@ -6,7 +6,7 @@ const rotatedAdminPassword = process.env.E2E_NEW_ADMIN_PASSWORD;
 const runBudgetTest = process.env.E2E_RUN_BUDGET_TEST === "true";
 
 async function signIn(page: Page) {
-  const passwords = [adminPassword, rotatedAdminPassword].filter(
+  const passwords = [rotatedAdminPassword, adminPassword].filter(
     (value): value is string => Boolean(value),
   );
 
@@ -119,6 +119,7 @@ test.describe("BabbleDeck MVP browser flow", () => {
     ).toBeVisible({
       timeout: 12_000,
     });
+    await expect(page.getByText("WebSocket backup")).toBeVisible();
     await expect(viewer.getByText("欢迎使用 BabbleDeck")).toBeVisible({
       timeout: 12_000,
     });
@@ -193,6 +194,7 @@ test.describe("BabbleDeck MVP browser flow", () => {
     ).toBeVisible({
       timeout: 12_000,
     });
+    await expect(page.getByText("WebSocket backup")).toBeVisible();
 
     await page.getByRole("button", { name: /stop recording/i }).click();
     await page.waitForURL(/\/sessions\/[0-9a-f-]+$/, { timeout: 20_000 });

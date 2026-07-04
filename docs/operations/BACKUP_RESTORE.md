@@ -10,6 +10,7 @@ Production backups follow the server's systemd-managed project pattern.
 - Timer: `aialra-babbledeck-backup.timer`
 - Raw audio retention service: `aialra-babbledeck-audio-retention.service`
 - Raw audio retention timer: `aialra-babbledeck-audio-retention.timer`
+- Recorder WebSocket service: `aialra-babbledeck-ws.service`
 
 Each backup directory contains:
 

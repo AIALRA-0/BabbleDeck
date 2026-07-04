@@ -10,10 +10,16 @@ importers:
       "@prisma/client":
         specifier: "6"
         version: 6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3)
+      ws:
+        specifier: ^8.21.0
+        version: 8.21.0
     devDependencies:
       "@playwright/test":
         specifier: latest
         version: 1.61.1
+      "@types/node":
+        specifier: ^26.1.0
+        version: 26.1.0
       prettier:
         specifier: latest
         version: 3.9.4
@@ -5147,6 +5153,21 @@ packages:
       }
     engines: { node: ">=0.10.0" }
 
+  ws@8.21.0:
+    resolution:
+      {
+        integrity: sha512-Vsp28b7DRcimFQvrqu2Wek3z1iYxDCWqHYB8Qsnk/S4RfaCQzPGPyBNuVjJV3cd6UiKtUtp6sNM77gWvzcCH+g==,
+      }
+    engines: { node: ">=10.0.0" }
+    peerDependencies:
+      bufferutil: ^4.0.1
+      utf-8-validate: ">=5.0.2"
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      utf-8-validate:
+        optional: true
+
   xml-name-validator@5.0.0:
     resolution:
       {
@@ -8419,6 +8440,8 @@ snapshots:
       stackback: 0.0.2
 
   word-wrap@1.2.5: {}
+
+  ws@8.21.0: {}
 
   xml-name-validator@5.0.0: {}
 

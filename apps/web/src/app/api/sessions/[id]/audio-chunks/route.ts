@@ -1,13 +1,9 @@
 import { fail, ok, requireApiUser, validationError } from "@/server/api";
 import {
-  AUDIO_CHUNK_MAX_BYTES,
-  sha256Hex,
-  uploadAudioChunk,
-} from "@/server/audio-storage";
-import { prisma } from "@/server/db";
-import { recordProviderAudioUsage } from "@/server/provider-usage";
+  AudioChunkUploadError,
+  saveSessionAudioChunk,
+} from "@/server/audio-chunk-service";
 import { audioChunkSchema } from "@/server/schemas";
-import { apiStatus } from "@/server/serializers";
 
 export const runtime = "nodejs";
 
@@ -24,10 +20,6 @@ export async function POST(
   if ("response" in auth) return auth.response;
   const { user } = auth;
   const { id } = await context.params;
-  const session = await prisma.liveSession.findFirst({
-    where: { id, ownerUserId: user.id },
-  });
-  if (!session) return fail("NOT_FOUND", "Session not found.", 404);
 
   let parsed;
   let file: File | null = null;
@@ -53,114 +45,24 @@ export async function POST(
   if (!file) {
     return fail("VALIDATION_ERROR", "Audio chunk file is required.", 400);
   }
-  if (file.size === 0 || file.size > AUDIO_CHUNK_MAX_BYTES) {
-    return fail(
-      "AUDIO_CHUNK_TOO_LARGE",
-      "Audio chunks must be between 1 byte and 25 MB.",
-      413,
-    );
-  }
 
   const body = Buffer.from(await file.arrayBuffer());
-  const checksumSha256 = sha256Hex(body);
-  if (parsed.checksumSha256 && parsed.checksumSha256 !== checksumSha256) {
-    return fail("VALIDATION_ERROR", "Audio chunk checksum mismatch.", 400);
-  }
-  let storage;
   try {
-    storage = await uploadAudioChunk({
+    const result = await saveSessionAudioChunk({
       sessionId: id,
+      ownerUserId: user.id,
       chunkIndex: parsed.chunkIndex,
+      startedAt: parsed.startedAt,
+      durationMs: parsed.durationMs,
       body,
       mimeType: parsed.mimeType,
-      checksumSha256,
+      checksumSha256: parsed.checksumSha256,
     });
-  } catch {
-    return fail("INTERNAL_ERROR", "Audio chunk storage failed.", 500);
-  }
-
-  const existingChunk = await prisma.audioChunk.findUnique({
-    where: {
-      sessionId_chunkIndex: {
-        sessionId: id,
-        chunkIndex: parsed.chunkIndex,
-      },
-    },
-  });
-  const result = await prisma.$transaction(async (tx) => {
-    const savedChunk = await tx.audioChunk.upsert({
-      where: {
-        sessionId_chunkIndex: {
-          sessionId: id,
-          chunkIndex: parsed.chunkIndex,
-        },
-      },
-      update: {
-        objectKey: storage.objectKey,
-        mimeType: parsed.mimeType,
-        byteSize: BigInt(file.size),
-        durationMs: parsed.durationMs,
-        checksumSha256,
-        status: "UPLOADED",
-        uploadedAt: new Date(),
-        metadata: {
-          storageDriver: storage.driver,
-          storageBucket: storage.bucket ?? null,
-        },
-      },
-      create: {
-        sessionId: id,
-        chunkIndex: parsed.chunkIndex,
-        objectKey: storage.objectKey,
-        mimeType: parsed.mimeType,
-        byteSize: BigInt(file.size),
-        durationMs: parsed.durationMs,
-        checksumSha256,
-        startedAt: parsed.startedAt ? new Date(parsed.startedAt) : undefined,
-        status: "UPLOADED",
-        metadata: {
-          storageDriver: storage.driver,
-          storageBucket: storage.bucket ?? null,
-        },
-      },
-    });
-
-    let usageResult: Awaited<ReturnType<typeof recordProviderAudioUsage>> =
-      null;
-    if (!existingChunk && parsed.durationMs) {
-      usageResult = await recordProviderAudioUsage(tx, {
-        sessionId: id,
-        actorUserId: user.id,
-        providerName: session.providerName,
-        qualityMode: session.qualityMode,
-        audioMs: parsed.durationMs,
-        targetLanguage: session.targetLanguage,
-        payload: {
-          chunkId: savedChunk.id,
-          chunkIndex: parsed.chunkIndex,
-          byteSize: file.size,
-          mimeType: parsed.mimeType,
-        },
-      });
+    return ok(result);
+  } catch (error) {
+    if (error instanceof AudioChunkUploadError) {
+      return fail(error.code, error.message, error.status);
     }
-
-    return { chunk: savedChunk, usageResult };
-  });
-
-  return ok({
-    chunkId: result.chunk.id,
-    objectKey: result.chunk.objectKey,
-    status: result.chunk.status.toLowerCase(),
-    provider: result.usageResult
-      ? {
-          budgetExceeded: result.usageResult.budgetExceeded,
-          sessionStatus: result.usageResult.sessionStatus
-            ? apiStatus(result.usageResult.sessionStatus)
-            : null,
-          estimatedCostUsd: result.usageResult.estimatedCostUsd
-            ? Number(result.usageResult.estimatedCostUsd)
-            : null,
-        }
-      : null,
-  });
+    return fail("INTERNAL_ERROR", "Audio chunk upload failed.", 500);
+  }
 }

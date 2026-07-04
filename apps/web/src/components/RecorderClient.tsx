@@ -33,18 +33,37 @@ type RecorderClientProps = {
 type AudioChunkUploadResponse =
   | {
       ok: true;
-      data: {
-        provider: {
-          budgetExceeded: boolean;
-          sessionStatus: string | null;
-          estimatedCostUsd: number | null;
-        } | null;
-      };
+      data: AudioChunkUploadData;
     }
   | { ok: false };
 
 type StartSessionResponse =
   { ok: true; data: { session: { status: string } } } | { ok: false };
+
+type AudioChunkUploadData = {
+  chunkId: string;
+  objectKey: string;
+  status: string;
+  provider: {
+    budgetExceeded: boolean;
+    sessionStatus: string | null;
+    estimatedCostUsd: number | null;
+  } | null;
+};
+
+type RecorderWsMessage =
+  | {
+      type: "audio_chunk_ack";
+      requestId: string;
+      data: AudioChunkUploadData;
+    }
+  | {
+      type: "error";
+      requestId?: string;
+      error?: { code?: string; message?: string };
+    }
+  | { type: "ready"; connectionId: string; sessionId: string }
+  | { type: "pong"; requestId?: string };
 
 const script = [
   {
@@ -84,6 +103,9 @@ export function RecorderClient({
   const [pending, setPending] = useState(false);
   const [copied, setCopied] = useState(false);
   const [backup, setBackup] = useState({ total: 0, uploaded: 0, pending: 0 });
+  const [backupTransport, setBackupTransport] = useState<"http" | "websocket">(
+    "http",
+  );
   const [backupError, setBackupError] = useState<string | null>(null);
   const [providerNotice, setProviderNotice] = useState<string | null>(
     status === "provider_degraded"
@@ -97,6 +119,19 @@ export function RecorderClient({
   const streamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
+  const recorderSocketRef = useRef<WebSocket | null>(null);
+  const recorderSocketPromiseRef = useRef<Promise<WebSocket | null> | null>(
+    null,
+  );
+  const pendingWsUploadsRef = useRef(
+    new Map<
+      string,
+      {
+        resolve: (value: AudioChunkUploadData) => void;
+        reject: (error: Error) => void;
+      }
+    >(),
+  );
   const chunkIndexRef = useRef(0);
   const timerRef = useRef<number | null>(null);
   const effectiveViewerUrl =
@@ -119,10 +154,116 @@ export function RecorderClient({
     return () => {
       if (timerRef.current) window.clearInterval(timerRef.current);
       recorderRef.current?.stop();
+      recorderSocketRef.current?.close();
       streamRef.current?.getTracks().forEach((track) => track.stop());
       void audioContextRef.current?.close();
     };
   }, [sessionId]);
+
+  function applyProviderResult(provider: AudioChunkUploadData["provider"]) {
+    if (provider?.sessionStatus) {
+      setSessionStatus(provider.sessionStatus);
+    }
+    if (provider?.estimatedCostUsd != null) {
+      setEstimatedCostUsd(provider.estimatedCostUsd);
+    }
+    if (provider?.budgetExceeded) {
+      setProviderNotice("Budget cap reached. Local backup continues.");
+    }
+  }
+
+  function recorderWsUrl() {
+    const configured = process.env.NEXT_PUBLIC_RECORDER_WS_URL;
+    const url = new URL(configured || "/ws/recorder", window.location.origin);
+    if (url.protocol === "http:") url.protocol = "ws:";
+    if (url.protocol === "https:") url.protocol = "wss:";
+    url.searchParams.set("sessionId", sessionId);
+    return url.toString();
+  }
+
+  function rejectPendingWsUploads(error: Error) {
+    pendingWsUploadsRef.current.forEach(({ reject }) => reject(error));
+    pendingWsUploadsRef.current.clear();
+  }
+
+  async function ensureRecorderSocket() {
+    if (recorderSocketRef.current?.readyState === WebSocket.OPEN) {
+      return recorderSocketRef.current;
+    }
+    if (recorderSocketPromiseRef.current) {
+      return recorderSocketPromiseRef.current;
+    }
+
+    recorderSocketPromiseRef.current = new Promise<WebSocket | null>(
+      (resolve) => {
+        if (typeof window === "undefined" || !("WebSocket" in window)) {
+          resolve(null);
+          return;
+        }
+
+        const socket = new WebSocket(recorderWsUrl());
+        let settled = false;
+        const timeout = window.setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          socket.close();
+          resolve(null);
+        }, 2500);
+
+        socket.onopen = () => {
+          if (settled) return;
+          settled = true;
+          window.clearTimeout(timeout);
+          recorderSocketRef.current = socket;
+          setBackupTransport("websocket");
+          resolve(socket);
+        };
+        socket.onerror = () => {
+          if (settled) return;
+          settled = true;
+          window.clearTimeout(timeout);
+          resolve(null);
+        };
+        socket.onclose = () => {
+          if (recorderSocketRef.current === socket) {
+            recorderSocketRef.current = null;
+            setBackupTransport("http");
+          }
+          rejectPendingWsUploads(new Error("Recorder WebSocket closed."));
+        };
+        socket.onmessage = (event) => {
+          const message = JSON.parse(String(event.data)) as RecorderWsMessage;
+          if (message.type === "audio_chunk_ack") {
+            const pending = pendingWsUploadsRef.current.get(message.requestId);
+            if (!pending) return;
+            pendingWsUploadsRef.current.delete(message.requestId);
+            pending.resolve(message.data);
+          }
+          if (message.type === "error" && message.requestId) {
+            const pending = pendingWsUploadsRef.current.get(message.requestId);
+            if (!pending) return;
+            pendingWsUploadsRef.current.delete(message.requestId);
+            pending.reject(
+              new Error(message.error?.message ?? "Recorder WebSocket failed."),
+            );
+          }
+        };
+      },
+    ).finally(() => {
+      recorderSocketPromiseRef.current = null;
+    });
+
+    return recorderSocketPromiseRef.current;
+  }
+
+  function arrayBufferToBase64(buffer: ArrayBuffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    for (let index = 0; index < bytes.length; index += 0x8000) {
+      binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
+    }
+    return window.btoa(binary);
+  }
 
   async function ensureMic() {
     if (streamRef.current) return streamRef.current;
@@ -155,23 +296,16 @@ export function RecorderClient({
     }
   }
 
-  async function uploadChunkBlob(input: {
-    index: number;
-    startedAt: string;
-    durationMs: number;
-    blob: Blob;
-  }) {
-    const mimeType = input.blob.type || "audio/webm";
-    await saveLocalChunk({
-      sessionId,
-      chunkIndex: input.index,
-      startedAt: input.startedAt,
-      durationMs: input.durationMs,
-      mimeType,
-      blob: input.blob,
-    });
-    setBackup(await countLocalChunks(sessionId));
-
+  async function uploadChunkViaHttp(
+    input: {
+      index: number;
+      startedAt: string;
+      durationMs: number;
+      blob: Blob;
+    },
+    mimeType: string,
+  ) {
+    setBackupTransport("http");
     const formData = new FormData();
     formData.append("chunkIndex", String(input.index));
     formData.append("startedAt", input.startedAt);
@@ -194,15 +328,80 @@ export function RecorderClient({
     if (!payload.ok) {
       throw new Error("Audio chunk upload failed.");
     }
-    if (payload.data.provider?.sessionStatus) {
-      setSessionStatus(payload.data.provider.sessionStatus);
+    return payload.data;
+  }
+
+  async function uploadChunkViaWebSocket(
+    input: {
+      index: number;
+      startedAt: string;
+      durationMs: number;
+      blob: Blob;
+    },
+    mimeType: string,
+  ) {
+    const socket = await ensureRecorderSocket();
+    if (!socket || socket.readyState !== WebSocket.OPEN) return null;
+
+    const requestId = window.crypto.randomUUID();
+    const dataBase64 = arrayBufferToBase64(await input.blob.arrayBuffer());
+    return new Promise<AudioChunkUploadData>((resolve, reject) => {
+      const timeout = window.setTimeout(() => {
+        pendingWsUploadsRef.current.delete(requestId);
+        reject(new Error("Recorder WebSocket upload timed out."));
+      }, 15_000);
+      pendingWsUploadsRef.current.set(requestId, {
+        resolve: (value) => {
+          window.clearTimeout(timeout);
+          resolve(value);
+        },
+        reject: (error) => {
+          window.clearTimeout(timeout);
+          reject(error);
+        },
+      });
+      socket.send(
+        JSON.stringify({
+          type: "audio_chunk",
+          requestId,
+          sessionId,
+          chunkIndex: input.index,
+          startedAt: input.startedAt,
+          durationMs: input.durationMs,
+          mimeType,
+          dataBase64,
+        }),
+      );
+    });
+  }
+
+  async function uploadChunkBlob(input: {
+    index: number;
+    startedAt: string;
+    durationMs: number;
+    blob: Blob;
+  }) {
+    const mimeType = input.blob.type || "audio/webm";
+    await saveLocalChunk({
+      sessionId,
+      chunkIndex: input.index,
+      startedAt: input.startedAt,
+      durationMs: input.durationMs,
+      mimeType,
+      blob: input.blob,
+    });
+    setBackup(await countLocalChunks(sessionId));
+
+    let result: AudioChunkUploadData | null = null;
+    try {
+      result = await uploadChunkViaWebSocket(input, mimeType);
+    } catch {
+      result = null;
     }
-    if (payload.data.provider?.estimatedCostUsd != null) {
-      setEstimatedCostUsd(payload.data.provider.estimatedCostUsd);
+    if (!result) {
+      result = await uploadChunkViaHttp(input, mimeType);
     }
-    if (payload.data.provider?.budgetExceeded) {
-      setProviderNotice("Budget cap reached. Local backup continues.");
-    }
+    applyProviderResult(result.provider);
     await markLocalChunkUploaded(sessionId, input.index);
     setBackup(await countLocalChunks(sessionId));
     setBackupError(null);
@@ -407,6 +606,11 @@ export function RecorderClient({
               <p className="text-xs text-muted-foreground">Backup</p>
               <p className="mt-1 font-semibold">
                 {backup.uploaded}/{backup.total} uploaded
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {backupTransport === "websocket"
+                  ? "WebSocket backup"
+                  : "HTTP backup"}
               </p>
               {backupError ? (
                 <p className="mt-1 text-xs font-medium text-red-700">
