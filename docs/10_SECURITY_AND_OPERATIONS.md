@@ -175,6 +175,8 @@ sessions/{sessionId}/exports/transcript-{timestamp}.md
 - Use managed Postgres backups.
 - Daily backups minimum for production.
 - Test restore before production launch.
+- Current production uses `aialra-babbledeck-backup.timer` for daily Postgres custom dumps plus local audio object archives under `/srv/aialra/backups/babbledeck`.
+- `scripts/verify-backup.sh latest` restores into a temporary database and temporary audio directory to prove backup integrity without touching production data.
 
 ### Object storage
 

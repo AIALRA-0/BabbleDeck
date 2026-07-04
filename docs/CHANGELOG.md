@@ -11,3 +11,4 @@
 - Deployed production local audio storage under `/srv/aialra/storage/babbledeck` and verified it through Playwright smoke tests.
 - Added enforced password rotation UI/API for seed admins.
 - Added provider audio usage/cost tracking and admin usage visibility.
+- Added production Postgres/audio backup scripts, restore verification, and a systemd backup timer.

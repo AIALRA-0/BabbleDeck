@@ -204,3 +204,22 @@
   - Production post-run verification found `5` audio chunk records, `5` matching audio object files, `5` provider usage rows, and `5000` provider audio milliseconds before cleanup removed the temporary smoke session objects.
 - Screenshots/traces:
   - Production run passed without failure screenshots; temporary Playwright artifacts were removed after the successful run.
+
+## 2026-07-04 Production Backup and Restore
+
+- Environment: production server with `babbledeck_prod`, local audio root `/srv/aialra/storage/babbledeck`, backup root `/srv/aialra/backups/babbledeck`, and Postgres tools from Docker container `2026-07-04-babbledeck-postgres-1`.
+- Commands:
+  - `scripts/backup-production.sh`
+  - `scripts/verify-backup.sh /srv/aialra/backups/babbledeck/20260704T191342Z`
+  - `systemctl enable --now aialra-babbledeck-backup.timer`
+  - `systemctl start aialra-babbledeck-backup.service`
+  - `scripts/verify-backup.sh latest`
+  - Production restore refusal check with `TARGET_DATABASE_URL=$DATABASE_URL scripts/restore-backup.sh ...`
+- Results:
+  - Manual backup created `/srv/aialra/backups/babbledeck/20260704T191342Z`.
+  - Systemd service backup created `/srv/aialra/backups/babbledeck/20260704T191624Z`.
+  - Latest backup verified by restoring into temporary database `babbledeck_restore_verify_20260704191625_2734377` and a temporary audio directory.
+  - Production restore safety check passed: restore script refused to target the production `DATABASE_URL` without explicit `ALLOW_PRODUCTION_RESTORE=I_UNDERSTAND`.
+  - `aialra-babbledeck-backup.timer` is active and scheduled daily.
+- Artifacts:
+  - Backup directories include `db.dump`, `db-counts.json`, `audio.tar.gz`, checksum files, `manifest.json`, and the latest verification counts.

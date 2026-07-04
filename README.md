@@ -52,6 +52,8 @@ The current production instance follows the server's existing systemd + Nginx pa
 - Secret env file: `/srv/aialra/config/secrets/babbledeck.env`
 - Production database: `babbledeck_prod`
 - Production audio storage: local object root from `AUDIO_STORAGE_DIR` until R2/S3 credentials are configured.
+- Production backup timer: `aialra-babbledeck-backup.timer`
+- Backup root: `/srv/aialra/backups/babbledeck`
 
 Do not commit secrets, `.env.local`, raw recordings, provider keys, or production logs.
 
@@ -68,3 +70,4 @@ Do not commit secrets, `.env.local`, raw recordings, provider keys, or productio
 - `docs/09_AGENT_INSTRUCTIONS_WORKFLOW.md`
 - `docs/10_SECURITY_AND_OPERATIONS.md`
 - `docs/11_IMPLEMENTATION_BACKLOG.md`
+- `docs/operations/BACKUP_RESTORE.md`
