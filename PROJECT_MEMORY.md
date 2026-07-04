@@ -43,9 +43,10 @@
 - Raw audio storage cutover now has an audit script that verifies object presence and byte sizes against the configured storage target; production local storage audit currently finds 21 uploaded chunks present with no size mismatches.
 - Operators can update raw audio retention days from `/settings`, and session history now exposes per-session raw audio legal hold that prevents retention cleanup for that session.
 - Recorder pages expose backup reconnect and pending-chunk retry controls; Playwright seeds a failed IndexedDB chunk and verifies it replays to the server.
+- Soniox realtime mapping now advances original transcript segments independently from delayed translations and queues pending translation segment indexes, preventing late translations from forcing later original text back onto an earlier segment.
 
 ## Next Recommended Tasks
 
 1. Configure production R2/S3 credentials, run the raw audio audit plus migration dry-run, migrate storage off the local object directory, then pass strict readiness.
 2. Run one manual live microphone check from a physical browser/device for final hardware confidence.
-3. Harden Soniox token-to-segment alignment against long multilingual conversations after real-provider traces are available.
+3. Collect longer real Soniox multilingual traces and compare them against persisted segments for continued alignment confidence.

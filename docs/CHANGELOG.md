@@ -21,3 +21,4 @@
 - Added raw audio storage target audit tooling and stricter off-host migration readiness checks for the R2/S3 cutover.
 - Added operator-managed raw audio retention days and per-session raw audio legal hold.
 - Added recorder-side local backup reconnect and pending-chunk retry controls.
+- Hardened Soniox realtime token-to-segment mapping for delayed and queued translation responses.

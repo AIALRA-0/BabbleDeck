@@ -1,5 +1,32 @@
 # Test Runs
 
+## 2026-07-05 Soniox Segment Alignment Hardening
+
+- Environment: local workspace, production deployment at `https://babbledeck.aialra.online`, production secret env loaded without printing secrets.
+- Commands:
+  - `pnpm prettier --write apps/web/src/server/soniox-realtime.ts apps/web/src/server/soniox-realtime.test.ts`
+  - `pnpm --filter @babbledeck/web test -- --run src/server/soniox-realtime.test.ts`
+  - `pnpm format:check`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/recorder-ws-server.ts scripts/prune-audio-retention.ts scripts/migrate-audio-storage.ts scripts/audit-audio-storage.ts scripts/check-production-readiness.ts scripts/sync-seed-admin.ts playwright.config.ts`
+  - `pnpm build`
+  - `systemctl restart aialra-babbledeck.service aialra-babbledeck-ws.service`
+  - `curl -fsSI https://babbledeck.aialra.online/`
+  - `pnpm tsx scripts/check-production-readiness.ts --strict`
+  - Downloaded the public `LDC93S1.wav` sample to `/tmp/babbledeck-soniox-smoke.wav` for Chromium fake microphone input.
+  - `E2E_BASE_URL=https://babbledeck.aialra.online E2E_ADMIN_EMAIL="$SEED_ADMIN_EMAIL" E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD" E2E_RUN_SONIOX_UI_TEST=true E2E_FAKE_AUDIO_FILE=/tmp/babbledeck-soniox-smoke.wav E2E_SONIOX_EXPECTED_TEXT='dark|soup|greasy|wash|洗漱|深色' pnpm e2e e2e/mvp.spec.ts --project=chromium-desktop --grep "soniox provider streams"`
+- Results:
+  - Format, lint, app typecheck, script typecheck, and full unit tests passed.
+  - Unit tests passed with `9` files and `24` tests.
+  - Soniox mapping tests now cover delayed translations arriving after the next original segment has started, plus multiple final original segments queued before their translations arrive.
+  - Production build passed; production services restarted successfully and remained active with `NRestarts=0`.
+  - Production HTTPS returned `HTTP/2 200`.
+  - Strict production readiness still fails only because `AUDIO_STORAGE_DRIVER=local`; all required checks pass.
+  - Real Soniox UI smoke passed with fake microphone speech against production after matching the current public sample transcript text.
+  - Production smoke cleanup removed 1 temporary Soniox session and 6 local audio objects.
+
 ## 2026-07-05 Recorder Backup Retry Controls
 
 - Environment: local workspace with Docker Postgres on `localhost:55432`, Playwright dev server on `127.0.0.1:3108`, production deployment at `https://babbledeck.aialra.online`, production secret env loaded without printing secrets.

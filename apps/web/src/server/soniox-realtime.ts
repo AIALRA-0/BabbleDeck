@@ -45,6 +45,9 @@ export type SonioxMappingState = {
   segmentIndex: number;
   originalFinal: boolean;
   translationFinal: boolean;
+  activeOriginalSegmentIndex: number;
+  pendingTranslationSegmentIndex?: number;
+  pendingTranslationSegmentIndexes: number[];
 };
 
 export function createSonioxMappingState(): SonioxMappingState {
@@ -52,6 +55,8 @@ export function createSonioxMappingState(): SonioxMappingState {
     segmentIndex: 0,
     originalFinal: false,
     translationFinal: false,
+    activeOriginalSegmentIndex: 0,
+    pendingTranslationSegmentIndexes: [],
   };
 }
 
@@ -139,6 +144,36 @@ function mappedEvent(input: {
   };
 }
 
+function pendingTranslationIndexes(state: SonioxMappingState) {
+  if (!state.pendingTranslationSegmentIndexes) {
+    state.pendingTranslationSegmentIndexes =
+      state.pendingTranslationSegmentIndex == null
+        ? []
+        : [state.pendingTranslationSegmentIndex];
+  }
+  return state.pendingTranslationSegmentIndexes;
+}
+
+function rememberPendingTranslation(
+  state: SonioxMappingState,
+  segmentIndex: number,
+) {
+  const pending = pendingTranslationIndexes(state);
+  if (!pending.includes(segmentIndex)) pending.push(segmentIndex);
+  state.pendingTranslationSegmentIndex = pending[0];
+}
+
+function resolvePendingTranslation(
+  state: SonioxMappingState,
+  segmentIndex: number,
+) {
+  state.pendingTranslationSegmentIndexes = pendingTranslationIndexes(
+    state,
+  ).filter((pendingSegmentIndex) => pendingSegmentIndex !== segmentIndex);
+  state.pendingTranslationSegmentIndex =
+    state.pendingTranslationSegmentIndexes[0];
+}
+
 export function sonioxResponseToTranscriptEvents(input: {
   response: SonioxResponse;
   targetLanguage: string;
@@ -152,7 +187,7 @@ export function sonioxResponseToTranscriptEvents(input: {
     (token) => token.translation_status === "translation",
   );
   const events: SonioxMappedEvent[] = [];
-  const segmentIndex = input.state.segmentIndex;
+  let originalSegmentIndex: number | undefined;
 
   const originalIsFinal =
     originalTokens.length > 0 &&
@@ -161,11 +196,28 @@ export function sonioxResponseToTranscriptEvents(input: {
     translationTokens.length > 0 &&
     translationTokens.every((token) => Boolean(token.is_final));
 
+  if (originalTokens.length > 0) {
+    if (input.state.originalFinal) {
+      input.state.activeOriginalSegmentIndex = input.state.segmentIndex;
+      input.state.originalFinal = false;
+      input.state.translationFinal = false;
+    }
+    originalSegmentIndex = input.state.activeOriginalSegmentIndex;
+  }
+
+  const translationSegmentIndex =
+    translationTokens.length > 0
+      ? (pendingTranslationIndexes(input.state)[0] ??
+        originalSegmentIndex ??
+        input.state.activeOriginalSegmentIndex)
+      : undefined;
+
   const original = mappedEvent({
     type: originalIsFinal ? "final_transcript" : "partial_transcript",
     tokens: originalTokens,
     targetLanguage: input.targetLanguage,
-    segmentIndex,
+    segmentIndex:
+      originalSegmentIndex ?? input.state.activeOriginalSegmentIndex,
   });
   if (original) events.push(original);
 
@@ -173,14 +225,38 @@ export function sonioxResponseToTranscriptEvents(input: {
     type: translationIsFinal ? "final_translation" : "partial_translation",
     tokens: translationTokens,
     targetLanguage: input.targetLanguage,
-    segmentIndex,
+    segmentIndex:
+      translationSegmentIndex ?? input.state.activeOriginalSegmentIndex,
   });
   if (translation) events.push(translation);
 
-  if (originalIsFinal) input.state.originalFinal = true;
-  if (translationIsFinal) input.state.translationFinal = true;
-  if (input.state.originalFinal && input.state.translationFinal) {
-    input.state.segmentIndex += 1;
+  if (originalIsFinal && originalSegmentIndex != null) {
+    input.state.originalFinal = true;
+    input.state.segmentIndex = Math.max(
+      input.state.segmentIndex,
+      originalSegmentIndex + 1,
+    );
+    if (
+      !translationIsFinal ||
+      translationSegmentIndex !== originalSegmentIndex
+    ) {
+      rememberPendingTranslation(input.state, originalSegmentIndex);
+    }
+  }
+
+  if (translationIsFinal && translationSegmentIndex != null) {
+    if (translationSegmentIndex === input.state.activeOriginalSegmentIndex) {
+      input.state.translationFinal = true;
+    }
+    resolvePendingTranslation(input.state, translationSegmentIndex);
+  }
+
+  if (
+    input.state.originalFinal &&
+    input.state.translationFinal &&
+    input.state.activeOriginalSegmentIndex < input.state.segmentIndex
+  ) {
+    input.state.activeOriginalSegmentIndex = input.state.segmentIndex;
     input.state.originalFinal = false;
     input.state.translationFinal = false;
   }
