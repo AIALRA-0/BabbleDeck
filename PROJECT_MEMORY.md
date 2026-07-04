@@ -37,6 +37,7 @@
 - After Soniox key configuration, production web and recorder WS services were restarted successfully and Playwright desktop/mobile E2E passed with WebSocket backup plus budget-degraded Soniox coverage.
 - Production web now runs through the Next standalone server under systemd, with `.next/static` and `public` copied into the standalone output by `scripts/prepare-standalone-assets.sh`.
 - Production recorder UI Soniox validation passed with Chromium fake-microphone speech audio: the UI and viewer received real Soniox transcript text from the fake microphone source without mock caption injection.
+- Production seed admin credentials were reset to match `SEED_ADMIN_PASSWORD` and verified through the HTTPS login API without printing the password.
 
 ## Next Recommended Tasks
 

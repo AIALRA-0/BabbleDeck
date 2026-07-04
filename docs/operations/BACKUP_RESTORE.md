@@ -26,6 +26,27 @@ Each backup directory contains:
 scripts/backup-production.sh
 ```
 
+## Production Readiness Audit
+
+Run the non-destructive readiness audit after deploys or credential changes:
+
+```bash
+set -a; . /srv/aialra/config/secrets/babbledeck.env; set +a
+pnpm tsx scripts/check-production-readiness.ts
+```
+
+Use `--strict` when deciding whether the full production target is complete.
+Strict mode fails while external dependencies such as R2/S3-compatible raw audio
+storage remain unconfigured.
+
+To re-sync the bootstrap admin with the server secret env after an operator
+credential change:
+
+```bash
+set -a; . /srv/aialra/config/secrets/babbledeck.env; set +a
+pnpm tsx scripts/sync-seed-admin.ts
+```
+
 ## Verify Latest Backup
 
 This restores into a temporary database and temporary audio directory, then

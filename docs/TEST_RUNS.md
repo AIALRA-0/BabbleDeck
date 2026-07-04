@@ -64,6 +64,22 @@
   - The Soniox UI smoke created a real Soniox session, used Chromium fake microphone speech, observed expected `Brooklyn` transcript text in the recorder UI and viewer, and confirmed backup chunks.
   - Smoke cleanup removed 5 temporary sessions and 15 local audio objects.
 
+## 2026-07-04 Production Readiness and Seed Admin Audit
+
+- Environment: `https://babbledeck.aialra.online`, production secret env file loaded without printing secrets, production Postgres database `babbledeck_prod`.
+- Commands:
+  - HTTPS login API probe for `SEED_ADMIN_EMAIL` with `SEED_ADMIN_PASSWORD`.
+  - Seed admin password hash check using `verifyPassword` without printing the password.
+  - Password hash reset to match `SEED_ADMIN_PASSWORD`, followed by HTTPS login API verification.
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck ... scripts/check-production-readiness.ts`
+  - `pnpm tsx scripts/check-production-readiness.ts`
+  - `pnpm tsx scripts/check-production-readiness.ts --strict`
+- Results:
+  - Initial audit found the seed admin existed and was enabled but its password hash did not match `SEED_ADMIN_PASSWORD`.
+  - The seed admin was reset to match `SEED_ADMIN_PASSWORD`, old auth sessions were revoked, and HTTPS login returned `200` with an auth cookie.
+  - Readiness audit returned `requiredOk=true`.
+  - Strict readiness returned exit code `1` only because R2/S3-compatible off-host audio storage is not configured yet.
+
 ## 2026-07-04
 
 - Environment: local workspace with Docker Postgres on `localhost:55432`.

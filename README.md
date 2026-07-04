@@ -47,6 +47,22 @@ pnpm build
 pnpm e2e
 ```
 
+Production readiness audit:
+
+```bash
+set -a; . /srv/aialra/config/secrets/babbledeck.env; set +a
+pnpm tsx scripts/check-production-readiness.ts
+pnpm tsx scripts/check-production-readiness.ts --strict
+```
+
+Synchronize the bootstrap admin with `SEED_ADMIN_EMAIL` and
+`SEED_ADMIN_PASSWORD` after credential changes:
+
+```bash
+set -a; . /srv/aialra/config/secrets/babbledeck.env; set +a
+pnpm tsx scripts/sync-seed-admin.ts
+```
+
 ## Deployment Notes
 
 The current production instance follows the server's existing systemd + Nginx pattern:

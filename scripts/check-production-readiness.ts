@@ -1,0 +1,297 @@
+import fs from "node:fs/promises";
+import path from "node:path";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { prisma } from "../apps/web/src/server/db";
+import { verifyPassword } from "../apps/web/src/server/password";
+
+const execFileAsync = promisify(execFile);
+
+type CheckSeverity = "required" | "external";
+
+type ReadinessCheck = {
+  name: string;
+  ok: boolean;
+  severity: CheckSeverity;
+  message: string;
+};
+
+function argValue(name: string) {
+  const prefix = `${name}=`;
+  const match = process.argv.find((arg) => arg.startsWith(prefix));
+  return match ? match.slice(prefix.length) : undefined;
+}
+
+function boolFlag(name: string) {
+  return process.argv.includes(name);
+}
+
+function check(
+  checks: ReadinessCheck[],
+  input: {
+    name: string;
+    ok: boolean;
+    severity?: CheckSeverity;
+    message: string;
+  },
+) {
+  checks.push({
+    severity: input.severity ?? "required",
+    ...input,
+  });
+}
+
+async function serviceActive(name: string) {
+  try {
+    const { stdout } = await execFileAsync("systemctl", ["is-active", name]);
+    return stdout.trim() === "active";
+  } catch {
+    return false;
+  }
+}
+
+async function httpsOk(baseUrl: string) {
+  try {
+    const response = await fetch(baseUrl, { method: "HEAD" });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function staticAssetOk(baseUrl: string) {
+  const staticRoot = path.join(
+    process.cwd(),
+    "apps/web/.next/standalone/apps/web/.next/static/chunks",
+  );
+  try {
+    const entries = await fs.readdir(staticRoot);
+    const cssFile = entries.find((entry) => entry.endsWith(".css"));
+    if (!cssFile) return false;
+    const response = await fetch(
+      new URL(`/_next/static/chunks/${cssFile}`, baseUrl),
+      { method: "HEAD" },
+    );
+    return (
+      response.ok &&
+      (response.headers.get("content-type") ?? "").includes("text/css")
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function seedAdminMatchesEnv() {
+  const email = (
+    process.env.SEED_ADMIN_EMAIL ?? "admin@example.invalid"
+  ).toLowerCase();
+  const password = process.env.SEED_ADMIN_PASSWORD;
+  if (!password) {
+    return {
+      ok: false,
+      message: "SEED_ADMIN_PASSWORD is not configured.",
+    };
+  }
+  const user = await prisma.user.findUnique({
+    where: { email },
+    select: {
+      passwordHash: true,
+      role: true,
+      disabledAt: true,
+      passwordRotationRequired: true,
+    },
+  });
+  if (!user) {
+    return { ok: false, message: `Seed admin ${email} is missing.` };
+  }
+  const matches = await verifyPassword(password, user.passwordHash);
+  return {
+    ok:
+      matches &&
+      user.role === "ADMIN" &&
+      !user.disabledAt &&
+      !user.passwordRotationRequired,
+    message: matches
+      ? "Seed admin exists, is enabled, and matches SEED_ADMIN_PASSWORD."
+      : "Seed admin password hash does not match SEED_ADMIN_PASSWORD.",
+  };
+}
+
+function configuredEnvName(names: string[]) {
+  return names.find((name) => Boolean(process.env[name]));
+}
+
+function offHostAudioStorageStatus() {
+  const driverSetting = process.env.AUDIO_STORAGE_DRIVER?.toLowerCase();
+  if (driverSetting === "local") {
+    return {
+      ok: false,
+      message:
+        "AUDIO_STORAGE_DRIVER is local; production is still using local audio storage.",
+    };
+  }
+
+  const bucketVar = configuredEnvName([
+    "AUDIO_STORAGE_BUCKET",
+    "R2_BUCKET",
+    "S3_BUCKET",
+  ]);
+  const endpointVar = configuredEnvName([
+    "AUDIO_STORAGE_ENDPOINT",
+    "R2_ENDPOINT",
+    "S3_ENDPOINT",
+  ]);
+  const accessKeyVar = configuredEnvName([
+    "AUDIO_STORAGE_ACCESS_KEY_ID",
+    "R2_ACCESS_KEY_ID",
+    "S3_ACCESS_KEY_ID",
+    "AWS_ACCESS_KEY_ID",
+  ]);
+  const secretKeyVar = configuredEnvName([
+    "AUDIO_STORAGE_SECRET_ACCESS_KEY",
+    "R2_SECRET_ACCESS_KEY",
+    "S3_SECRET_ACCESS_KEY",
+    "AWS_SECRET_ACCESS_KEY",
+  ]);
+  const requiresEndpoint =
+    driverSetting === "r2" ||
+    Boolean(process.env.R2_BUCKET) ||
+    Boolean(process.env.R2_ENDPOINT) ||
+    Boolean(process.env.AUDIO_STORAGE_ENDPOINT) ||
+    Boolean(process.env.S3_ENDPOINT);
+  const missing = [
+    bucketVar ? undefined : "AUDIO_STORAGE_BUCKET/R2_BUCKET/S3_BUCKET",
+    requiresEndpoint && !endpointVar
+      ? "AUDIO_STORAGE_ENDPOINT/R2_ENDPOINT/S3_ENDPOINT"
+      : undefined,
+    accessKeyVar
+      ? undefined
+      : "AUDIO_STORAGE_ACCESS_KEY_ID/R2_ACCESS_KEY_ID/S3_ACCESS_KEY_ID/AWS_ACCESS_KEY_ID",
+    secretKeyVar
+      ? undefined
+      : "AUDIO_STORAGE_SECRET_ACCESS_KEY/R2_SECRET_ACCESS_KEY/S3_SECRET_ACCESS_KEY/AWS_SECRET_ACCESS_KEY",
+  ].filter((item): item is string => Boolean(item));
+
+  return {
+    ok: missing.length === 0,
+    message:
+      missing.length === 0
+        ? "R2/S3-compatible audio storage target and credentials are configured."
+        : `R2/S3-compatible audio storage is incomplete; missing ${missing.join(", ")}.`,
+  };
+}
+
+async function latestBackupOk() {
+  const backupRoot =
+    process.env.BABBLEDECK_BACKUP_ROOT ?? "/srv/aialra/backups/babbledeck";
+  try {
+    const entries = await fs.readdir(backupRoot, { withFileTypes: true });
+    return entries.some((entry) => entry.isDirectory());
+  } catch {
+    return false;
+  }
+}
+
+async function main() {
+  const strict = boolFlag("--strict");
+  const baseUrl =
+    argValue("--base-url") ??
+    process.env.PRODUCTION_BASE_URL ??
+    process.env.NEXT_PUBLIC_APP_URL ??
+    "https://babbledeck.aialra.online";
+  const checks: ReadinessCheck[] = [];
+
+  check(checks, {
+    name: "database_url",
+    ok: Boolean(process.env.DATABASE_URL),
+    message: process.env.DATABASE_URL
+      ? "DATABASE_URL is configured."
+      : "DATABASE_URL is missing.",
+  });
+
+  const seedCheck = await seedAdminMatchesEnv();
+  check(checks, {
+    name: "seed_admin_credentials",
+    ok: seedCheck.ok,
+    message: seedCheck.message,
+  });
+
+  check(checks, {
+    name: "soniox_api_key",
+    ok: Boolean(process.env.SONIOX_API_KEY),
+    message: process.env.SONIOX_API_KEY
+      ? "SONIOX_API_KEY is configured."
+      : "SONIOX_API_KEY is missing.",
+  });
+
+  for (const service of [
+    "aialra-babbledeck.service",
+    "aialra-babbledeck-ws.service",
+    "aialra-babbledeck-backup.timer",
+    "aialra-babbledeck-audio-retention.timer",
+  ]) {
+    const active = await serviceActive(service);
+    check(checks, {
+      name: service,
+      ok: active,
+      message: active ? `${service} is active.` : `${service} is not active.`,
+    });
+  }
+
+  check(checks, {
+    name: "https",
+    ok: await httpsOk(baseUrl),
+    message: `${baseUrl} responds over HTTPS.`,
+  });
+
+  check(checks, {
+    name: "standalone_static_assets",
+    ok: await staticAssetOk(baseUrl),
+    message: "Standalone static assets are served with the expected MIME type.",
+  });
+
+  check(checks, {
+    name: "latest_backup_present",
+    ok: await latestBackupOk(),
+    message: "At least one production backup directory exists.",
+  });
+
+  const remoteStorage = offHostAudioStorageStatus();
+  check(checks, {
+    name: "off_host_audio_storage",
+    ok: remoteStorage.ok,
+    severity: "external",
+    message: remoteStorage.message,
+  });
+
+  const requiredOk = checks.every(
+    (item) => item.severity !== "required" || item.ok,
+  );
+  const externalOk = checks.every(
+    (item) => item.severity !== "external" || item.ok,
+  );
+  const result = {
+    baseUrl,
+    requiredOk,
+    externalOk,
+    productionReady: requiredOk && externalOk,
+    strict,
+    checks,
+  };
+
+  process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+  if (!requiredOk || (strict && !externalOk)) {
+    process.exitCode = 1;
+  }
+}
+
+main()
+  .catch((error) => {
+    console.error(
+      error instanceof Error ? error.message : "Production readiness failed.",
+    );
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
