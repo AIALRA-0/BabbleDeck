@@ -11,6 +11,7 @@ Production: https://babbledeck.aialra.online
 - Bootstrap admin seed via `SEED_ADMIN_PASSWORD`.
 - Login, dashboard, live session creation, recorder page, public viewer page, session history, provider usage, budget caps with degraded-provider status, and exports.
 - Browser microphone permission flow, volume meter, IndexedDB local backup, binary audio chunk upload to local/S3-compatible object storage, SSE viewer stream with polling fallback, and deterministic mock transcript provider.
+- Recorder WebSocket transport streams audio chunks to server-side provider adapters; Soniox realtime activates when `SONIOX_API_KEY` is configured.
 - Playwright desktop/mobile E2E for the full MVP flow.
 
 ## Development
@@ -59,6 +60,8 @@ The current production instance follows the server's existing systemd + Nginx pa
 - Production backup timer: `aialra-babbledeck-backup.timer`
 - Production raw audio retention timer: `aialra-babbledeck-audio-retention.timer`
 - Backup root: `/srv/aialra/backups/babbledeck`
+
+Soniox realtime requires `SONIOX_API_KEY`. Without it, Soniox-mode sessions are marked degraded while local backup continues.
 
 Do not commit secrets, `.env.local`, raw recordings, provider keys, or production logs.
 

@@ -169,6 +169,8 @@ export function RecorderClient({
     }
     if (provider?.budgetExceeded) {
       setProviderNotice("Budget cap reached. Local backup continues.");
+    } else if (provider?.sessionStatus === "provider_degraded") {
+      setProviderNotice("Provider degraded. Local backup continues.");
     }
   }
 

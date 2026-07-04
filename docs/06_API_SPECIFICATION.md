@@ -447,6 +447,11 @@ Endpoint:
 Uses the same `babbledeck_session` auth cookie as the admin app. Production is
 proxied by Nginx to `aialra-babbledeck-ws.service`.
 
+For sessions whose provider is `soniox`, the WebSocket service also forwards
+saved audio chunks to Soniox realtime STT/translation when `SONIOX_API_KEY` is
+configured. If the key is missing or the provider errors, the session is marked
+`provider_degraded` and local backup continues.
+
 ### Client → server messages
 
 #### audio_chunk

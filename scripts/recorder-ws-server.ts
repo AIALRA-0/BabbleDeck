@@ -10,6 +10,7 @@ import {
   saveSessionAudioChunk,
 } from "../apps/web/src/server/audio-chunk-service";
 import { AUDIO_CHUNK_MAX_BYTES } from "../apps/web/src/server/audio-storage";
+import { SonioxRealtimeBridge } from "../apps/web/src/server/soniox-realtime";
 
 const AUTH_COOKIE = "babbledeck_session";
 const DEFAULT_PORT = 11971;
@@ -23,6 +24,9 @@ type RecorderContext = {
   connectionId: string;
   recorderConnectionId: string;
   sessionId: string;
+  providerName: "MOCK" | "SONIOX";
+  targetLanguage: string;
+  sourceLanguageMode: string;
   user: AuthenticatedUser;
 };
 
@@ -116,6 +120,17 @@ async function handleRecorderConnection(
   request: http.IncomingMessage,
   context: RecorderContext,
 ) {
+  const soniox =
+    context.providerName === "SONIOX"
+      ? new SonioxRealtimeBridge({
+          sessionId: context.sessionId,
+          actorUserId: context.user.id,
+          targetLanguage: context.targetLanguage,
+          sourceLanguageMode: context.sourceLanguageMode,
+        })
+      : null;
+  void soniox?.start();
+
   sendJson(socket, {
     type: "ready",
     connectionId: context.connectionId,
@@ -146,6 +161,7 @@ async function handleRecorderConnection(
           checksumSha256: message.parsed.checksumSha256,
           body: message.body,
         });
+        void soniox?.sendAudio(message.body);
         sendJson(socket, {
           type: "audio_chunk_ack",
           requestId,
@@ -166,6 +182,7 @@ async function handleRecorderConnection(
   });
 
   socket.on("close", () => {
+    soniox?.close();
     void prisma.recorderConnection.updateMany({
       where: { id: context.recorderConnectionId, endedAt: null },
       data: { status: "closed", endedAt: new Date() },
@@ -182,11 +199,18 @@ async function buildContext(request: http.IncomingMessage) {
   if (!user) return null;
   const session = await prisma.liveSession.findFirst({
     where: { id: sessionId, ownerUserId: user.id, archivedAt: null },
-    select: { id: true },
+    select: {
+      id: true,
+      providerName: true,
+      targetLanguage: true,
+      sourceLanguageMode: true,
+    },
   });
   if (!session) return null;
 
   const connectionId = crypto.randomUUID();
+  const providerName: RecorderContext["providerName"] =
+    session.providerName === "SONIOX" ? "SONIOX" : "MOCK";
   const recorderConnection = await prisma.recorderConnection.create({
     data: {
       sessionId,
@@ -205,6 +229,9 @@ async function buildContext(request: http.IncomingMessage) {
     connectionId,
     recorderConnectionId: recorderConnection.id,
     sessionId,
+    providerName,
+    targetLanguage: session.targetLanguage,
+    sourceLanguageMode: session.sourceLanguageMode,
     user,
   };
 }

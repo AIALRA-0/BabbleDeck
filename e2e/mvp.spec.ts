@@ -183,12 +183,12 @@ test.describe("BabbleDeck MVP browser flow", () => {
     await expect(page.getByText("granted")).toBeVisible({ timeout: 10_000 });
 
     await page.getByRole("button", { name: /start recording/i }).click();
-    await expect(page.getByText("provider degraded")).toBeVisible({
+    await expect(
+      page.getByText("provider degraded", { exact: true }),
+    ).toBeVisible({
       timeout: 20_000,
     });
-    await expect(
-      page.getByText("Budget cap reached. Local backup continues."),
-    ).toBeVisible();
+    await expect(page.getByText(/Local backup continues\./)).toBeVisible();
     await expect(
       page.getByText(/[1-9][0-9]*\/[1-9][0-9]* uploaded/),
     ).toBeVisible({
@@ -201,7 +201,9 @@ test.describe("BabbleDeck MVP browser flow", () => {
     await expect(page.getByRole("heading", { name: title })).toBeVisible({
       timeout: 20_000,
     });
-    await expect(page.getByText("provider degraded")).toBeVisible();
+    await expect(
+      page.getByText("provider degraded", { exact: true }),
+    ).toBeVisible();
     await expect(page.getByText("soniox", { exact: true })).toBeVisible();
     await expect(
       page.getByText("Backup chunks").locator("xpath=.."),

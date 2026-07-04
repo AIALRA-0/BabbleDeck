@@ -23,11 +23,12 @@
 - `apps/web` contains a Next.js App Router PWA shell.
 - Prisma/PostgreSQL schema covers auth sessions, live sessions, transcript events/segments, translations, audio chunks, exports, glossary terms, provider usage, and audit logs.
 - Seed script creates the bootstrap admin only when no admin exists and `SEED_ADMIN_PASSWORD` is set.
-- Browser MVP path implemented: login, forced password rotation for seed admins, dashboard, session create, recorder shell, mic test, volume meter, IndexedDB backup, WebSocket-first recorder audio chunk transport with HTTP fallback, binary audio chunk upload to local/S3-compatible storage, provider audio usage/cost tracking, budget-cap enforcement with degraded-provider UI, mock transcript events, public viewer SSE with polling fallback, session history, and transcript export.
+- Browser MVP path implemented: login, forced password rotation for seed admins, dashboard, session create, recorder shell, mic test, volume meter, IndexedDB backup, WebSocket-first recorder audio chunk transport with HTTP fallback, binary audio chunk upload to local/S3-compatible storage, provider audio usage/cost tracking, Soniox realtime adapter scaffolding, budget-cap enforcement with degraded-provider UI, mock transcript events, public viewer SSE with polling fallback, session history, and transcript export.
 - Verification passed locally: Prisma validate/generate/migrate, format, lint, typecheck, Vitest unit tests, Next build, and Playwright desktop/mobile MVP E2E.
 - Production deployment is live at `https://babbledeck.aialra.online` through systemd service `aialra-babbledeck.service`, Nginx TLS, and production database `babbledeck_prod`.
 - Production recorder WebSocket transport is live through `aialra-babbledeck-ws.service` on `127.0.0.1:11971` and Nginx `/ws/recorder` upgrade proxying.
 - Production audio object storage currently uses local root `/srv/aialra/storage/babbledeck` with S3/R2-compatible env hooks available for later off-host storage.
+- Production `SONIOX_API_KEY` is not configured yet. Soniox-mode sessions enter `provider_degraded` while local backup continues until the key is added and validated.
 - Production backup/restore automation is installed through `aialra-babbledeck-backup.timer`; verified backups restore into a temporary database and temporary audio directory.
 - Production raw audio retention automation is installed through `aialra-babbledeck-audio-retention.timer`; it deletes uploaded raw audio objects for ended sessions after the configured retention window and marks chunks `DELETED`.
 - Production smoke passed with Playwright desktop/mobile using a temporary smoke admin that was cleaned up afterward, including verification that binary audio chunk files were written before cleanup.
@@ -35,8 +36,8 @@
 
 ## Next Recommended Tasks
 
-1. Add Soniox realtime adapter behind the current provider boundary.
+1. Configure production `SONIOX_API_KEY` and run real Soniox staging validation.
 2. Configure production R2/S3 credentials and migrate raw audio storage off the local object directory.
-3. Add production Soniox staging validation once a real `SONIOX_API_KEY` is configured.
+3. Harden Soniox token-to-segment alignment against long multilingual conversations after real-provider traces are available.
 4. Add operator-facing retention settings and per-session legal hold controls.
 5. Add richer recorder reconnect/replay controls for pending local chunks.

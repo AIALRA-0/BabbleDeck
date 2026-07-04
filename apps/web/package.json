@@ -26,6 +26,7 @@
     "react-dom": "latest",
     "react-hook-form": "latest",
     "tailwind-merge": "latest",
+    "ws": "^8.21.0",
     "zod": "latest"
   },
   "devDependencies": {
@@ -36,6 +37,7 @@
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
+    "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "latest",
     "autoprefixer": "latest",
     "eslint": "9",
