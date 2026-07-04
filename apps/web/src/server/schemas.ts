@@ -93,3 +93,16 @@ export const updateSettingsSchema = z.object({
 export const updateSessionLegalHoldSchema = z.object({
   rawAudioLegalHold: z.boolean(),
 });
+
+export const updateTranscriptSegmentSchema = z
+  .object({
+    originalText: z.string().trim().min(1).max(5000).optional(),
+    translationText: z.string().trim().max(5000).nullable().optional(),
+  })
+  .refine(
+    (value) =>
+      value.originalText !== undefined || value.translationText !== undefined,
+    {
+      message: "At least one transcript field is required.",
+    },
+  );

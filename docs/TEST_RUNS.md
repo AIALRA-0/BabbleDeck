@@ -1,5 +1,32 @@
 # Test Runs
 
+## 2026-07-05 Transcript Segment Corrections
+
+- Environment: local workspace with Docker Postgres on `localhost:55432`, Playwright dev server on `127.0.0.1:3110`, production deployment at `https://babbledeck.aialra.online`, production secret env loaded without printing secrets.
+- Commands:
+  - `pnpm prettier --write apps/web/src/server/schemas.ts apps/web/src/server/session-service.ts apps/web/src/app/api/sessions/[id]/segments/[segmentId]/route.ts apps/web/src/server/serializers.ts apps/web/src/components/SessionHistoryClient.tsx e2e/mvp.spec.ts`
+  - `pnpm format:check`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/recorder-ws-server.ts scripts/prune-audio-retention.ts scripts/migrate-audio-storage.ts scripts/audit-audio-storage.ts scripts/check-production-readiness.ts scripts/sync-seed-admin.ts playwright.config.ts`
+  - `DATABASE_URL=postgresql://babbledeck:babbledeck@localhost:55432/babbledeck_dev pnpm db:migrate`
+  - `DATABASE_URL=postgresql://babbledeck:babbledeck@localhost:55432/babbledeck_dev pnpm tsx scripts/sync-seed-admin.ts`
+  - `DATABASE_URL=postgresql://babbledeck:babbledeck@localhost:55432/babbledeck_dev E2E_BASE_URL=http://127.0.0.1:3110 E2E_ADMIN_EMAIL="$SEED_ADMIN_EMAIL" E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD" pnpm e2e e2e/mvp.spec.ts --project=chromium-desktop --grep "admin creates a live session"`
+  - `pnpm build`
+  - `systemctl restart aialra-babbledeck.service aialra-babbledeck-ws.service`
+  - `curl -fsSI https://babbledeck.aialra.online/`
+  - `pnpm tsx scripts/check-production-readiness.ts --strict`
+  - `E2E_BASE_URL=https://babbledeck.aialra.online E2E_ADMIN_EMAIL="$SEED_ADMIN_EMAIL" E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD" pnpm e2e e2e/mvp.spec.ts --project=chromium-desktop --grep "admin creates a live session"`
+- Results:
+  - Format, lint, app typecheck, script typecheck, and full unit tests passed.
+  - Unit tests passed with `10` files and `25` tests, including audited transcript segment update coverage.
+  - Local and production Playwright desktop MVP passed while editing the first transcript segment from session history, verifying corrected original and translated text in the UI, and confirming Markdown export content uses the corrections.
+  - Production build passed; production web and recorder WS services restarted successfully and remained active.
+  - Production HTTPS returned `HTTP/2 200`.
+  - Strict production readiness confirms all required checks pass, including `SONIOX_API_KEY`; strict completion still waits on off-host R2/S3-compatible audio storage because production currently has `AUDIO_STORAGE_DRIVER=local`.
+  - Production smoke cleanup removed 1 temporary Playwright session and 3 local audio objects.
+
 ## 2026-07-05 CI Workflow Hardening
 
 - Environment: local workspace inspecting `.github/workflows`.

@@ -1,3 +1,4 @@
+import fs from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
 
 const adminEmail = process.env.E2E_ADMIN_EMAIL ?? "admin@example.invalid";
@@ -250,6 +251,17 @@ test.describe("BabbleDeck MVP browser flow", () => {
     await expect(page.getByRole("heading", { name: title })).toBeVisible({
       timeout: 20_000,
     });
+    const correctedOriginal = "Corrected Playwright original.";
+    const correctedTranslation = "修正后的字幕。";
+    const firstSegment = page
+      .locator("article")
+      .filter({ hasText: "Segment 1" });
+    await firstSegment.getByRole("button", { name: /^edit$/i }).click();
+    await firstSegment.getByLabel("Original").fill(correctedOriginal);
+    await firstSegment.getByLabel("Translation").fill(correctedTranslation);
+    await firstSegment.getByRole("button", { name: /^save$/i }).click();
+    await expect(firstSegment.getByText(correctedOriginal)).toBeVisible();
+    await expect(firstSegment.getByText(correctedTranslation)).toBeVisible();
     await page.getByLabel("Legal hold").check();
     await page
       .locator("form")
@@ -266,12 +278,17 @@ test.describe("BabbleDeck MVP browser flow", () => {
     await expect(
       page.getByText("Audio processed").locator("xpath=.."),
     ).toContainText(/0:0[1-9]|0:[1-9][0-9]|[1-9][0-9]*:/);
-    await expect(page.getByText("欢迎使用 BabbleDeck")).toBeVisible();
+    await expect(page.getByText(correctedTranslation)).toBeVisible();
 
     const downloadPromise = page.waitForEvent("download");
     await page.getByRole("button", { name: /markdown/i }).click();
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toMatch(/\.markdown$/);
+    const downloadPath = await download.path();
+    if (!downloadPath) throw new Error("Markdown download path missing.");
+    const exportContent = await fs.readFile(downloadPath, "utf8");
+    expect(exportContent).toContain(correctedOriginal);
+    expect(exportContent).toContain(correctedTranslation);
 
     await recorderContext.close();
     await viewerContext.close();

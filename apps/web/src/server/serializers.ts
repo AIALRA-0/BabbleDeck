@@ -126,5 +126,6 @@ export function serializeSegment(
     translationText: translation?.translationText ?? null,
     targetLanguage: translation?.targetLanguage ?? null,
     createdAt: segment.createdAt.toISOString(),
+    editedAt: segment.editedAt?.toISOString() ?? null,
   };
 }

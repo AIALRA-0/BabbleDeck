@@ -1,8 +1,17 @@
 "use client";
 
-import { Download, FileJson, FileText, Subtitles } from "lucide-react";
+import {
+  Download,
+  Edit3,
+  FileJson,
+  FileText,
+  Save,
+  Subtitles,
+  X,
+} from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { formatDateTime } from "@/lib/utils";
 
 type Segment = {
   id: string;
@@ -11,7 +20,15 @@ type Segment = {
   endMs: number | null;
   originalText: string;
   translationText: string | null;
+  editedAt: string | null;
 };
+
+type SegmentUpdateResponse =
+  | {
+      ok: true;
+      data: { segment: Segment };
+    }
+  | { ok: false };
 
 export function SessionHistoryClient({
   sessionId,
@@ -20,7 +37,52 @@ export function SessionHistoryClient({
   sessionId: string;
   segments: Segment[];
 }) {
+  const [items, setItems] = useState(segments);
   const [pending, setPending] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState({
+    originalText: "",
+    translationText: "",
+  });
+  const [editStatus, setEditStatus] = useState<
+    "idle" | "saving" | "saved" | "failed"
+  >("idle");
+
+  function startEdit(segment: Segment) {
+    setEditingId(segment.id);
+    setDraft({
+      originalText: segment.originalText,
+      translationText: segment.translationText ?? "",
+    });
+    setEditStatus("idle");
+  }
+
+  async function saveEdit(segmentId: string) {
+    setEditStatus("saving");
+    const response = await fetch(
+      `/api/sessions/${sessionId}/segments/${segmentId}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          originalText: draft.originalText,
+          translationText: draft.translationText,
+        }),
+      },
+    );
+    const payload = (await response.json()) as SegmentUpdateResponse;
+    if (!response.ok || !payload.ok) {
+      setEditStatus("failed");
+      return;
+    }
+    setItems((current) =>
+      current.map((segment) =>
+        segment.id === payload.data.segment.id ? payload.data.segment : segment,
+      ),
+    );
+    setEditingId(null);
+    setEditStatus("saved");
+  }
 
   async function exportFormat(
     format: "markdown" | "txt" | "json" | "srt" | "vtt",
@@ -53,24 +115,109 @@ export function SessionHistoryClient({
           </p>
         </div>
         <div className="divide-y divide-border">
-          {segments.length === 0 ? (
+          {items.length === 0 ? (
             <p className="p-5 text-sm text-muted-foreground">
               No transcript segments yet.
             </p>
           ) : (
-            segments.map((segment) => (
+            items.map((segment) => (
               <article key={segment.id} className="p-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                  Segment {segment.index + 1}
-                </p>
-                <p className="mt-3 text-lg font-semibold leading-7">
-                  {segment.originalText}
-                </p>
-                {segment.translationText ? (
-                  <p className="mt-2 text-2xl font-bold leading-tight">
-                    {segment.translationText}
-                  </p>
-                ) : null}
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                      Segment {segment.index + 1}
+                    </p>
+                    {segment.editedAt ? (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Edited {formatDateTime(segment.editedAt)}
+                      </p>
+                    ) : null}
+                  </div>
+                  {editingId === segment.id ? (
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => void saveEdit(segment.id)}
+                        disabled={
+                          editStatus === "saving" ||
+                          draft.originalText.trim().length === 0
+                        }
+                      >
+                        <Save className="h-4 w-4" />
+                        Save
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setEditingId(null);
+                          setEditStatus("idle");
+                        }}
+                        disabled={editStatus === "saving"}
+                      >
+                        <X className="h-4 w-4" />
+                        Cancel
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => startEdit(segment)}
+                    >
+                      <Edit3 className="h-4 w-4" />
+                      Edit
+                    </Button>
+                  )}
+                </div>
+                {editingId === segment.id ? (
+                  <div className="mt-4 grid gap-3">
+                    <label className="grid gap-2 text-sm font-semibold">
+                      Original
+                      <textarea
+                        className="min-h-28 rounded-md border border-input bg-white px-3 py-2 text-base leading-6 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                        value={draft.originalText}
+                        onChange={(event) => {
+                          setDraft((current) => ({
+                            ...current,
+                            originalText: event.target.value,
+                          }));
+                          setEditStatus("idle");
+                        }}
+                      />
+                    </label>
+                    <label className="grid gap-2 text-sm font-semibold">
+                      Translation
+                      <textarea
+                        className="min-h-28 rounded-md border border-input bg-white px-3 py-2 text-base leading-6 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                        value={draft.translationText}
+                        onChange={(event) => {
+                          setDraft((current) => ({
+                            ...current,
+                            translationText: event.target.value,
+                          }));
+                          setEditStatus("idle");
+                        }}
+                      />
+                    </label>
+                    {editStatus === "failed" ? (
+                      <p className="text-sm font-medium text-red-700">
+                        Could not save correction.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <>
+                    <p className="mt-3 text-lg font-semibold leading-7">
+                      {segment.originalText}
+                    </p>
+                    {segment.translationText ? (
+                      <p className="mt-2 text-2xl font-bold leading-tight">
+                        {segment.translationText}
+                      </p>
+                    ) : null}
+                  </>
+                )}
               </article>
             ))
           )}

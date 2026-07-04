@@ -177,3 +177,142 @@ export async function transcriptPayload(sessionId: string) {
   });
   return { segments: segments.map(serializeSegment) };
 }
+
+export async function updateTranscriptSegment(input: {
+  sessionId: string;
+  segmentId: string;
+  actorUserId: string;
+  originalText?: string;
+  translationText?: string | null;
+  ip?: string | null;
+  userAgent?: string | null;
+}) {
+  const existing = await prisma.transcriptSegment.findFirst({
+    where: {
+      id: input.segmentId,
+      sessionId: input.sessionId,
+      session: {
+        ownerUserId: input.actorUserId,
+        archivedAt: null,
+      },
+    },
+    include: {
+      session: true,
+      translations: true,
+    },
+  });
+  if (!existing) return null;
+
+  const previousOriginalText =
+    existing.finalOriginalText ?? existing.originalText;
+  const previousTranslationText =
+    existing.translations[0]?.translationText ?? null;
+  const nextOriginalText = input.originalText ?? previousOriginalText;
+  const nextTranslationText =
+    input.translationText === undefined
+      ? previousTranslationText
+      : input.translationText || null;
+
+  const segment = await prisma.$transaction(async (tx) => {
+    const updated = await tx.transcriptSegment.update({
+      where: { id: existing.id },
+      data: {
+        finalOriginalText: nextOriginalText,
+        editedByUserId: input.actorUserId,
+        editedAt: new Date(),
+      },
+      include: { translations: true },
+    });
+
+    const currentTranslation = existing.translations[0] ?? null;
+    if (input.translationText !== undefined) {
+      if (nextTranslationText) {
+        await tx.translation.upsert({
+          where: currentTranslation
+            ? {
+                segmentId_targetLanguage_qualityMode: {
+                  segmentId: existing.id,
+                  targetLanguage: currentTranslation.targetLanguage,
+                  qualityMode: currentTranslation.qualityMode,
+                },
+              }
+            : {
+                segmentId_targetLanguage_qualityMode: {
+                  segmentId: existing.id,
+                  targetLanguage: existing.session.targetLanguage,
+                  qualityMode: existing.session.qualityMode,
+                },
+              },
+          update: {
+            translationText: nextTranslationText,
+            editedByUserId: input.actorUserId,
+            editedAt: new Date(),
+          },
+          create: {
+            segmentId: existing.id,
+            sessionId: existing.sessionId,
+            targetLanguage: existing.session.targetLanguage,
+            translationText: nextTranslationText,
+            providerName: existing.session.providerName,
+            qualityMode: existing.session.qualityMode,
+            editedByUserId: input.actorUserId,
+            editedAt: new Date(),
+          },
+        });
+      } else if (currentTranslation) {
+        await tx.translation.delete({
+          where: { id: currentTranslation.id },
+        });
+      }
+    }
+
+    const maxEvent = await tx.transcriptEvent.findFirst({
+      where: { sessionId: input.sessionId },
+      orderBy: { sequenceNo: "desc" },
+    });
+    await tx.transcriptEvent.create({
+      data: {
+        sessionId: input.sessionId,
+        providerName: existing.session.providerName,
+        eventType: "SEGMENT_CORRECTED",
+        sequenceNo: (maxEvent?.sequenceNo ?? 0) + 1,
+        segmentId: existing.id,
+        language: existing.sourceLanguage,
+        targetLanguage:
+          existing.translations[0]?.targetLanguage ??
+          existing.session.targetLanguage,
+        text: nextOriginalText,
+        isFinal: true,
+        payload: {
+          segmentIndex: existing.segmentIndex,
+          previousOriginalText,
+          nextOriginalText,
+          previousTranslationText,
+          nextTranslationText,
+        },
+      },
+    });
+
+    return tx.transcriptSegment.findUniqueOrThrow({
+      where: { id: updated.id },
+      include: { translations: true },
+    });
+  });
+
+  await auditLog({
+    actorUserId: input.actorUserId,
+    sessionId: input.sessionId,
+    action: "transcript.segment_updated",
+    entityType: "transcript_segment",
+    entityId: input.segmentId,
+    ip: input.ip,
+    userAgent: input.userAgent,
+    metadata: {
+      segmentIndex: existing.segmentIndex,
+      originalChanged: nextOriginalText !== previousOriginalText,
+      translationChanged: nextTranslationText !== previousTranslationText,
+    },
+  });
+
+  return serializeSegment(segment);
+}

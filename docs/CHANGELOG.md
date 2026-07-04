@@ -23,3 +23,4 @@
 - Added recorder-side local backup reconnect and pending-chunk retry controls.
 - Hardened Soniox realtime token-to-segment mapping for delayed and queued translation responses.
 - Hardened GitHub Actions CI with format/schema/script checks, secret scanning, and deterministic fallback E2E credentials.
+- Added audited transcript segment corrections from session history, with corrected text flowing into exports.
