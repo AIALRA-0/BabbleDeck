@@ -1,5 +1,4 @@
-import { getCurrentUser } from "@/server/auth";
-import { fail, ok, validationError } from "@/server/api";
+import { fail, ok, requireApiUser, validationError } from "@/server/api";
 import {
   AUDIO_CHUNK_MAX_BYTES,
   sha256Hex,
@@ -19,8 +18,9 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const user = await getCurrentUser();
-  if (!user) return fail("UNAUTHENTICATED", "Authentication required.", 401);
+  const auth = await requireApiUser();
+  if ("response" in auth) return auth.response;
+  const { user } = auth;
   const { id } = await context.params;
   const session = await prisma.liveSession.findFirst({
     where: { id, ownerUserId: user.id },

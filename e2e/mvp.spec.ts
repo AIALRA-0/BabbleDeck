@@ -1,7 +1,58 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 const adminEmail = process.env.E2E_ADMIN_EMAIL ?? "admin@example.invalid";
 const adminPassword = process.env.E2E_ADMIN_PASSWORD;
+const rotatedAdminPassword = process.env.E2E_NEW_ADMIN_PASSWORD;
+
+async function signIn(page: Page) {
+  const passwords = [adminPassword, rotatedAdminPassword].filter(
+    (value): value is string => Boolean(value),
+  );
+
+  for (const password of passwords) {
+    await page.getByLabel("Email").fill(adminEmail);
+    await page.getByLabel("Password").fill(password);
+    const signInButton = page.getByRole("button", { name: /sign in/i });
+    await expect(signInButton).toBeEnabled();
+    await signInButton.click();
+
+    const destination = await Promise.race([
+      page
+        .waitForURL(/\/(dashboard|account\/password)(\?|$)/, {
+          timeout: 5_000,
+        })
+        .then(() => "signed-in" as const)
+        .catch(() => null),
+      page
+        .getByText("Sign-in failed. Check your credentials and try again.")
+        .waitFor({ timeout: 5_000 })
+        .then(() => "failed" as const)
+        .catch(() => null),
+    ]);
+
+    if (destination === "signed-in") {
+      if (page.url().includes("/account/password")) {
+        if (!rotatedAdminPassword) {
+          throw new Error(
+            "E2E_NEW_ADMIN_PASSWORD must be set when password rotation is required.",
+          );
+        }
+        await page.getByLabel("Current password").fill(password);
+        await page
+          .getByLabel("New password", { exact: true })
+          .fill(rotatedAdminPassword);
+        await page
+          .getByLabel("Confirm new password")
+          .fill(rotatedAdminPassword);
+        await page.getByRole("button", { name: /update password/i }).click();
+        await page.waitForURL("**/dashboard");
+      }
+      return;
+    }
+  }
+
+  throw new Error("Unable to sign in with the provided E2E credentials.");
+}
 
 test.describe("BabbleDeck MVP browser flow", () => {
   test.skip(
@@ -21,12 +72,7 @@ test.describe("BabbleDeck MVP browser flow", () => {
     ).toBeVisible();
 
     await page.getByRole("link", { name: /open portal/i }).click();
-    await page.getByLabel("Email").fill(adminEmail);
-    await page.getByLabel("Password").fill(adminPassword ?? "");
-    const signInButton = page.getByRole("button", { name: /sign in/i });
-    await expect(signInButton).toBeEnabled();
-    await signInButton.click();
-    await page.waitForURL("**/dashboard");
+    await signIn(page);
     await expect(
       page.getByRole("heading", { name: "Live sessions" }),
     ).toBeVisible();

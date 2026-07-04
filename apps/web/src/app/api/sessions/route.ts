@@ -1,14 +1,20 @@
 import { createLiveSession } from "@/server/session-service";
-import { getCurrentUser } from "@/server/auth";
-import { fail, getClientIp, ok, validationError } from "@/server/api";
+import {
+  fail,
+  getClientIp,
+  ok,
+  requireApiUser,
+  validationError,
+} from "@/server/api";
 import { prisma } from "@/server/db";
 import { checkRateLimit } from "@/server/rate-limit";
 import { createSessionSchema } from "@/server/schemas";
 import { serializeSession } from "@/server/serializers";
 
 export async function GET() {
-  const user = await getCurrentUser();
-  if (!user) return fail("UNAUTHENTICATED", "Authentication required.", 401);
+  const auth = await requireApiUser();
+  if ("response" in auth) return auth.response;
+  const { user } = auth;
 
   const sessions = await prisma.liveSession.findMany({
     where: { ownerUserId: user.id, archivedAt: null },
@@ -27,8 +33,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const user = await getCurrentUser();
-  if (!user) return fail("UNAUTHENTICATED", "Authentication required.", 401);
+  const auth = await requireApiUser();
+  if ("response" in auth) return auth.response;
+  const { user } = auth;
 
   const ip = getClientIp(request);
   const limit = Number(process.env.SESSION_CREATE_RATE_LIMIT_PER_MINUTE ?? 10);

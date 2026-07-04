@@ -1,10 +1,9 @@
-import { getCurrentUser } from "@/server/auth";
-import { fail, ok } from "@/server/api";
+import { ok, requireApiUser } from "@/server/api";
 import { prisma } from "@/server/db";
 
 export async function GET() {
-  const user = await getCurrentUser();
-  if (!user) return fail("UNAUTHENTICATED", "Authentication required.", 401);
+  const auth = await requireApiUser();
+  if ("response" in auth) return auth.response;
   const glossary = await prisma.glossaryTerm.findMany({
     orderBy: { createdAt: "desc" },
     take: 25,

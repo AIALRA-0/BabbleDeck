@@ -8,6 +8,29 @@ export const loginSchema = z.object({
   password: z.string().min(1).max(200),
 });
 
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1).max(200),
+    newPassword: z.string().min(12).max(200),
+    confirmPassword: z.string().min(1).max(200),
+  })
+  .superRefine((value, context) => {
+    if (value.newPassword !== value.confirmPassword) {
+      context.addIssue({
+        code: "custom",
+        path: ["confirmPassword"],
+        message: "Passwords do not match.",
+      });
+    }
+    if (value.currentPassword === value.newPassword) {
+      context.addIssue({
+        code: "custom",
+        path: ["newPassword"],
+        message: "Choose a different password.",
+      });
+    }
+  });
+
 export const createSessionSchema = z.object({
   title: z.string().trim().min(1).max(160),
   description: z.string().trim().max(1000).optional().nullable(),

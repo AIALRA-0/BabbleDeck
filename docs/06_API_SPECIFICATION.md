@@ -111,6 +111,43 @@ Response: `{ "ok": true }`
 
 Returns current user.
 
+### POST /api/auth/password
+
+Requires an authenticated session and is allowed while password rotation is required.
+
+Request:
+
+```json
+{
+  "currentPassword": "string",
+  "newPassword": "at-least-12-characters",
+  "confirmPassword": "at-least-12-characters"
+}
+```
+
+Response:
+
+```json
+{
+  "ok": true,
+  "data": {
+    "user": {
+      "id": "uuid",
+      "email": "admin@example.invalid",
+      "role": "admin",
+      "passwordRotationRequired": false
+    }
+  }
+}
+```
+
+Security:
+
+- Verifies the current password.
+- Hashes the new password server-side.
+- Clears `passwordRotationRequired`.
+- Revokes other active sessions for the same user.
+
 ## 6. Sessions API
 
 ### POST /api/sessions

@@ -26,7 +26,9 @@ pnpm dev
 Open the app at `http://localhost:3000` or run Playwright on the port in `E2E_BASE_URL` with:
 
 ```bash
-E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD" pnpm e2e
+E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD" \
+E2E_NEW_ADMIN_PASSWORD="set-a-new-test-password" \
+pnpm e2e
 ```
 
 ## Verification

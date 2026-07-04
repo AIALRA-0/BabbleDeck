@@ -68,6 +68,7 @@ SESSION_CREATE_RATE_LIMIT_PER_MINUTE=10
 # Testing
 MOCK_PROVIDER_ENABLED=true
 E2E_BASE_URL=http://localhost:3000
+E2E_NEW_ADMIN_PASSWORD=replace-with-new-test-password-when-rotation-is-required
 ```
 
 ## Secret handling rules

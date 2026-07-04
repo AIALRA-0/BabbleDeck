@@ -91,6 +91,13 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 export async function requireUser() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  if (user.passwordRotationRequired) redirect("/account/password");
+  return user;
+}
+
+export async function requireUserAllowingPasswordRotation() {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
   return user;
 }
 
@@ -100,6 +107,26 @@ export async function revokeCurrentSession() {
   if (!token) return;
   await prisma.authSession.updateMany({
     where: { sessionTokenHash: hashToken(token), revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
+}
+
+async function getCurrentSessionTokenHash() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(AUTH_COOKIE)?.value;
+  return token ? hashToken(token) : null;
+}
+
+export async function revokeOtherUserSessions(userId: string) {
+  const currentSessionTokenHash = await getCurrentSessionTokenHash();
+  await prisma.authSession.updateMany({
+    where: {
+      userId,
+      revokedAt: null,
+      ...(currentSessionTokenHash
+        ? { sessionTokenHash: { not: currentSessionTokenHash } }
+        : {}),
+    },
     data: { revokedAt: new Date() },
   });
 }

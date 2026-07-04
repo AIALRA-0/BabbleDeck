@@ -6,10 +6,29 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+function safeNextPath(value: string | null) {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) {
+    return "/dashboard";
+  }
+  if (value === "/login" || value.startsWith("/account/password")) {
+    return "/dashboard";
+  }
+  return value;
+}
+
+type LoginResponse = {
+  ok: boolean;
+  data?: {
+    user?: {
+      passwordRotationRequired?: boolean;
+    };
+  };
+};
+
 export function LoginForm({ defaultEmail }: { defaultEmail: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") ?? "/dashboard";
+  const next = safeNextPath(searchParams.get("next"));
   const [email, setEmail] = useState(defaultEmail);
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -34,7 +53,14 @@ export function LoginForm({ defaultEmail }: { defaultEmail: string }) {
           setError("Sign-in failed. Check your credentials and try again.");
           return;
         }
-        router.push(next);
+        const payload = (await response
+          .json()
+          .catch(() => null)) as LoginResponse | null;
+        router.push(
+          payload?.data?.user?.passwordRotationRequired
+            ? `/account/password?next=${encodeURIComponent(next)}`
+            : next,
+        );
         router.refresh();
       }}
     >

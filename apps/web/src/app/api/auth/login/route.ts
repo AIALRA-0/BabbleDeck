@@ -8,6 +8,20 @@ import { checkRateLimit } from "@/server/rate-limit";
 import { loginSchema } from "@/server/schemas";
 import { hashIp } from "@/server/security";
 
+function safeNextPath(value: string) {
+  if (!value.startsWith("/") || value.startsWith("//")) return "/dashboard";
+  if (value === "/login" || value.startsWith("/account/password")) {
+    return "/dashboard";
+  }
+  return value;
+}
+
+function passwordRotationUrl(request: Request, next: string) {
+  const url = new URL("/account/password", request.url);
+  url.searchParams.set("next", safeNextPath(next));
+  return url;
+}
+
 export async function POST(request: Request) {
   const contentType = request.headers.get("content-type") ?? "";
   const isFormPost = contentType.includes("application/x-www-form-urlencoded");
@@ -94,7 +108,9 @@ export async function POST(request: Request) {
 
   const response = isFormPost
     ? NextResponse.redirect(
-        new URL(next.startsWith("/") ? next : "/dashboard", request.url),
+        updated.passwordRotationRequired
+          ? passwordRotationUrl(request, next)
+          : new URL(safeNextPath(next), request.url),
         {
           status: 303,
         },

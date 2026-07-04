@@ -1,5 +1,4 @@
-import { getCurrentUser } from "@/server/auth";
-import { fail } from "@/server/api";
+import { fail, requireApiUser } from "@/server/api";
 import { prisma } from "@/server/db";
 
 const contentTypes = {
@@ -14,8 +13,9 @@ export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const user = await getCurrentUser();
-  if (!user) return fail("UNAUTHENTICATED", "Authentication required.", 401);
+  const auth = await requireApiUser();
+  if ("response" in auth) return auth.response;
+  const { user } = auth;
   const { id } = await context.params;
   const record = await prisma.exportRecord.findFirst({
     where: {
