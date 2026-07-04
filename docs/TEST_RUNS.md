@@ -21,6 +21,8 @@
   - `pnpm tsx scripts/check-production-readiness.ts --strict`
   - `pnpm tsx scripts/prune-audio-retention.ts --dry-run --batch-size=10`
   - `E2E_BASE_URL=https://babbledeck.aialra.online E2E_ADMIN_EMAIL="$SEED_ADMIN_EMAIL" E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD" pnpm e2e e2e/mvp.spec.ts --project=chromium-desktop --grep "admin creates a live session"`
+  - Downloaded the public `LDC93S1.wav` sample to `/tmp/babbledeck-soniox-smoke.wav` for Chromium fake microphone input.
+  - `E2E_BASE_URL=https://babbledeck.aialra.online E2E_ADMIN_EMAIL="$SEED_ADMIN_EMAIL" E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD" E2E_RUN_SONIOX_UI_TEST=true E2E_FAKE_AUDIO_FILE=/tmp/babbledeck-soniox-smoke.wav E2E_SONIOX_EXPECTED_TEXT='dark|suit|wash' pnpm e2e e2e/mvp.spec.ts --project=chromium-desktop --grep "soniox provider streams"`
 - Results:
   - Migration `20260705001500_app_settings` applied successfully to local and production Postgres.
   - Format, lint, app typecheck, script typecheck, full unit tests, and production build passed.
@@ -32,6 +34,7 @@
   - Production HTTPS returned `HTTP/2 200`.
   - Strict production readiness confirms all required checks pass, including `SONIOX_API_KEY`; strict completion still waits on off-host R2/S3-compatible audio storage because production currently has `AUDIO_STORAGE_DRIVER=local`.
   - Production smoke cleanup removed 1 temporary Playwright session and 2 local audio objects.
+  - Real Soniox UI smoke passed with fake microphone speech against production, then cleanup removed 1 temporary Soniox session and 6 local audio objects.
 
 ## 2026-07-05 Audio Storage Cutover Audit Tooling
 
