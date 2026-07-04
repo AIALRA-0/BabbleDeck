@@ -304,6 +304,7 @@ Implement:
 - [ ] Security headers configured.
 - [ ] Playwright core flows pass.
 - [ ] Mobile browser smoke tested.
+- [ ] Soniox live readiness probe passes after provider credential changes.
 - [ ] Backups tested.
 - [ ] Export tested.
 - [ ] Provider outage behavior tested.

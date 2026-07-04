@@ -53,6 +53,7 @@ Production readiness audit:
 set -a; . /srv/aialra/config/secrets/babbledeck.env; set +a
 pnpm tsx scripts/check-production-readiness.ts
 pnpm tsx scripts/check-production-readiness.ts --strict
+pnpm tsx scripts/check-production-readiness.ts --check-soniox-live
 ```
 
 Synchronize the bootstrap admin with `SEED_ADMIN_EMAIL` and
@@ -81,7 +82,7 @@ The current production instance follows the server's existing systemd + Nginx pa
 - Backup root: `/srv/aialra/backups/babbledeck`
 - Raw audio retention days are configurable at `/settings`; per-session raw audio legal hold is available from session history.
 
-Soniox realtime requires `SONIOX_API_KEY`. Without it, Soniox-mode sessions are marked degraded while local backup continues.
+Soniox realtime requires `SONIOX_API_KEY`. Without it, Soniox-mode sessions are marked degraded while local backup continues. After key changes, run the live readiness probe with `--check-soniox-live`; it sends a short generated WAV silence sample over the Soniox websocket and does not print the key.
 
 `pnpm build` also copies `.next/static` and `public` into the standalone output through `scripts/prepare-standalone-assets.sh`; this keeps the production unit aligned with Next standalone hosting requirements.
 

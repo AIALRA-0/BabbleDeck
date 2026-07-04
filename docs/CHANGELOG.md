@@ -24,3 +24,4 @@
 - Hardened Soniox realtime token-to-segment mapping for delayed and queued translation responses.
 - Hardened GitHub Actions CI with format/schema/script checks, secret scanning, and deterministic fallback E2E credentials.
 - Added audited transcript segment corrections from session history, with corrected text flowing into exports.
+- Added an opt-in live Soniox realtime readiness probe that verifies websocket credentials with generated WAV silence.

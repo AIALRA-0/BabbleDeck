@@ -1,5 +1,34 @@
 # Test Runs
 
+## 2026-07-05 Soniox Live Readiness Probe
+
+- Environment: local workspace, production deployment at `https://babbledeck.aialra.online`, production secret env loaded without printing secrets.
+- Commands:
+  - `pnpm prettier --write apps/web/src/server/soniox-realtime.ts apps/web/src/server/soniox-realtime.test.ts scripts/check-production-readiness.ts README.md docs/10_SECURITY_AND_OPERATIONS.md docs/operations/BACKUP_RESTORE.md`
+  - `pnpm --filter @babbledeck/web test -- --run src/server/soniox-realtime.test.ts`
+  - `pnpm format:check`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `pnpm db:generate`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/recorder-ws-server.ts scripts/prune-audio-retention.ts scripts/migrate-audio-storage.ts scripts/audit-audio-storage.ts scripts/check-production-readiness.ts scripts/sync-seed-admin.ts playwright.config.ts`
+  - `pnpm build`
+  - `systemctl restart aialra-babbledeck.service aialra-babbledeck-ws.service`
+  - `curl -fsSI https://babbledeck.aialra.online/`
+  - `pnpm tsx scripts/check-production-readiness.ts --check-soniox-live`
+  - `pnpm tsx scripts/check-production-readiness.ts --strict`
+  - `E2E_BASE_URL=https://babbledeck.aialra.online E2E_ADMIN_EMAIL="$SEED_ADMIN_EMAIL" E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD" pnpm e2e e2e/mvp.spec.ts --project=chromium-desktop --grep "admin creates a live session"`
+- Results:
+  - Added `--check-soniox-live`, which sends a short generated WAV silence probe through the Soniox realtime websocket and reports success without printing `SONIOX_API_KEY`.
+  - Format, lint, app typecheck, script typecheck, full unit tests, and production build passed.
+  - Unit tests passed with `10` files and `27` tests, including Soniox readiness probe audio coverage and missing-key behavior.
+  - Production live Soniox readiness passed: the websocket accepted probe audio and reported `360ms` processed.
+  - Production services restarted successfully and remained active.
+  - Production HTTPS returned `HTTP/2 200`.
+  - Strict production readiness still fails only because `AUDIO_STORAGE_DRIVER=local`; all required checks pass.
+  - Production Playwright desktop MVP passed after restart.
+  - Production smoke cleanup removed 1 temporary Playwright session and 3 local audio objects.
+
 ## 2026-07-05 Transcript Segment Corrections
 
 - Environment: local workspace with Docker Postgres on `localhost:55432`, Playwright dev server on `127.0.0.1:3110`, production deployment at `https://babbledeck.aialra.online`, production secret env loaded without printing secrets.

@@ -39,6 +39,15 @@ Use `--strict` when deciding whether the full production target is complete.
 Strict mode fails while external dependencies such as R2/S3-compatible raw audio
 storage remain unconfigured.
 
+After Soniox credential changes, add `--check-soniox-live` to verify the
+realtime websocket accepts a short generated WAV silence probe without printing
+the provider key:
+
+```bash
+set -a; . /srv/aialra/config/secrets/babbledeck.env; set +a
+pnpm tsx scripts/check-production-readiness.ts --check-soniox-live
+```
+
 To re-sync the bootstrap admin with the server secret env after an operator
 credential change:
 

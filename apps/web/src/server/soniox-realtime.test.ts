@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, test } from "vitest";
 import {
   buildSonioxConfig,
+  buildSonioxReadinessProbeAudio,
+  checkSonioxRealtimeConnectivity,
   createSonioxMappingState,
   sonioxResponseToTranscriptEvents,
 } from "@/server/soniox-realtime";
@@ -30,6 +32,28 @@ describe("soniox realtime adapter", () => {
         type: "one_way",
         target_language: "zh",
       },
+    });
+  });
+
+  test("builds a small wav silence probe for readiness checks", () => {
+    const probe = buildSonioxReadinessProbeAudio(300, 16_000);
+
+    expect(probe.toString("ascii", 0, 4)).toBe("RIFF");
+    expect(probe.toString("ascii", 8, 12)).toBe("WAVE");
+    expect(probe.toString("ascii", 36, 40)).toBe("data");
+    expect(probe.readUInt32LE(24)).toBe(16_000);
+    expect(probe.readUInt16LE(34)).toBe(16);
+    expect(probe.length).toBe(44 + 4_800 * 2);
+  });
+
+  test("reports missing api key before opening readiness websocket", async () => {
+    delete process.env.SONIOX_API_KEY;
+
+    await expect(
+      checkSonioxRealtimeConnectivity({ timeoutMs: 10 }),
+    ).resolves.toEqual({
+      ok: false,
+      message: "SONIOX_API_KEY is missing.",
     });
   });
 

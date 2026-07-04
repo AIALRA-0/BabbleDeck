@@ -5,6 +5,7 @@ import { promisify } from "node:util";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../apps/web/src/server/db";
 import { verifyPassword } from "../apps/web/src/server/password";
+import { checkSonioxRealtimeConnectivity } from "../apps/web/src/server/soniox-realtime";
 
 const execFileAsync = promisify(execFile);
 
@@ -235,6 +236,9 @@ async function latestBackupOk() {
 
 async function main() {
   const strict = boolFlag("--strict");
+  const checkSonioxLive =
+    boolFlag("--check-soniox-live") ||
+    process.env.SONIOX_READINESS_LIVE_CHECK === "true";
   const baseUrl =
     argValue("--base-url") ??
     process.env.PRODUCTION_BASE_URL ??
@@ -264,6 +268,21 @@ async function main() {
       ? "SONIOX_API_KEY is configured."
       : "SONIOX_API_KEY is missing.",
   });
+
+  if (checkSonioxLive) {
+    const sonioxLive = await checkSonioxRealtimeConnectivity({
+      sessionId: `readiness-${Date.now()}`,
+      targetLanguage: process.env.SONIOX_DEFAULT_TARGET_LANGUAGE ?? "zh",
+      sourceLanguageMode: "auto",
+    });
+    check(checks, {
+      name: "soniox_realtime_connectivity",
+      ok: sonioxLive.ok,
+      message: sonioxLive.ok
+        ? `${sonioxLive.message} Audio processed: ${sonioxLive.audioProcessedMs ?? 0}ms.`
+        : sonioxLive.message,
+    });
+  }
 
   for (const service of [
     "aialra-babbledeck.service",

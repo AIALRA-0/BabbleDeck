@@ -6,6 +6,9 @@ const DEFAULT_SONIOX_ENDPOINT = "wss://stt-rt.soniox.com/transcribe-websocket";
 const DEFAULT_SONIOX_MODEL = "stt-rt-v5";
 const SONIOX_KEEPALIVE_INTERVAL_MS = 10_000;
 const SONIOX_CLOSE_GRACE_MS = 15_000;
+const SONIOX_CONNECTIVITY_TIMEOUT_MS = 15_000;
+const SONIOX_CONNECTIVITY_AUDIO_MS = 300;
+const SONIOX_CONNECTIVITY_SAMPLE_RATE = 16_000;
 
 type SonioxToken = {
   text?: string;
@@ -39,6 +42,14 @@ export type SonioxMappedEvent = {
   startMs?: number;
   endMs?: number;
   confidence?: number;
+};
+
+export type SonioxConnectivityResult = {
+  ok: boolean;
+  message: string;
+  audioProcessedMs?: number;
+  errorType?: string;
+  errorCode?: number;
 };
 
 export type SonioxMappingState = {
@@ -87,6 +98,139 @@ export function buildSonioxConfig(input: {
       target_language: input.targetLanguage,
     },
   };
+}
+
+export function buildSonioxReadinessProbeAudio(
+  durationMs = SONIOX_CONNECTIVITY_AUDIO_MS,
+  sampleRate = SONIOX_CONNECTIVITY_SAMPLE_RATE,
+) {
+  const sampleCount = Math.floor((sampleRate * durationMs) / 1000);
+  const bytesPerSample = 2;
+  const dataSize = sampleCount * bytesPerSample;
+  const buffer = Buffer.alloc(44 + dataSize);
+
+  buffer.write("RIFF", 0);
+  buffer.writeUInt32LE(36 + dataSize, 4);
+  buffer.write("WAVE", 8);
+  buffer.write("fmt ", 12);
+  buffer.writeUInt32LE(16, 16);
+  buffer.writeUInt16LE(1, 20);
+  buffer.writeUInt16LE(1, 22);
+  buffer.writeUInt32LE(sampleRate, 24);
+  buffer.writeUInt32LE(sampleRate * bytesPerSample, 28);
+  buffer.writeUInt16LE(bytesPerSample, 32);
+  buffer.writeUInt16LE(16, 34);
+  buffer.write("data", 36);
+  buffer.writeUInt32LE(dataSize, 40);
+
+  return buffer;
+}
+
+export async function checkSonioxRealtimeConnectivity(input?: {
+  timeoutMs?: number;
+  sessionId?: string;
+  targetLanguage?: string;
+  sourceLanguageMode?: string;
+}): Promise<SonioxConnectivityResult> {
+  const apiKey = sonioxApiKey();
+  if (!apiKey) {
+    return {
+      ok: false,
+      message: "SONIOX_API_KEY is missing.",
+    };
+  }
+
+  const timeoutMs = input?.timeoutMs ?? SONIOX_CONNECTIVITY_TIMEOUT_MS;
+  return new Promise<SonioxConnectivityResult>((resolve) => {
+    let settled = false;
+    const socket = new WebSocket(sonioxEndpoint());
+    const settle = (result: SonioxConnectivityResult) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      if (
+        socket.readyState === WebSocket.OPEN ||
+        socket.readyState === WebSocket.CONNECTING
+      ) {
+        socket.close();
+      }
+      resolve(result);
+    };
+    const timeout = setTimeout(() => {
+      if (
+        socket.readyState === WebSocket.OPEN ||
+        socket.readyState === WebSocket.CONNECTING
+      ) {
+        socket.terminate();
+      }
+      settle({
+        ok: false,
+        message: "Soniox realtime connectivity probe timed out.",
+      });
+    }, timeoutMs);
+
+    socket.on("open", () => {
+      socket.send(
+        JSON.stringify(
+          buildSonioxConfig({
+            apiKey,
+            sessionId: input?.sessionId ?? `readiness-${Date.now()}`,
+            targetLanguage:
+              input?.targetLanguage ??
+              process.env.SONIOX_DEFAULT_TARGET_LANGUAGE ??
+              "zh",
+            sourceLanguageMode: input?.sourceLanguageMode ?? "auto",
+          }),
+        ),
+      );
+      socket.send(buildSonioxReadinessProbeAudio());
+      socket.send("");
+    });
+
+    socket.on("message", (raw: RawData) => {
+      let response: SonioxResponse;
+      try {
+        response = JSON.parse(raw.toString()) as SonioxResponse;
+      } catch {
+        return;
+      }
+
+      if (response.error_type || response.error_message) {
+        settle({
+          ok: false,
+          message:
+            response.error_message ??
+            "Soniox realtime provider returned an error.",
+          errorType: response.error_type,
+          errorCode: response.error_code,
+        });
+        return;
+      }
+
+      if (response.finished) {
+        settle({
+          ok: true,
+          message: "Soniox realtime websocket accepted probe audio.",
+          audioProcessedMs:
+            response.final_audio_proc_ms ?? response.total_audio_proc_ms,
+        });
+      }
+    });
+
+    socket.on("error", () => {
+      settle({
+        ok: false,
+        message: "Soniox realtime websocket connection failed.",
+      });
+    });
+
+    socket.on("close", () => {
+      settle({
+        ok: false,
+        message: "Soniox realtime websocket closed before probe completion.",
+      });
+    });
+  });
 }
 
 function groupText(tokens: SonioxToken[]) {
