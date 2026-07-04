@@ -22,3 +22,4 @@
 - Added operator-managed raw audio retention days and per-session raw audio legal hold.
 - Added recorder-side local backup reconnect and pending-chunk retry controls.
 - Hardened Soniox realtime token-to-segment mapping for delayed and queued translation responses.
+- Hardened GitHub Actions CI with format/schema/script checks, secret scanning, and deterministic fallback E2E credentials.

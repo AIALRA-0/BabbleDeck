@@ -1,5 +1,17 @@
 # Test Runs
 
+## 2026-07-05 CI Workflow Hardening
+
+- Environment: local workspace inspecting `.github/workflows`.
+- Commands:
+  - `pnpm format:check`
+  - `git diff --check`
+  - Repository secret-pattern scan with `rg`.
+- Results:
+  - CI workflow now runs `pnpm format:check`, `pnpm db:validate`, Prisma generate/migrate/seed, lint, app typecheck, unit tests, script typecheck, build, and a repository secret scan.
+  - E2E workflow now seeds and logs in with a non-production fallback CI password when `SEED_ADMIN_PASSWORD` is not configured, preventing silent full-flow skips on PRs without secrets.
+  - Workflow formatting and whitespace checks passed; secret scan returned no matches.
+
 ## 2026-07-05 Soniox Segment Alignment Hardening
 
 - Environment: local workspace, production deployment at `https://babbledeck.aialra.online`, production secret env loaded without printing secrets.

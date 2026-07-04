@@ -44,6 +44,7 @@
 - Operators can update raw audio retention days from `/settings`, and session history now exposes per-session raw audio legal hold that prevents retention cleanup for that session.
 - Recorder pages expose backup reconnect and pending-chunk retry controls; Playwright seeds a failed IndexedDB chunk and verifies it replays to the server.
 - Soniox realtime mapping now advances original transcript segments independently from delayed translations and queues pending translation segment indexes, preventing late translations from forcing later original text back onto an earlier segment.
+- GitHub Actions CI now runs format, Prisma validation/generation/migration, lint, app typecheck, unit tests, script typecheck, build, and repository secret scanning; the E2E workflow uses a non-production fallback test password when `SEED_ADMIN_PASSWORD` is not configured.
 
 ## Next Recommended Tasks
 

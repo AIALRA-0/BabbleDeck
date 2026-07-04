@@ -25,9 +25,9 @@ jobs:
           --health-retries 5
     env:
       DATABASE_URL: postgresql://babbledeck:babbledeck@localhost:55432/babbledeck_dev
-      SEED_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD }}
+      SEED_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD || 'ci-generated-credential' }}
       E2E_ADMIN_EMAIL: admin@example.invalid
-      E2E_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD }}
+      E2E_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD || 'ci-generated-credential' }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -38,11 +38,19 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm db:validate
       - run: pnpm db:generate
       - run: pnpm db:migrate
       - run: pnpm db:seed
-        if: ${{ env.SEED_ADMIN_PASSWORD != '' }}
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
+      - run: pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/recorder-ws-server.ts scripts/prune-audio-retention.ts scripts/migrate-audio-storage.ts scripts/audit-audio-storage.ts scripts/check-production-readiness.ts scripts/sync-seed-admin.ts playwright.config.ts
       - run: pnpm build
+      - name: Secret scan
+        run: |
+          if rg -n "REDACTED_LEAKED_PASSWORD_PREFIX|SMOKE_PASSWORD|SECRET_ACCESS_KEY=.*[A-Za-z0-9]{8}|SONIOX_API_KEY=.*[A-Za-z0-9]{8}|SEED_ADMIN_PASSWORD=.*Aial|R2_SECRET_ACCESS_KEY=.*[A-Za-z0-9]{8}" . --glob '!node_modules/**' --glob '!apps/web/.next/**' --glob '!pnpm-lock.yaml'; then
+            echo "Secret-like value found in repository files."
+            exit 1
+          fi

@@ -24,9 +24,9 @@ jobs:
           --health-retries 5
     env:
       DATABASE_URL: postgresql://babbledeck:babbledeck@localhost:55432/babbledeck_dev
-      SEED_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD }}
+      SEED_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD || 'ci-generated-credential' }}
       E2E_ADMIN_EMAIL: admin@example.invalid
-      E2E_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD }}
+      E2E_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD || 'ci-generated-credential' }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -41,5 +41,4 @@ jobs:
       - run: pnpm db:generate
       - run: pnpm db:migrate
       - run: pnpm db:seed
-        if: ${{ env.SEED_ADMIN_PASSWORD != '' }}
       - run: pnpm e2e
