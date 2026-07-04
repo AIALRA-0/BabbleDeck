@@ -19,3 +19,7 @@ The first viewer implementation polls for new transcript events. This is less so
 ## ADR-005: SSE Viewer Stream With Polling Fallback
 
 The production viewer now uses Server-Sent Events for live transcript updates and falls back to short polling if EventSource fails. This fits the one-way viewer update path, works through the current Nginx/systemd deployment, and keeps WebSocket reserved for recorder audio and later multi-party flows.
+
+## ADR-006: Binary Audio Backup Through Object Storage Adapter
+
+Recorder backup chunks upload as `multipart/form-data` and are written as binary objects before the `audio_chunks` row is marked uploaded. Production uses the server-local object root for immediate durability under the current systemd/Nginx deployment, while the same adapter can switch to Cloudflare R2 or S3-compatible storage through environment variables.

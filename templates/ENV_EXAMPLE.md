@@ -19,6 +19,16 @@ DATABASE_URL=postgresql://user:password@localhost:5432/babbledeck
 # Redis optional
 REDIS_URL=
 
+# Audio object storage
+AUDIO_STORAGE_DRIVER=local
+AUDIO_STORAGE_DIR=./storage/babbledeck
+AUDIO_STORAGE_BUCKET=
+AUDIO_STORAGE_ENDPOINT=
+AUDIO_STORAGE_REGION=
+AUDIO_STORAGE_ACCESS_KEY_ID=
+AUDIO_STORAGE_SECRET_ACCESS_KEY=
+AUDIO_STORAGE_FORCE_PATH_STYLE=
+
 # Soniox default provider
 SONIOX_API_KEY=replace-with-soniox-key
 SONIOX_DEFAULT_TARGET_LANGUAGE=zh

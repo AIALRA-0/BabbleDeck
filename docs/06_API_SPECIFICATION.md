@@ -222,7 +222,7 @@ No admin-only data returned.
 
 Used by recorder client to upload backup chunks.
 
-Content-type: multipart/form-data or signed upload flow.
+Content-type: `multipart/form-data`.
 
 Fields:
 
@@ -251,6 +251,7 @@ Response:
 Limits:
 
 - Max chunk size configurable.
+- Current implementation accepts chunks up to 25 MB, computes SHA-256 server-side, and writes the binary object to local or S3-compatible storage before marking the database row uploaded.
 - Validate mime type.
 - Require recorder token or admin auth.
 

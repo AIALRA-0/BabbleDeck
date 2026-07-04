@@ -114,7 +114,7 @@ Test with database:
 - Insert transcript event.
 - Finalize segment.
 - Export session.
-- Upload audio chunk metadata.
+- Upload binary audio chunk and persisted metadata.
 - Query history.
 
 Use isolated test database or transaction rollback.

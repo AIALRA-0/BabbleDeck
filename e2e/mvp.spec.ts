@@ -67,6 +67,11 @@ test.describe("BabbleDeck MVP browser flow", () => {
 
     await page.getByRole("button", { name: /start recording/i }).click();
     await expect(page.getByText("Mock realtime")).toBeVisible();
+    await expect(
+      page.getByText(/[1-9][0-9]*\/[1-9][0-9]* uploaded/),
+    ).toBeVisible({
+      timeout: 12_000,
+    });
     await expect(viewer.getByText("欢迎使用 BabbleDeck")).toBeVisible({
       timeout: 12_000,
     });
@@ -80,6 +85,9 @@ test.describe("BabbleDeck MVP browser flow", () => {
     await expect(
       page.getByRole("heading", { name: "Transcript timeline" }),
     ).toBeVisible({ timeout: 20_000 });
+    await expect(
+      page.getByText("Backup chunks").locator("xpath=.."),
+    ).toContainText(/[1-9]/);
     await expect(page.getByText("欢迎使用 BabbleDeck")).toBeVisible();
 
     const downloadPromise = page.waitForEvent("download");

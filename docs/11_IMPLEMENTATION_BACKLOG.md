@@ -156,12 +156,12 @@ Acceptance:
 ### BDK-0403 Server chunk upload
 
 - Upload endpoint.
-- R2/S3 client.
+- Local and R2/S3-compatible storage client.
 - audio_chunks table.
 
 Acceptance:
 
-- Chunk metadata stored and object uploaded.
+- Chunk metadata stored and binary object uploaded.
 
 ## Epic 5: Soniox provider
 

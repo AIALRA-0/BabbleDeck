@@ -1,7 +1,19 @@
 import { getCurrentUser } from "@/server/auth";
 import { fail, ok, validationError } from "@/server/api";
+import {
+  AUDIO_CHUNK_MAX_BYTES,
+  sha256Hex,
+  uploadAudioChunk,
+} from "@/server/audio-storage";
 import { prisma } from "@/server/db";
 import { audioChunkSchema } from "@/server/schemas";
+
+export const runtime = "nodejs";
+
+function formValue(formData: FormData, key: string) {
+  const value = formData.get(key);
+  return typeof value === "string" ? value : undefined;
+}
 
 export async function POST(
   request: Request,
@@ -16,15 +28,55 @@ export async function POST(
   if (!session) return fail("NOT_FOUND", "Session not found.", 404);
 
   let parsed;
+  let file: File | null = null;
   try {
-    parsed = audioChunkSchema.parse(await request.json());
+    const formData = await request.formData();
+    const fileValue = formData.get("file");
+    if (!(fileValue instanceof File)) {
+      return fail("VALIDATION_ERROR", "Audio chunk file is required.", 400);
+    }
+    file = fileValue;
+    parsed = audioChunkSchema.parse({
+      chunkIndex: formValue(formData, "chunkIndex"),
+      startedAt: formValue(formData, "startedAt"),
+      durationMs: formValue(formData, "durationMs"),
+      mimeType: formValue(formData, "mimeType") ?? file.type,
+      byteSize: file.size,
+      checksumSha256: formValue(formData, "checksumSha256"),
+    });
   } catch (error) {
     return validationError(error);
   }
 
-  const objectKey = `sessions/${id}/audio/chunk-${parsed.chunkIndex
-    .toString()
-    .padStart(6, "0")}.webm`;
+  if (!file) {
+    return fail("VALIDATION_ERROR", "Audio chunk file is required.", 400);
+  }
+  if (file.size === 0 || file.size > AUDIO_CHUNK_MAX_BYTES) {
+    return fail(
+      "AUDIO_CHUNK_TOO_LARGE",
+      "Audio chunks must be between 1 byte and 25 MB.",
+      413,
+    );
+  }
+
+  const body = Buffer.from(await file.arrayBuffer());
+  const checksumSha256 = sha256Hex(body);
+  if (parsed.checksumSha256 && parsed.checksumSha256 !== checksumSha256) {
+    return fail("VALIDATION_ERROR", "Audio chunk checksum mismatch.", 400);
+  }
+  let storage;
+  try {
+    storage = await uploadAudioChunk({
+      sessionId: id,
+      chunkIndex: parsed.chunkIndex,
+      body,
+      mimeType: parsed.mimeType,
+      checksumSha256,
+    });
+  } catch {
+    return fail("INTERNAL_ERROR", "Audio chunk storage failed.", 500);
+  }
+
   const chunk = await prisma.audioChunk.upsert({
     where: {
       sessionId_chunkIndex: {
@@ -33,23 +85,32 @@ export async function POST(
       },
     },
     update: {
-      objectKey,
+      objectKey: storage.objectKey,
       mimeType: parsed.mimeType,
-      byteSize: BigInt(parsed.byteSize),
+      byteSize: BigInt(file.size),
       durationMs: parsed.durationMs,
-      checksumSha256: parsed.checksumSha256,
+      checksumSha256,
       status: "UPLOADED",
+      uploadedAt: new Date(),
+      metadata: {
+        storageDriver: storage.driver,
+        storageBucket: storage.bucket ?? null,
+      },
     },
     create: {
       sessionId: id,
       chunkIndex: parsed.chunkIndex,
-      objectKey,
+      objectKey: storage.objectKey,
       mimeType: parsed.mimeType,
-      byteSize: BigInt(parsed.byteSize),
+      byteSize: BigInt(file.size),
       durationMs: parsed.durationMs,
-      checksumSha256: parsed.checksumSha256,
+      checksumSha256,
       startedAt: parsed.startedAt ? new Date(parsed.startedAt) : undefined,
       status: "UPLOADED",
+      metadata: {
+        storageDriver: storage.driver,
+        storageBucket: storage.bucket ?? null,
+      },
     },
   });
 

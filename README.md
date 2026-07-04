@@ -10,7 +10,7 @@ Production: https://babbledeck.aialra.online
 - Prisma/PostgreSQL persistence in `db/schema.prisma`.
 - Bootstrap admin seed via `SEED_ADMIN_PASSWORD`.
 - Login, dashboard, live session creation, recorder page, public viewer page, session history, and exports.
-- Browser microphone permission flow, volume meter, IndexedDB local backup, metadata upload endpoint, SSE viewer stream with polling fallback, and deterministic mock transcript provider.
+- Browser microphone permission flow, volume meter, IndexedDB local backup, binary audio chunk upload to local/S3-compatible object storage, SSE viewer stream with polling fallback, and deterministic mock transcript provider.
 - Playwright desktop/mobile E2E for the full MVP flow.
 
 ## Development
@@ -23,7 +23,7 @@ SEED_ADMIN_PASSWORD="set-a-local-secret" pnpm db:seed
 pnpm dev
 ```
 
-Open the app at `http://localhost:3000` or run Playwright on port `3100` with:
+Open the app at `http://localhost:3000` or run Playwright on the port in `E2E_BASE_URL` with:
 
 ```bash
 E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD" pnpm e2e
@@ -49,6 +49,7 @@ The current production instance follows the server's existing systemd + Nginx pa
 - Nginx site: `/etc/nginx/sites-available/babbledeck.aialra.online`
 - Secret env file: `/srv/aialra/config/secrets/babbledeck.env`
 - Production database: `babbledeck_prod`
+- Production audio storage: local object root from `AUDIO_STORAGE_DIR` until R2/S3 credentials are configured.
 
 Do not commit secrets, `.env.local`, raw recordings, provider keys, or production logs.
 

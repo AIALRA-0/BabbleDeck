@@ -1,9 +1,12 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:3100";
+const parsedBaseURL = new URL(baseURL);
 const shouldStartWebServer =
   baseURL.startsWith("http://127.0.0.1") ||
   baseURL.startsWith("http://localhost");
+const webServerPort =
+  parsedBaseURL.port || (parsedBaseURL.protocol === "https:" ? "443" : "80");
 
 export default defineConfig({
   testDir: "./e2e",
@@ -29,7 +32,8 @@ export default defineConfig({
   webServer: shouldStartWebServer
     ? {
         command:
-          "env -u NO_COLOR NODE_ENV=development pnpm --filter @babbledeck/web dev --hostname 127.0.0.1 --port 3100",
+          "env -u NO_COLOR NODE_ENV=development pnpm --filter @babbledeck/web dev " +
+          `--hostname ${parsedBaseURL.hostname} --port ${webServerPort}`,
         url: baseURL,
         reuseExistingServer: false,
         timeout: 120_000,

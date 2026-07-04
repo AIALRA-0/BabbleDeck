@@ -58,6 +58,7 @@ export function RecorderClient({
   const [pending, setPending] = useState(false);
   const [copied, setCopied] = useState(false);
   const [backup, setBackup] = useState({ total: 0, uploaded: 0, pending: 0 });
+  const [backupError, setBackupError] = useState<string | null>(null);
   const [latestOriginal, setLatestOriginal] = useState("Waiting for speech...");
   const [latestTranslation, setLatestTranslation] =
     useState("字幕会在这里显示。");
@@ -115,33 +116,70 @@ export function RecorderClient({
     }
   }
 
+  async function uploadChunkBlob(input: {
+    index: number;
+    startedAt: string;
+    durationMs: number;
+    blob: Blob;
+  }) {
+    const mimeType = input.blob.type || "audio/webm";
+    await saveLocalChunk({
+      sessionId,
+      chunkIndex: input.index,
+      startedAt: input.startedAt,
+      durationMs: input.durationMs,
+      mimeType,
+      blob: input.blob,
+    });
+    setBackup(await countLocalChunks(sessionId));
+
+    const formData = new FormData();
+    formData.append("chunkIndex", String(input.index));
+    formData.append("startedAt", input.startedAt);
+    formData.append("durationMs", String(input.durationMs));
+    formData.append("mimeType", mimeType);
+    formData.append(
+      "file",
+      input.blob,
+      `chunk-${String(input.index).padStart(6, "0")}.webm`,
+    );
+
+    const response = await fetch(`/api/sessions/${sessionId}/audio-chunks`, {
+      method: "POST",
+      body: formData,
+    });
+    if (!response.ok) {
+      throw new Error("Audio chunk upload failed.");
+    }
+    await markLocalChunkUploaded(sessionId, input.index);
+    setBackup(await countLocalChunks(sessionId));
+    setBackupError(null);
+  }
+
   async function uploadSyntheticChunk(index: number) {
     const blob = new Blob([`babbledeck mock audio chunk ${index}`], {
       type: "audio/webm",
     });
-    const startedAt = new Date().toISOString();
-    await saveLocalChunk({
-      sessionId,
-      chunkIndex: index,
-      startedAt,
+    await uploadChunkBlob({
+      index,
+      startedAt: new Date().toISOString(),
       durationMs: 1000,
-      mimeType: blob.type,
       blob,
     });
-    setBackup(await countLocalChunks(sessionId));
-    await fetch(`/api/sessions/${sessionId}/audio-chunks`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chunkIndex: index,
-        startedAt,
+  }
+
+  async function uploadRecordedChunk(index: number, blob: Blob) {
+    try {
+      await uploadChunkBlob({
+        index,
+        startedAt: new Date().toISOString(),
         durationMs: 1000,
-        mimeType: blob.type,
-        byteSize: blob.size,
-      }),
-    });
-    await markLocalChunkUploaded(sessionId, index);
-    setBackup(await countLocalChunks(sessionId));
+        blob,
+      });
+    } catch {
+      setBackupError("Audio upload failed. Local backup is still saved here.");
+      setBackup(await countLocalChunks(sessionId));
+    }
   }
 
   async function postMockSegment(index: number) {
@@ -188,7 +226,12 @@ export function RecorderClient({
       }),
     });
     setEventsSent((value) => value + 3);
-    await uploadSyntheticChunk(index);
+    try {
+      await uploadSyntheticChunk(index);
+    } catch {
+      setBackupError("Audio upload failed. Local backup is still saved here.");
+      setBackup(await countLocalChunks(sessionId));
+    }
   }
 
   async function startRecording() {
@@ -204,15 +247,7 @@ export function RecorderClient({
       recorder.ondataavailable = async (event) => {
         if (event.data.size === 0) return;
         chunkIndexRef.current += 1;
-        await saveLocalChunk({
-          sessionId,
-          chunkIndex: chunkIndexRef.current + 1000,
-          startedAt: new Date().toISOString(),
-          durationMs: 1000,
-          mimeType: event.data.type || "audio/webm",
-          blob: event.data,
-        });
-        setBackup(await countLocalChunks(sessionId));
+        await uploadRecordedChunk(chunkIndexRef.current + 1000, event.data);
       };
       recorder.start(1000);
     }
@@ -311,6 +346,11 @@ export function RecorderClient({
               <p className="mt-1 font-semibold">
                 {backup.uploaded}/{backup.total} uploaded
               </p>
+              {backupError ? (
+                <p className="mt-1 text-xs font-medium text-red-700">
+                  {backupError}
+                </p>
+              ) : null}
             </div>
             <div className="rounded-md border border-border p-3">
               <p className="text-xs text-muted-foreground">Events</p>
