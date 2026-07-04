@@ -55,6 +55,7 @@ The current production instance follows the server's existing systemd + Nginx pa
 - Production database: `babbledeck_prod`
 - Production audio storage: local object root from `AUDIO_STORAGE_DIR` until R2/S3 credentials are configured.
 - Production backup timer: `aialra-babbledeck-backup.timer`
+- Production raw audio retention timer: `aialra-babbledeck-audio-retention.timer`
 - Backup root: `/srv/aialra/backups/babbledeck`
 
 Do not commit secrets, `.env.local`, raw recordings, provider keys, or production logs.

@@ -1,0 +1,17 @@
+[Unit]
+Description=AIALRA BabbleDeck raw audio retention cleanup
+After=docker.service aialra-babbledeck-backup.service
+Wants=docker.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+WorkingDirectory=/srv/aialra/apps/codexapp/state/browser-workspaces/2026-07-04-babbledeck
+EnvironmentFile=/srv/aialra/config/secrets/babbledeck.env
+ExecStart=/usr/bin/pnpm tsx scripts/prune-audio-retention.ts
+StandardOutput=append:/srv/aialra/logs/babbledeck/audio-retention.log
+StandardError=append:/srv/aialra/logs/babbledeck/audio-retention.log
+
+[Install]
+WantedBy=multi-user.target

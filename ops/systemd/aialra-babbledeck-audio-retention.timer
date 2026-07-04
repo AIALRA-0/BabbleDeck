@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily AIALRA BabbleDeck raw audio retention cleanup
+
+[Timer]
+OnCalendar=*-*-* 04:07:00
+Persistent=true
+RandomizedDelaySec=15m
+Unit=aialra-babbledeck-audio-retention.service
+
+[Install]
+WantedBy=timers.target

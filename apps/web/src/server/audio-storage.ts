@@ -1,7 +1,11 @@
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  DeleteObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 
 export const AUDIO_CHUNK_MAX_BYTES = 25 * 1024 * 1024;
 
@@ -16,6 +20,12 @@ type UploadAudioChunkInput = {
 };
 
 type UploadAudioChunkResult = {
+  objectKey: string;
+  driver: StorageDriver;
+  bucket?: string;
+};
+
+type DeleteAudioObjectResult = {
   objectKey: string;
   driver: StorageDriver;
   bucket?: string;
@@ -146,27 +156,28 @@ async function writeLocalObject(
   objectKey: string,
   body: Buffer,
 ) {
-  const rootDir = path.resolve(/*turbopackIgnore: true*/ config.rootDir);
+  const fullPath = resolveLocalObjectPath(config.rootDir, objectKey);
+  await fs.mkdir(path.dirname(fullPath), { recursive: true });
+  await fs.writeFile(fullPath, body);
+}
+
+function resolveLocalObjectPath(rootDirInput: string, objectKey: string) {
+  const rootDir = path.resolve(/*turbopackIgnore: true*/ rootDirInput);
   const fullPath = path.resolve(/*turbopackIgnore: true*/ rootDir, objectKey);
   const relativePath = path.relative(rootDir, fullPath);
   if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
     throw new Error("Resolved audio object path escaped the storage root.");
   }
-  await fs.mkdir(path.dirname(fullPath), { recursive: true });
-  await fs.writeFile(fullPath, body);
+  return fullPath;
 }
 
-async function writeS3Object(
-  config: S3StorageConfig,
-  objectKey: string,
-  input: UploadAudioChunkInput,
-) {
+function createS3Client(config: S3StorageConfig) {
   if (config.endpoint && (!config.accessKeyId || !config.secretAccessKey)) {
     throw new Error(
       "S3-compatible audio storage requires explicit access keys.",
     );
   }
-  const client = new S3Client({
+  return new S3Client({
     region: config.region,
     endpoint: config.endpoint,
     forcePathStyle: config.forcePathStyle,
@@ -178,7 +189,14 @@ async function writeS3Object(
           }
         : undefined,
   });
+}
 
+async function writeS3Object(
+  config: S3StorageConfig,
+  objectKey: string,
+  input: UploadAudioChunkInput,
+) {
+  const client = createS3Client(config);
   await client.send(
     new PutObjectCommand({
       Bucket: config.bucket,
@@ -206,5 +224,27 @@ export async function uploadAudioChunk(
   }
 
   await writeS3Object(config, objectKey, input);
+  return { objectKey, driver: "s3", bucket: config.bucket };
+}
+
+export async function deleteAudioObject(
+  objectKey: string,
+): Promise<DeleteAudioObjectResult> {
+  const config = resolveAudioStorageConfig();
+
+  if (config.driver === "local") {
+    await fs.rm(resolveLocalObjectPath(config.rootDir, objectKey), {
+      force: true,
+    });
+    return { objectKey, driver: "local" };
+  }
+
+  const client = createS3Client(config);
+  await client.send(
+    new DeleteObjectCommand({
+      Bucket: config.bucket,
+      Key: objectKey,
+    }),
+  );
   return { objectKey, driver: "s3", bucket: config.bucket };
 }

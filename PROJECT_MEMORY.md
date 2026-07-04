@@ -28,6 +28,7 @@
 - Production deployment is live at `https://babbledeck.aialra.online` through systemd service `aialra-babbledeck.service`, Nginx TLS, and production database `babbledeck_prod`.
 - Production audio object storage currently uses local root `/srv/aialra/storage/babbledeck` with S3/R2-compatible env hooks available for later off-host storage.
 - Production backup/restore automation is installed through `aialra-babbledeck-backup.timer`; verified backups restore into a temporary database and temporary audio directory.
+- Production raw audio retention automation is installed through `aialra-babbledeck-audio-retention.timer`; it deletes uploaded raw audio objects for ended sessions after the configured retention window and marks chunks `DELETED`.
 - Production smoke passed with Playwright desktop/mobile using a temporary smoke admin that was cleaned up afterward, including verification that binary audio chunk files were written before cleanup.
 - Budget-cap enforcement and degraded-provider UI are deployed to production; smoke coverage verifies that low-cap Soniox-mode sessions enter `provider_degraded` while audio backup continues.
 
@@ -36,5 +37,5 @@
 1. Add Soniox realtime adapter behind the current provider boundary.
 2. Configure production R2/S3 credentials and migrate raw audio storage off the local object directory.
 3. Add recorder WebSocket audio transport now that the deployment target is Nginx/systemd and can proxy upgrades.
-4. Add raw audio retention/deletion automation.
-5. Add production Soniox staging validation once a real `SONIOX_API_KEY` is configured.
+4. Add production Soniox staging validation once a real `SONIOX_API_KEY` is configured.
+5. Add operator-facing retention settings and per-session legal hold controls.
