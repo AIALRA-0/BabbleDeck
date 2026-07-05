@@ -61,6 +61,45 @@ async function httpsOk(baseUrl: string) {
   }
 }
 
+async function securityHeadersOk(baseUrl: string) {
+  try {
+    const response = await fetch(baseUrl, { method: "HEAD" });
+    const headers = response.headers;
+    const hsts = headers.get("strict-transport-security") ?? "";
+    const csp = headers.get("content-security-policy") ?? "";
+    const frameOptions = headers.get("x-frame-options") ?? "";
+    const contentTypeOptions = headers.get("x-content-type-options") ?? "";
+    const referrerPolicy = headers.get("referrer-policy") ?? "";
+    const missing = [
+      hsts.toLowerCase().includes("max-age=")
+        ? undefined
+        : "strict-transport-security",
+      csp.includes("frame-ancestors 'none'")
+        ? undefined
+        : "content-security-policy",
+      frameOptions.toUpperCase() === "DENY" ? undefined : "x-frame-options",
+      contentTypeOptions.toLowerCase() === "nosniff"
+        ? undefined
+        : "x-content-type-options",
+      referrerPolicy === "strict-origin-when-cross-origin"
+        ? undefined
+        : "referrer-policy",
+    ].filter((item): item is string => Boolean(item));
+    return {
+      ok: response.ok && missing.length === 0,
+      message:
+        missing.length === 0
+          ? "Production security headers are present."
+          : `Missing or invalid security headers: ${missing.join(", ")}.`,
+    };
+  } catch {
+    return {
+      ok: false,
+      message: "Production security headers could not be checked.",
+    };
+  }
+}
+
 async function staticAssetOk(baseUrl: string) {
   const staticRoot = path.join(
     process.cwd(),
@@ -302,6 +341,13 @@ async function main() {
     name: "https",
     ok: await httpsOk(baseUrl),
     message: `${baseUrl} responds over HTTPS.`,
+  });
+
+  const securityHeaders = await securityHeadersOk(baseUrl);
+  check(checks, {
+    name: "security_headers",
+    ok: securityHeaders.ok,
+    message: securityHeaders.message,
   });
 
   check(checks, {

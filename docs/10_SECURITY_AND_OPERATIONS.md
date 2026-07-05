@@ -98,6 +98,7 @@ Rules:
 
 - HTTPS/WSS only in production.
 - HSTS.
+- Current production sends `Strict-Transport-Security`, `Content-Security-Policy`, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Cross-Origin-Opener-Policy`, and `Permissions-Policy`; readiness checks the core required security headers.
 - TLS-managed domain.
 
 ### Data minimization

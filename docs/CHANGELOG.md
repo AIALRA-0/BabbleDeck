@@ -28,3 +28,4 @@
 - Hardened login rate limiting with both per-IP and per-IP/email attempt limits.
 - Hardened trusted proxy client IP parsing for rate limits and audit logs.
 - Added same-origin mutation guards for cookie-authenticated admin writes while preserving recorder-token flows.
+- Added HSTS and stricter production security header readiness checks.

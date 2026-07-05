@@ -50,6 +50,7 @@
 - Login throttling now enforces both per-IP and per-IP/email attempt windows, with `LOGIN_IP_RATE_LIMIT_PER_MINUTE` documented in `.env.example`.
 - Client IP parsing now prefers Nginx-managed `X-Real-IP` and otherwise uses the proxy-appended `X-Forwarded-For` address, protecting rate limits and audit IP hashes from spoofed leading XFF values.
 - Cookie-authenticated admin mutation endpoints now enforce same-origin `Origin`/Fetch Metadata checks; recorder-token writes remain available for no-cookie recorder links.
+- Production responses now include HSTS, COOP, and Permissions-Policy headers; strict readiness verifies the core security headers as required checks.
 
 ## Next Recommended Tasks
 
