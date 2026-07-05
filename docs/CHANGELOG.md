@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-07-05
+
+- Short-circuited suspicious production probe paths in the Next proxy so dotfile/config/PHP scanner requests and quoted fake static-asset requests return plain `404` responses without invoking app not-found rendering.
+- Revalidated production after the Soniox key update with a deployed long trace: live Soniox websocket readiness passed, the UI trace persisted transcript/audio/provider-usage evidence, and web/recorder services remained active with `NRestarts=0`.
+
 ## 2026-07-04
 
 - Added the BabbleDeck development documentation package.

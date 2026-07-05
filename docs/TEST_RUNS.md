@@ -1,5 +1,34 @@
 # Test Runs
 
+## 2026-07-05 Production Suspicious Probe Hardening
+
+- Environment: production deployment at `https://babbledeck.aialra.online`, configured production `SONIOX_API_KEY`, self-hosted LiveKit present, and production audio storage still local.
+- Commands:
+  - `pnpm db:generate`
+  - `pnpm --filter @babbledeck/web test -- src/server/suspicious-probe.test.ts`
+  - `pnpm --filter @babbledeck/web typecheck`
+  - `pnpm --filter @babbledeck/web lint`
+  - `pnpm --filter @babbledeck/web build`
+  - `pnpm deploy:production`
+  - `curl -sS -D - -o /tmp/babbledeck-dotenv-body https://babbledeck.aialra.online/.env`
+  - `curl -sS -D - -o /tmp/babbledeck-quoted-static-body 'https://babbledeck.aialra.online/%22/_next/static/chunks/app.js%22'`
+  - `bash -lc 'set -a; . /srv/aialra/config/secrets/babbledeck.env; set +a; pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --check-soniox-live --strict'`
+  - `pnpm soniox:trace:production`
+  - `bash -lc 'set -a; . /srv/aialra/config/secrets/babbledeck.env; set +a; pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --check-soniox-live'`
+  - `systemctl show aialra-babbledeck.service aialra-babbledeck-ws.service --property=Id,ActiveState,SubState,NRestarts,Result,ExecMainStartTimestamp,MainPID --no-pager`
+  - `curl -fsS https://babbledeck.aialra.online/api/health`
+- Results:
+  - Added a proxy-level suspicious probe detector for dotfile probes, PHP/config scanner paths, and quoted fake `/_next/static` requests so these paths return a plain `404` before reaching Next's app not-found renderer.
+  - Added unit coverage for scanner paths such as `/.env`, `/.git/config`, `/wp-config.php`, `/config.json`, `/aws.config.js`, and `/%22/_next/static/chunks/app.js%22`, while allowing app paths and `/.well-known/acme-challenge`.
+  - Full Vitest run passed with `20` files and `77` tests after regenerating Prisma Client; web typecheck, lint, and production build passed.
+  - Production deploy for commit `c48aa9fe4af7` passed the deployment wrapper: forced build, systemd web/WS restart, HTTPS/readiness checks, seed-admin login smoke, and anonymous protected-route Playwright smoke.
+  - Production probe requests to `/.env` and `/%22/_next/static/chunks/app.js%22` returned `HTTP/2 404` with `content-type: text/plain; charset=utf-8`, request/correlation IDs, and the configured security headers.
+  - Deployment-era logs showed the probe requests were logged without new `/_not-found` client-reference manifest errors; older manifest errors were confirmed to predate the hardening deployment.
+  - Web and recorder WS services stayed active/running with `NRestarts=0` after deployment and probe requests.
+  - Post-deploy Soniox trace passed with `39000ms` Soniox provider usage, `39` persisted audio chunks, `16` transcript segments, `15` translations, expected text matches for `Brooklyn`, `Spanish`, and `French`, `0` provider errors, and the trace session archived.
+  - Production readiness returned `requiredOk=true` with live Soniox websocket connectivity and the latest long trace passing; `externalOk=false` remains only because production audio storage is still local until R2/S3-compatible storage is configured and cut over.
+  - Production `/api/health` returned `status="ok"`, audio storage `driver="local"`, `offHostReady=false`, Soniox configured, and LiveKit configured.
+
 ## 2026-07-05 Production Soniox Long Trace
 
 - Environment: production deployment at `https://babbledeck.aialra.online`, configured production `SONIOX_API_KEY`, self-hosted LiveKit present, Chromium fake-microphone capture, and production audio storage still local.
