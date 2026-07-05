@@ -95,6 +95,22 @@ export async function listPendingLocalChunks(sessionId: string) {
     .sort((first, second) => first.chunkIndex - second.chunkIndex);
 }
 
+export async function deleteUploadedLocalChunks(sessionId: string) {
+  const database = await db();
+  const chunks = (await database.getAllFromIndex(
+    STORE,
+    "sessionId",
+    sessionId,
+  )) as BackupChunk[];
+  const uploadedChunks = chunks.filter((chunk) => chunk.status === "uploaded");
+  const transaction = database.transaction(STORE, "readwrite");
+  await Promise.all(
+    uploadedChunks.map((chunk) => transaction.store.delete(chunk.id)),
+  );
+  await transaction.done;
+  return uploadedChunks.length;
+}
+
 export async function countLocalChunks(sessionId: string) {
   const database = await db();
   const chunks = (await database.getAllFromIndex(

@@ -10,6 +10,7 @@ import {
   RefreshCw,
   Square,
   TestTube2,
+  Trash2,
   UploadCloud,
 } from "lucide-react";
 import Link from "next/link";
@@ -24,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   countLocalChunks,
+  deleteUploadedLocalChunks,
   listPendingLocalChunks,
   markLocalChunkFailed,
   markLocalChunkUploaded,
@@ -193,7 +195,7 @@ export function RecorderClient({
     "http",
   );
   const [backupAction, setBackupAction] = useState<
-    "idle" | "connecting" | "retrying"
+    "idle" | "connecting" | "retrying" | "cleaning"
   >("idle");
   const [audioDeviceSupported, setAudioDeviceSupported] = useState(false);
   const [audioInputs, setAudioInputs] = useState<AudioInputDevice[]>([]);
@@ -937,6 +939,25 @@ export function RecorderClient({
     }
   }
 
+  async function cleanupUploadedBackups() {
+    setBackupAction("cleaning");
+    setBackupNotice(null);
+    setBackupError(null);
+    try {
+      const deleted = await deleteUploadedLocalChunks(sessionId);
+      await refreshBackupSummary();
+      setBackupNotice(
+        deleted > 0
+          ? "Uploaded local backup cleaned."
+          : "No uploaded local backup to clean.",
+      );
+    } catch {
+      setBackupError("Local backup cleanup failed.");
+    } finally {
+      setBackupAction("idle");
+    }
+  }
+
   async function uploadSyntheticChunk(index: number) {
     const blob = new Blob([`babbledeck mock audio chunk ${index}`], {
       type: "audio/webm",
@@ -1245,6 +1266,23 @@ export function RecorderClient({
                     <UploadCloud className="h-4 w-4" />
                   )}
                   Retry pending
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => void cleanupUploadedBackups()}
+                  disabled={
+                    recording ||
+                    backupAction !== "idle" ||
+                    backup.uploaded === 0
+                  }
+                >
+                  {backupAction === "cleaning" ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-4 w-4" />
+                  )}
+                  Clean uploaded
                 </Button>
               </div>
             </div>

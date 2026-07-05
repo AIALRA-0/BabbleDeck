@@ -84,11 +84,17 @@ async function signIn(page: Page) {
   throw new Error("Unable to sign in with the provided E2E credentials.");
 }
 
-async function seedPendingBackupChunk(
+type SeedBackupChunkStatus = "local_only" | "uploaded" | "failed";
+
+async function seedBackupChunk(
   page: Page,
-  input: { sessionId: string; chunkIndex: number },
+  input: {
+    sessionId: string;
+    chunkIndex: number;
+    status: SeedBackupChunkStatus;
+  },
 ) {
-  await page.evaluate(async ({ sessionId, chunkIndex }) => {
+  await page.evaluate(async ({ sessionId, chunkIndex, status }) => {
     await new Promise<void>((resolve, reject) => {
       const request = window.indexedDB.open("babbledeck-audio-backup", 1);
       request.onupgradeneeded = () => {
@@ -119,11 +125,18 @@ async function seedPendingBackupChunk(
           blob: new Blob([`retry smoke chunk ${chunkIndex}`], {
             type: "audio/webm",
           }),
-          status: "failed",
+          status,
         });
       };
     });
   }, input);
+}
+
+async function seedPendingBackupChunk(
+  page: Page,
+  input: { sessionId: string; chunkIndex: number },
+) {
+  await seedBackupChunk(page, { ...input, status: "failed" });
 }
 
 async function downloadExport(
@@ -428,6 +441,13 @@ test.describe("BabbleDeck MVP browser flow", () => {
     await expect(
       recorder.getByRole("button", { name: /start recording/i }),
     ).toBeVisible({ timeout: 20_000 });
+    await expect(
+      recorder.getByText(/[1-9][0-9]*\/[1-9][0-9]* uploaded/),
+    ).toBeVisible({ timeout: 12_000 });
+    await recorder.getByRole("button", { name: /clean uploaded/i }).click();
+    await expect(
+      recorder.getByText("Uploaded local backup cleaned."),
+    ).toBeVisible({ timeout: 12_000 });
     await page.goto(`/sessions/${sessionId}`);
     await expect(page.getByRole("heading", { name: title })).toBeVisible({
       timeout: 20_000,
@@ -510,6 +530,70 @@ test.describe("BabbleDeck MVP browser flow", () => {
 
     await recorderContext.close();
     await viewerContext.close();
+  });
+
+  test("recorder cleans uploaded local backup chunks without deleting pending recovery", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "chromium-desktop",
+      "Local backup cleanup coverage runs once on desktop.",
+    );
+
+    const title = `Playwright session cleanup ${Date.now()}`;
+
+    await page.goto("/");
+    await page.getByRole("link", { name: /open portal/i }).click();
+    await signIn(page);
+    await expect(
+      page.getByRole("heading", { name: "Live sessions" }),
+    ).toBeVisible();
+
+    await page
+      .getByRole("link", { name: /new live session/i })
+      .first()
+      .click();
+    await page.getByLabel("Title").fill(title);
+    await page.getByLabel("Target language").selectOption("zh");
+    await page.getByLabel("Provider").selectOption("mock");
+    await page.getByRole("button", { name: /create session/i }).click();
+    await expect(page.getByRole("heading", { name: title })).toBeVisible();
+    const recorderUrl = page.url();
+    const sessionId = new URL(recorderUrl).pathname.split("/")[2];
+
+    await seedBackupChunk(page, {
+      sessionId,
+      chunkIndex: 910001,
+      status: "uploaded",
+    });
+    await seedBackupChunk(page, {
+      sessionId,
+      chunkIndex: 910002,
+      status: "uploaded",
+    });
+    await seedBackupChunk(page, {
+      sessionId,
+      chunkIndex: 910003,
+      status: "failed",
+    });
+
+    await page.reload();
+    await expect(page.getByText("2/3 uploaded")).toBeVisible({
+      timeout: 12_000,
+    });
+    await expect(page.getByText("1 pending · 1 failed")).toBeVisible();
+
+    const cleanUploadedButton = page.getByRole("button", {
+      name: /clean uploaded/i,
+    });
+    await expect(cleanUploadedButton).toBeEnabled();
+    await cleanUploadedButton.click();
+    await expect(page.getByText("Uploaded local backup cleaned.")).toBeVisible({
+      timeout: 12_000,
+    });
+    await expect(page.getByText("0/1 uploaded")).toBeVisible();
+    await expect(page.getByText("1 pending · 1 failed")).toBeVisible();
+    await expect(cleanUploadedButton).toBeDisabled();
   });
 
   test("recorder shows recovery guidance when microphone access is blocked", async ({
