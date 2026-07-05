@@ -266,6 +266,14 @@ at `https://babbledeck.aialra.online` for live-site-first wrapper testing.
 `device:readiness:production` checks the production URL, Android debug APK,
 connected physical Android devices, Xcode availability for iOS, and an
 interactive desktop display session without printing device serials or secrets.
+After a real device run, record non-secret manual evidence for each platform:
+
+```bash
+pnpm device:evidence:production -- --platform=android --passed --production-url-opened --microphone-granted --recording-started --captions-visible --audio-backup-confirmed
+```
+
+Strict production readiness requires recent passing Android, iOS, and desktop
+device evidence before treating native wrapper runtime validation as complete.
 
 ## Deployment Notes
 

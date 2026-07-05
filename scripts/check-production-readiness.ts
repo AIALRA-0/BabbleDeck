@@ -777,6 +777,115 @@ async function recentLiveKitUiSmokeOk() {
   }
 }
 
+function normalizedUrl(value: unknown) {
+  if (typeof value !== "string") return "";
+  try {
+    const url = new URL(value);
+    return `${url.origin}${url.pathname.replace(/\/+$/, "")}`;
+  } catch {
+    return value.replace(/\/+$/, "");
+  }
+}
+
+function validDeviceRuntimeRecord(input: {
+  record: Record<string, unknown>;
+  platform: string;
+  baseUrl: string;
+  maxAgeMs: number;
+}) {
+  const recordedAtMs = Date.parse(String(input.record.recordedAt ?? ""));
+  const fresh =
+    Number.isFinite(recordedAtMs) &&
+    Date.now() - recordedAtMs <= input.maxAgeMs;
+  const checks =
+    input.record.checks &&
+    typeof input.record.checks === "object" &&
+    !Array.isArray(input.record.checks)
+      ? (input.record.checks as Record<string, unknown>)
+      : {};
+  const checksOk = [
+    "productionUrlOpened",
+    "microphoneGranted",
+    "recordingStarted",
+    "captionsVisible",
+    "audioBackupConfirmed",
+  ].every((name) => checks[name] === true);
+
+  return (
+    input.record.app === "babbledeck" &&
+    input.record.platform === input.platform &&
+    input.record.ok === true &&
+    normalizedUrl(input.record.baseUrl) === normalizedUrl(input.baseUrl) &&
+    fresh &&
+    checksOk
+  );
+}
+
+async function recentDeviceRuntimeEvidenceOk(baseUrl: string) {
+  const deviceRuntimeLog =
+    process.env.BABBLEDECK_DEVICE_RUNTIME_LOG ??
+    "/srv/aialra/logs/babbledeck/device-runtime.jsonl";
+  const maxAgeHours = Number(
+    process.env.BABBLEDECK_DEVICE_RUNTIME_MAX_AGE_HOURS ?? 720,
+  );
+  const maxAgeMs =
+    Number.isFinite(maxAgeHours) && maxAgeHours > 0
+      ? maxAgeHours * 60 * 60 * 1000
+      : 720 * 60 * 60 * 1000;
+  const platforms = ["android", "ios", "desktop"];
+
+  try {
+    const contents = await fs.readFile(deviceRuntimeLog, "utf8");
+    const records = contents
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+    const missingOrInvalid = platforms.filter((platform) => {
+      const latest = records
+        .filter((record) => record.platform === platform)
+        .sort((a, b) =>
+          String(b.recordedAt ?? "").localeCompare(String(a.recordedAt ?? "")),
+        )[0];
+      return (
+        !latest ||
+        !validDeviceRuntimeRecord({
+          record: latest,
+          platform,
+          baseUrl,
+          maxAgeMs,
+        })
+      );
+    });
+
+    return {
+      ok: missingOrInvalid.length === 0,
+      message:
+        missingOrInvalid.length === 0
+          ? "Recent production device runtime evidence passed for Android, iOS, and desktop wrappers."
+          : `Missing or stale production device runtime evidence for ${missingOrInvalid.join(", ")}.`,
+    };
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "ENOENT"
+    ) {
+      return {
+        ok: false,
+        message:
+          "Missing production device runtime evidence for android, ios, desktop.",
+      };
+    }
+    return {
+      ok: false,
+      message:
+        "Production device runtime evidence JSONL record could not be checked.",
+    };
+  }
+}
+
 async function recentSecurityBaselineOk() {
   const securityLog =
     process.env.BABBLEDECK_SECURITY_BASELINE_LOG ??
@@ -1043,6 +1152,14 @@ async function main() {
     name: "recent_security_baseline",
     ok: securityBaseline.ok,
     message: securityBaseline.message,
+  });
+
+  const deviceRuntime = await recentDeviceRuntimeEvidenceOk(baseUrl);
+  check(checks, {
+    name: "recent_device_runtime_evidence",
+    ok: deviceRuntime.ok,
+    severity: "external",
+    message: deviceRuntime.message,
   });
 
   check(checks, {

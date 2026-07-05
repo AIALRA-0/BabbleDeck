@@ -2,6 +2,7 @@
 
 ## 2026-07-06
 
+- Added a production device runtime evidence command and wired recent Android, iOS, and desktop evidence into strict production readiness as an external completion gate.
 - Added a production device runtime readiness command for Android, iOS, and desktop wrapper prerequisites against the deployed production PWA, with non-secret strict-mode gating for physical-device follow-up.
 
 ## 2026-07-05

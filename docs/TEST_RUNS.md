@@ -1792,3 +1792,28 @@
   - Local validation passed: changed-file Prettier, script typecheck, wrapper config check, app typecheck, ESLint, and full workspace build.
 - Screenshots/traces:
   - This slice was native/runtime operations tooling only; no browser screenshots were produced.
+
+## 2026-07-06 Device Runtime Evidence Gate
+
+- Environment: production `https://babbledeck.aialra.online`, production secret env loaded without printing secrets, production readiness script, temporary JSONL evidence logs for positive-path testing, and production device runtime evidence log intentionally absent until real manual runs happen.
+- Commands:
+  - `pnpm exec tsx scripts/record-device-runtime-evidence.ts --platform=android --passed --production-url-opened --microphone-granted --recording-started --captions-visible --audio-backup-confirmed`
+  - `BABBLEDECK_DEVICE_RUNTIME_LOG=$(mktemp) pnpm device:evidence:production -- --platform=desktop --passed --production-url-opened --microphone-granted --recording-started --captions-visible --audio-backup-confirmed`
+  - Temporary three-platform JSONL positive-path readiness check using direct evidence records for `android`, `ios`, and `desktop`, with `BABBLEDECK_DEVICE_RUNTIME_LOG` pointed at the temporary file.
+  - `pnpm prettier --check scripts/check-production-readiness.ts scripts/record-device-runtime-evidence.ts package.json .github/workflows/ci.yml README.md`
+  - `bash -n scripts/record-device-runtime-evidence-production.sh`
+  - CI-style script typecheck including `scripts/record-device-runtime-evidence.ts`.
+  - `pnpm --filter @babbledeck/web typecheck`
+  - `pnpm --filter @babbledeck/web lint`
+  - `pnpm build`
+  - `pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --strict --check-soniox-live` (expected exit `1` while external storage and device runtime evidence remain incomplete)
+- Results:
+  - Added `pnpm device:evidence:production` for recording non-secret manual Android, iOS, or desktop wrapper runtime evidence after a real device/session run.
+  - Evidence records require `--passed` plus production URL opened, microphone granted, recording started, captions visible, and audio backup confirmed flags.
+  - The production wrapper writes JSONL to `/srv/aialra/logs/babbledeck/device-runtime.jsonl` by default under a lock; temp-log validation confirmed one JSONL record is appended without touching production evidence.
+  - Production readiness now includes external check `recent_device_runtime_evidence`, requiring fresh passing evidence for Android, iOS, and desktop wrappers against the production URL.
+  - Current production readiness reports `requiredOk=true`, `externalOk=false`, and `productionReady=false`; `recent_device_runtime_evidence` fails with missing Android/iOS/desktop evidence, and `off_host_audio_storage` still fails because production uses local storage.
+  - Strict readiness exits nonzero until both off-host storage and device runtime evidence are complete.
+  - Local validation passed: changed-file Prettier, shell syntax check, script typecheck, app typecheck, ESLint, and full workspace build.
+- Screenshots/traces:
+  - This slice was production operations tooling only; no browser screenshots were produced.
