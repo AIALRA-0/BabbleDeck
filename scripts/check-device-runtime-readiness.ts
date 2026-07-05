@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 
 type CommandResult = {
   available: boolean;
@@ -8,6 +9,15 @@ type CommandResult = {
   stdout: string;
   stderr: string;
   error?: string;
+  exitCode?: number | string;
+  signal?: NodeJS.Signals | null;
+};
+
+type Artifact = {
+  path: string;
+  exists: boolean;
+  sizeBytes?: number;
+  sha256?: string;
 };
 
 function boolFlag(name: string) {
@@ -29,21 +39,30 @@ async function exists(filePath: string) {
   }
 }
 
-async function runCommand(command: string, args: string[] = []) {
+async function runCommand(
+  command: string,
+  args: string[] = [],
+  timeoutMs = 15_000,
+) {
   return new Promise<CommandResult>((resolve) => {
     execFile(
       command,
       args,
-      { timeout: 15_000, maxBuffer: 1024 * 1024 },
+      { timeout: timeoutMs, maxBuffer: 1024 * 1024 },
       (error, stdout, stderr) => {
         if (error) {
-          const nodeError = error as NodeJS.ErrnoException;
+          const nodeError = error as NodeJS.ErrnoException & {
+            code?: string | number;
+            signal?: NodeJS.Signals | null;
+          };
           resolve({
             available: nodeError.code !== "ENOENT",
             ok: false,
             stdout,
             stderr,
             error: nodeError.message,
+            exitCode: nodeError.code,
+            signal: nodeError.signal,
           });
           return;
         }
@@ -57,6 +76,54 @@ async function runCommand(command: string, args: string[] = []) {
       },
     );
   });
+}
+
+async function artifact(filePath: string): Promise<Artifact> {
+  try {
+    const [stat, contents] = await Promise.all([
+      fs.stat(filePath),
+      fs.readFile(filePath),
+    ]);
+    return {
+      path: filePath,
+      exists: stat.isFile(),
+      sizeBytes: stat.size,
+      sha256: createHash("sha256").update(contents).digest("hex"),
+    };
+  } catch {
+    return {
+      path: filePath,
+      exists: false,
+    };
+  }
+}
+
+function shellQuote(value: string) {
+  return `'${value.replaceAll("'", "'\"'\"'")}'`;
+}
+
+async function desktopHeadlessSmoke(binaryPath: string) {
+  const result = await runCommand(
+    "bash",
+    [
+      "-lc",
+      [
+        "timeout 15s",
+        "env WEBKIT_DISABLE_COMPOSITING_MODE=1 GDK_BACKEND=x11 NO_AT_BRIDGE=1",
+        `xvfb-run -a ${shellQuote(binaryPath)}`,
+      ].join(" "),
+    ],
+    20_000,
+  );
+  const timedOutAfterHealthyLaunch = result.exitCode === 124;
+  return {
+    checked: true,
+    ok: result.ok || timedOutAfterHealthyLaunch,
+    exitCode: result.exitCode,
+    signal: result.signal,
+    timeoutAccepted: timedOutAfterHealthyLaunch,
+    stderrPreview: result.stderr.trim().slice(0, 500),
+  };
 }
 
 function parseAdbDevices(output: string) {
@@ -136,23 +203,29 @@ async function main() {
     "apps/desktop/node_modules/.bin/tauri",
   );
 
+  const checkDesktopHeadless =
+    boolFlag("--check-desktop-headless") ||
+    process.env.BABBLEDECK_DEVICE_CHECK_DESKTOP_HEADLESS === "true";
   const [
     production,
-    androidApkExists,
+    androidApk,
     iosProjectExists,
-    desktopBinaryExists,
+    desktopBinary,
     desktopTauriCliExists,
     adb,
     xcodebuild,
   ] = await Promise.all([
     productionReachable(productionUrl),
-    exists(androidApkPath),
+    artifact(androidApkPath),
     exists(iosProjectPath),
-    exists(desktopBinaryPath),
+    artifact(desktopBinaryPath),
     exists(desktopTauriCliPath),
     runCommand("adb", ["devices", "-l"]),
     runCommand("xcodebuild", ["-version"]),
   ]);
+  const headlessSmoke = checkDesktopHeadless
+    ? await desktopHeadlessSmoke(desktopBinaryPath)
+    : { checked: false };
 
   const androidDevices = adb.available ? parseAdbDevices(adb.stdout) : null;
   const displayAvailable = Boolean(
@@ -175,7 +248,8 @@ async function main() {
     android: {
       ready: androidReady,
       adbAvailable: adb.available,
-      debugApkExists: androidApkExists,
+      debugApkExists: androidApk.exists,
+      debugApk: androidApk,
       devices: androidDevices,
       missing: [
         adb.available ? undefined : "adb",
@@ -218,7 +292,9 @@ async function main() {
     desktop: {
       ready: desktopReady,
       tauriCliExists: desktopTauriCliExists,
-      releaseBinaryExists: desktopBinaryExists,
+      releaseBinaryExists: desktopBinary.exists,
+      releaseBinary: desktopBinary,
+      headlessSmoke,
       displayAvailable,
       missing: [
         desktopTauriCliExists ? undefined : "Tauri CLI package binary",
@@ -231,7 +307,9 @@ async function main() {
       ],
       nextCommands: [
         "pnpm device:readiness:production",
+        "pnpm device:readiness:production -- --check-desktop-headless",
         "pnpm --filter @babbledeck/desktop native:build",
+        "pnpm --filter @babbledeck/desktop native:smoke:headless",
         "pnpm --filter @babbledeck/desktop native:dev",
       ],
     },

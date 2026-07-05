@@ -257,6 +257,7 @@ Native wrapper configuration checks:
 ```bash
 pnpm wrappers:check
 pnpm device:readiness:production
+pnpm device:readiness:production -- --check-desktop-headless
 pnpm --filter @babbledeck/mobile check
 pnpm --filter @babbledeck/desktop check
 ```
@@ -266,6 +267,10 @@ at `https://babbledeck.aialra.online` for live-site-first wrapper testing.
 `device:readiness:production` checks the production URL, Android debug APK,
 connected physical Android devices, Xcode availability for iOS, and an
 interactive desktop display session without printing device serials or secrets.
+It also reports non-secret artifact size/sha256 metadata for the Android APK
+and desktop binary when present. Add `-- --check-desktop-headless` to run the
+Linux Tauri binary under Xvfb as a launch smoke; this still does not replace
+real microphone/caption/audio-backup evidence from an interactive desktop run.
 After a real device run, record non-secret manual evidence for each platform:
 
 ```bash

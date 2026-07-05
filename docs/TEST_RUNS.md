@@ -1,5 +1,27 @@
 # Test Runs
 
+## 2026-07-06 Native Wrapper Artifact Readiness
+
+- Environment: production deployment at `https://babbledeck.aialra.online`, Linux server with Android SDK/JDK, ADB, Tauri/Linux dependencies, Xvfb, no connected physical Android device, no macOS/Xcode host, and no interactive desktop display session.
+- Commands:
+  - `pnpm audio:readiness:production`
+  - `pnpm --filter @babbledeck/desktop native:smoke:headless`
+  - `pnpm --filter @babbledeck/mobile native:build:android`
+  - `pnpm device:readiness:production`
+  - `pnpm --filter @babbledeck/mobile native:check:ios`
+  - `pnpm --filter @babbledeck/mobile check && pnpm --filter @babbledeck/desktop check`
+  - `pnpm device:readiness:production -- --check-desktop-headless`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/check-device-runtime-readiness.ts`
+- Results:
+  - Production audio cutover readiness still reports `cutoverReady=false`: local source `/srv/aialra/storage/babbledeck` exists with `554` files, the database has `428` uploaded chunks, and the production env is missing the R2/S3 driver, bucket, access key, and secret key variable groups.
+  - The committed Android wrapper synced against the production PWA and built `apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk` successfully.
+  - `pnpm device:readiness:production` now reports `debugApkExists=true`; ADB is available, but no physical Android device is connected.
+  - iOS Capacitor sync and wrapper metadata validation passed on Linux, while actual iOS build/run remains blocked on a macOS/Xcode host.
+  - Mobile and desktop wrapper config checks passed, confirming production HTTPS URLs, native microphone permission declarations, and no default Tauri remote capabilities.
+  - The Tauri Linux release binary passed the existing Xvfb headless startup smoke.
+  - `scripts/check-device-runtime-readiness.ts` now reports non-secret artifact path/size/sha256 metadata for the Android APK and desktop binary, plus optional desktop headless smoke status with `--check-desktop-headless`.
+  - Device runtime readiness still remains incomplete until real Android, iOS, and interactive desktop runs record microphone grant, recording start, visible captions, and audio-backup evidence through `pnpm device:evidence:production`.
+
 ## 2026-07-06 Production Soniox Key Revalidation
 
 - Environment: production deployment at `https://babbledeck.aialra.online`, refreshed production `SONIOX_API_KEY` loaded from `/srv/aialra/config/secrets/babbledeck.env` without printing secrets, self-hosted LiveKit present, Chromium fake-microphone capture, and production audio storage still local.
