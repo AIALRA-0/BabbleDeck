@@ -1,5 +1,30 @@
 # Test Runs
 
+## 2026-07-05 Production Network Recovery UI
+
+- Environment: local browser test server first, then production deployment at `https://babbledeck.aialra.online`, configured production seed admin credentials loaded from env without printing secrets, configured Soniox key, self-hosted LiveKit present, and production audio storage still local.
+- Commands:
+  - `pnpm prettier --write apps/web/src/components/ViewerClient.tsx apps/web/src/components/RecorderClient.tsx e2e/mvp.spec.ts`
+  - `pnpm --filter @babbledeck/web typecheck`
+  - `pnpm --filter @babbledeck/web lint`
+  - `E2E_ADMIN_EMAIL="${SEED_ADMIN_EMAIL:-admin@example.invalid}" E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD" pnpm e2e e2e/mvp.spec.ts --project=chromium-desktop --grep "network reconnect states"`
+  - `pnpm --filter @babbledeck/web build`
+  - `pnpm deploy:production`
+  - `E2E_BASE_URL=https://babbledeck.aialra.online E2E_ADMIN_EMAIL="${SEED_ADMIN_EMAIL:-admin@example.invalid}" E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD" pnpm e2e e2e/mvp.spec.ts --project=chromium-desktop --grep "network reconnect states"`
+  - `bash -lc 'set -a; . /srv/aialra/config/secrets/babbledeck.env; set +a; pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --check-soniox-live'`
+  - `systemctl show aialra-babbledeck.service aialra-babbledeck-ws.service --property=Id,ActiveState,SubState,NRestarts,Result,ExecMainStartTimestamp,MainPID --no-pager`
+  - `curl -fsS https://babbledeck.aialra.online/api/health`
+- Results:
+  - Viewer pages now respond to browser `offline` and `online` events by showing an explicit `Offline` connection state and recovery copy, then returning to SSE or polling when the connection comes back.
+  - Recorder pages now show a visible browser-offline recovery banner explaining that local backup remains on the device while uploads reconnect.
+  - Added a real-browser Playwright scenario that creates a session, opens the production-style mobile viewer, confirms `SSE live`, uses Playwright context offline/online to simulate network interruption and recovery, and verifies the recorder offline banner appears and clears.
+  - Local Chromium network recovery test passed.
+  - Production deploy for commit `aff47929185b` passed the deployment wrapper: forced build, systemd web/WS restart, HTTPS/readiness checks, seed-admin login smoke, and anonymous protected-route Playwright smoke.
+  - Production Chromium network recovery test passed against `https://babbledeck.aialra.online`.
+  - Production readiness returned `requiredOk=true` with live Soniox websocket connectivity; `externalOk=false` remains only because production audio storage is still local until R2/S3-compatible storage is configured and cut over.
+  - Production `/api/health` returned `status="ok"`, audio storage `driver="local"`, `offHostReady=false`, Soniox configured, and LiveKit configured.
+  - Web and recorder WS services stayed active/running with `NRestarts=0` after deployment and production network-recovery testing.
+
 ## 2026-07-05 Production Suspicious Probe Hardening
 
 - Environment: production deployment at `https://babbledeck.aialra.online`, configured production `SONIOX_API_KEY`, self-hosted LiveKit present, and production audio storage still local.
