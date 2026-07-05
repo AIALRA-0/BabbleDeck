@@ -21,6 +21,8 @@ type ViewerEvent = {
   id: string;
   type: string;
   sequenceNo: number;
+  trackId: string;
+  speakerLabel: string | null;
   text: string | null;
   isFinal: boolean;
 };
@@ -28,6 +30,8 @@ type ViewerEvent = {
 type Segment = {
   id: string;
   index: number;
+  trackId: string;
+  speakerLabel: string | null;
   originalText: string;
   translationText: string | null;
 };
@@ -361,6 +365,14 @@ export function ViewerClient({
     [events],
   );
   const latest = segments[segments.length - 1] ?? null;
+  const activeTrackLabel =
+    latest?.speakerLabel ??
+    partial?.speakerLabel ??
+    (latest?.trackId && latest.trackId !== "main"
+      ? latest.trackId
+      : partial?.trackId && partial.trackId !== "main"
+        ? partial.trackId
+        : null);
   const translation =
     latest?.translationText ?? partial?.text ?? "Waiting for captions...";
   const original =
@@ -370,8 +382,8 @@ export function ViewerClient({
   const showTranslation = viewMode !== "original";
   const showOriginal = viewMode !== "translation";
   const primaryLabel = showTranslation
-    ? `Translation · ${session.targetLanguage}`
-    : "Original";
+    ? `Translation · ${session.targetLanguage}${activeTrackLabel ? ` · ${activeTrackLabel}` : ""}`
+    : `Original${activeTrackLabel ? ` · ${activeTrackLabel}` : ""}`;
   const primaryText = showTranslation ? translation : original;
   const secondaryText = showTranslation && showOriginal ? original : null;
   const transcriptText = useMemo(() => {

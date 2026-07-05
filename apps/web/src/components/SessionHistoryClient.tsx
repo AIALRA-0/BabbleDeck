@@ -16,6 +16,8 @@ import { formatDateTime } from "@/lib/utils";
 type Segment = {
   id: string;
   index: number;
+  trackId: string;
+  speakerLabel: string | null;
   startMs: number | null;
   endMs: number | null;
   originalText: string;
@@ -126,6 +128,9 @@ export function SessionHistoryClient({
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                       Segment {segment.index + 1}
+                    </p>
+                    <p className="mt-1 text-xs font-medium text-muted-foreground">
+                      {segment.speakerLabel ?? segment.trackId}
                     </p>
                     {segment.editedAt ? (
                       <p className="mt-1 text-xs text-muted-foreground">

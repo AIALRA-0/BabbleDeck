@@ -1,5 +1,7 @@
 export type ExportSegment = {
   index: number;
+  trackId?: string;
+  speakerLabel?: string | null;
   startMs: number | null;
   endMs: number | null;
   originalText: string;
@@ -44,6 +46,9 @@ function segmentLines(segment: ExportSegment, options: ExportOptions) {
   if (options.includeTimestamps) {
     lines.push(`[${timestamp(segment.startMs)} - ${timestamp(segment.endMs)}]`);
   }
+  if (segment.speakerLabel || (segment.trackId && segment.trackId !== "main")) {
+    lines.push(segment.speakerLabel ?? `Track ${segment.trackId}`);
+  }
   if (options.includeOriginal) lines.push(segment.originalText);
   if (options.includeTranslation && segment.translationText)
     lines.push(segment.translationText);
@@ -80,6 +85,9 @@ export function renderTranscriptExport(
       "",
       ...segments.flatMap((segment) => [
         `## Segment ${segment.index + 1}`,
+        segment.speakerLabel || (segment.trackId && segment.trackId !== "main")
+          ? `Track: ${segment.speakerLabel ?? segment.trackId}`
+          : "",
         "",
         ...segmentLines(segment, options),
         "",

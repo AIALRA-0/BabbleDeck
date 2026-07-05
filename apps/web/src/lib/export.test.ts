@@ -9,6 +9,8 @@ const segments = [
     originalText: "Hello everyone.",
     translationText: "大家好。",
     targetLanguage: "zh",
+    trackId: "main",
+    speakerLabel: null,
   },
 ];
 
@@ -82,5 +84,26 @@ describe("renderTranscriptExport", () => {
         includeTimestamps: true,
       }).startsWith("WEBVTT"),
     ).toBe(true);
+  });
+
+  it("renders speaker labels when present", () => {
+    const content = renderTranscriptExport(
+      [
+        {
+          ...segments[0],
+          trackId: "speaker-a",
+          speakerLabel: "Speaker A",
+        },
+      ],
+      {
+        title: "Test session",
+        format: "markdown",
+        includeOriginal: true,
+        includeTranslation: true,
+        includeTimestamps: true,
+      },
+    );
+
+    expect(content).toContain("Track: Speaker A");
   });
 });

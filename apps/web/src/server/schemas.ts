@@ -53,6 +53,14 @@ export const transcriptEventSchema = z.object({
     "usage",
   ]),
   text: z.string().max(5000).optional(),
+  trackId: z
+    .string()
+    .trim()
+    .min(1)
+    .max(120)
+    .regex(/^[A-Za-z0-9._:-]+$/)
+    .default("main"),
+  speakerLabel: z.string().trim().min(1).max(120).optional(),
   language: z.string().max(20).optional(),
   targetLanguage: z.string().max(20).optional(),
   isFinal: z.boolean().optional(),

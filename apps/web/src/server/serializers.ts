@@ -4,6 +4,7 @@ import type {
   ProviderUsage,
   ProviderName,
   SessionStatus,
+  Prisma,
   TranscriptEvent,
   TranscriptSegment,
   Translation,
@@ -95,12 +96,23 @@ export function serializeSession(
 }
 
 export function serializeEvent(event: TranscriptEvent) {
+  const payload =
+    event.payload &&
+    typeof event.payload === "object" &&
+    !Array.isArray(event.payload)
+      ? (event.payload as Prisma.JsonObject)
+      : {};
+
   return {
     id: event.id,
     sessionId: event.sessionId,
     type: apiEventType(event.eventType),
     sequenceNo: event.sequenceNo,
     segmentId: event.segmentId,
+    trackId: event.trackId,
+    speakerLabel:
+      event.speakerLabel ??
+      (typeof payload.speakerLabel === "string" ? payload.speakerLabel : null),
     text: event.text,
     language: event.language,
     targetLanguage: event.targetLanguage,
@@ -119,6 +131,8 @@ export function serializeSegment(
   return {
     id: segment.id,
     index: segment.segmentIndex,
+    trackId: segment.trackId,
+    speakerLabel: segment.speakerLabel,
     startMs: segment.startMs,
     endMs: segment.endMs,
     sourceLanguage: segment.sourceLanguage,

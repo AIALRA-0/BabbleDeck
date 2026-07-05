@@ -583,11 +583,19 @@ test.describe("BabbleDeck MVP browser flow", () => {
       .getByRole("link", { name: /new live session/i })
       .first()
       .click();
+    await expect(page.getByLabel("Title")).toBeVisible({ timeout: 20_000 });
     await page.getByLabel("Title").fill(title);
     await page.getByLabel("Target language").selectOption("zh");
     await page.getByLabel("Provider").selectOption("mock");
-    await page.getByRole("button", { name: /create session/i }).click();
-    await expect(page.getByRole("heading", { name: title })).toBeVisible();
+    const createButton = page.getByRole("button", { name: /create session/i });
+    await expect(createButton).toBeEnabled();
+    await createButton.click();
+    await page.waitForURL(/\/sessions\/[0-9a-f-]+\/record\?.*recorder=/, {
+      timeout: 20_000,
+    });
+    await expect(page.getByRole("heading", { name: title })).toBeVisible({
+      timeout: 20_000,
+    });
     const recorderUrl = page.url();
     const sessionId = new URL(recorderUrl).pathname.split("/")[2];
 
@@ -647,11 +655,19 @@ test.describe("BabbleDeck MVP browser flow", () => {
       .getByRole("link", { name: /new live session/i })
       .first()
       .click();
+    await expect(page.getByLabel("Title")).toBeVisible({ timeout: 20_000 });
     await page.getByLabel("Title").fill(title);
     await page.getByLabel("Target language").selectOption("zh");
     await page.getByLabel("Provider").selectOption("mock");
-    await page.getByRole("button", { name: /create session/i }).click();
-    await expect(page.getByRole("heading", { name: title })).toBeVisible();
+    const createButton = page.getByRole("button", { name: /create session/i });
+    await expect(createButton).toBeEnabled();
+    await createButton.click();
+    await page.waitForURL(/\/sessions\/[0-9a-f-]+\/record\?.*recorder=/, {
+      timeout: 20_000,
+    });
+    await expect(page.getByRole("heading", { name: title })).toBeVisible({
+      timeout: 20_000,
+    });
     const recorderUrl = page.url();
 
     const deniedBrowser = await chromium.launch({
@@ -1073,6 +1089,204 @@ test.describe("BabbleDeck MVP browser flow", () => {
     } finally {
       await page.context().setOffline(false);
       await viewerContext.setOffline(false);
+      await viewerContext.close();
+    }
+  });
+
+  test("multi-track transcript events keep independent timelines", async ({
+    browser,
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "chromium-desktop",
+      "Multi-track transcript coverage runs once on desktop.",
+    );
+
+    const title = `Playwright session multi track ${Date.now()}`;
+    const trackAOriginal = "Speaker A independent original.";
+    const trackATranslation = "说话人 A 独立字幕。";
+    const trackBOriginal = "Speaker B independent original.";
+    const trackBTranslation = "说话人 B 独立字幕。";
+
+    await page.goto("/");
+    await page.getByRole("link", { name: /open portal/i }).click();
+    await signIn(page);
+    await expect(
+      page.getByRole("heading", { name: "Live sessions" }),
+    ).toBeVisible();
+
+    await page
+      .getByRole("link", { name: /new live session/i })
+      .first()
+      .click();
+    await expect(page.getByLabel("Title")).toBeVisible({ timeout: 20_000 });
+    await page.getByLabel("Title").fill(title);
+    await page.getByLabel("Target language").selectOption("zh");
+    await page.getByLabel("Provider").selectOption("mock");
+    const createButton = page.getByRole("button", { name: /create session/i });
+    await expect(createButton).toBeEnabled();
+    await createButton.click();
+    await page.waitForURL(/\/sessions\/[0-9a-f-]+\/record\?.*recorder=/, {
+      timeout: 20_000,
+    });
+    await expect(page.getByRole("heading", { name: title })).toBeVisible({
+      timeout: 20_000,
+    });
+
+    const recorderUrl = page.url();
+    const sessionId = new URL(recorderUrl).pathname.split("/")[2];
+    const recorderToken = new URL(recorderUrl).searchParams.get("recorder");
+    if (!recorderToken) throw new Error("Recorder token missing from URL.");
+    const viewerUrl = await page
+      .locator("aside p")
+      .filter({ hasText: "/s/" })
+      .textContent();
+    expect(viewerUrl).toContain("/s/");
+
+    const viewerContext = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+    });
+
+    try {
+      const viewer = await viewerContext.newPage();
+      await viewer.goto(viewerUrl ?? "");
+      await expect(
+        viewer.getByRole("heading", { name: "Live captions" }),
+      ).toBeVisible();
+      await expect(viewer.getByText("SSE live")).toBeVisible({
+        timeout: 12_000,
+      });
+
+      const response = await page.evaluate(
+        async ({
+          sessionId,
+          recorderToken,
+          trackAOriginal,
+          trackATranslation,
+          trackBOriginal,
+          trackBTranslation,
+        }) => {
+          return fetch(`/api/sessions/${sessionId}/events`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-BabbleDeck-Recorder-Token": recorderToken,
+            },
+            body: JSON.stringify({
+              events: [
+                {
+                  type: "final_transcript",
+                  trackId: "speaker-a",
+                  speakerLabel: "Speaker A",
+                  text: trackAOriginal,
+                  language: "en",
+                  targetLanguage: "zh",
+                  isFinal: true,
+                  segmentIndex: 0,
+                  startMs: 0,
+                  endMs: 1200,
+                },
+                {
+                  type: "final_translation",
+                  trackId: "speaker-a",
+                  speakerLabel: "Speaker A",
+                  text: trackATranslation,
+                  language: "en",
+                  targetLanguage: "zh",
+                  isFinal: true,
+                  segmentIndex: 0,
+                  startMs: 0,
+                  endMs: 1200,
+                },
+                {
+                  type: "final_transcript",
+                  trackId: "speaker-b",
+                  speakerLabel: "Speaker B",
+                  text: trackBOriginal,
+                  language: "en",
+                  targetLanguage: "zh",
+                  isFinal: true,
+                  segmentIndex: 0,
+                  startMs: 0,
+                  endMs: 1200,
+                },
+                {
+                  type: "final_translation",
+                  trackId: "speaker-b",
+                  speakerLabel: "Speaker B",
+                  text: trackBTranslation,
+                  language: "en",
+                  targetLanguage: "zh",
+                  isFinal: true,
+                  segmentIndex: 0,
+                  startMs: 0,
+                  endMs: 1200,
+                },
+              ],
+            }),
+          }).then(async (result) => ({
+            ok: result.ok,
+            body: await result.text(),
+          }));
+        },
+        {
+          sessionId,
+          recorderToken,
+          trackAOriginal,
+          trackATranslation,
+          trackBOriginal,
+          trackBTranslation,
+        },
+      );
+      expect(response.ok, response.body).toBe(true);
+
+      await expect(viewer.getByText(trackBTranslation)).toBeVisible({
+        timeout: 12_000,
+      });
+      await expect(
+        viewer.getByText("Translation · zh · Speaker B"),
+      ).toBeVisible();
+
+      await page.goto(`/sessions/${sessionId}`);
+      await expect(
+        page.getByRole("heading", { name: "Transcript timeline" }),
+      ).toBeVisible();
+      await expect(page.getByText("Speaker A", { exact: true })).toBeVisible();
+      await expect(page.getByText(trackAOriginal)).toBeVisible();
+      await expect(page.getByText(trackATranslation)).toBeVisible();
+      await expect(page.getByText("Speaker B", { exact: true })).toBeVisible();
+      await expect(page.getByText(trackBOriginal)).toBeVisible();
+      await expect(page.getByText(trackBTranslation)).toBeVisible();
+
+      const jsonExport = await downloadExport(page, {
+        name: /json/i,
+        extension: "json",
+      });
+      const parsed = JSON.parse(jsonExport) as {
+        segments: Array<{
+          trackId: string;
+          speakerLabel: string | null;
+          originalText: string;
+          translationText: string | null;
+        }>;
+      };
+      expect(parsed.segments).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            trackId: "speaker-a",
+            speakerLabel: "Speaker A",
+            originalText: trackAOriginal,
+            translationText: trackATranslation,
+          }),
+          expect.objectContaining({
+            trackId: "speaker-b",
+            speakerLabel: "Speaker B",
+            originalText: trackBOriginal,
+            translationText: trackBTranslation,
+          }),
+        ]),
+      );
+    } finally {
       await viewerContext.close();
     }
   });

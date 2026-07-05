@@ -8,6 +8,8 @@ export async function appendTranscriptEvents(input: {
   events: {
     type: string;
     text?: string;
+    trackId?: string;
+    speakerLabel?: string;
     language?: string;
     targetLanguage?: string;
     isFinal?: boolean;
@@ -32,13 +34,15 @@ export async function appendTranscriptEvents(input: {
   for (const event of input.events) {
     const eventType = eventTypeFromApi(event.type);
     const segmentIndex = event.segmentIndex ?? Math.max(0, sequenceNo - 1);
+    const trackId = event.trackId ?? "main";
     let segmentId: string | undefined;
 
     if (event.type === "final_transcript" && event.text) {
       const segment = await prisma.transcriptSegment.upsert({
         where: {
-          sessionId_segmentIndex: {
+          sessionId_trackId_segmentIndex: {
             sessionId: input.sessionId,
+            trackId,
             segmentIndex,
           },
         },
@@ -52,9 +56,11 @@ export async function appendTranscriptEvents(input: {
             event.confidence == null
               ? undefined
               : new Prisma.Decimal(event.confidence),
+          speakerLabel: event.speakerLabel,
         },
         create: {
           sessionId: input.sessionId,
+          trackId,
           segmentIndex,
           sourceLanguage: event.language ?? "auto",
           originalText: event.text,
@@ -65,6 +71,7 @@ export async function appendTranscriptEvents(input: {
             event.confidence == null
               ? undefined
               : new Prisma.Decimal(event.confidence),
+          speakerLabel: event.speakerLabel,
           providerName: session.providerName,
         },
       });
@@ -74,14 +81,16 @@ export async function appendTranscriptEvents(input: {
     if (event.type === "final_translation" && event.text) {
       const segment = await prisma.transcriptSegment.upsert({
         where: {
-          sessionId_segmentIndex: {
+          sessionId_trackId_segmentIndex: {
             sessionId: input.sessionId,
+            trackId,
             segmentIndex,
           },
         },
         update: {},
         create: {
           sessionId: input.sessionId,
+          trackId,
           segmentIndex,
           sourceLanguage: event.language ?? "auto",
           originalText: "",
@@ -89,6 +98,7 @@ export async function appendTranscriptEvents(input: {
           startMs: event.startMs,
           endMs: event.endMs,
           providerName: session.providerName,
+          speakerLabel: event.speakerLabel,
         },
       });
       segmentId = segment.id;
@@ -121,6 +131,8 @@ export async function appendTranscriptEvents(input: {
         eventType,
         sequenceNo,
         segmentId,
+        trackId,
+        speakerLabel: event.speakerLabel,
         language: event.language,
         targetLanguage: event.targetLanguage ?? session.targetLanguage,
         text: event.text,

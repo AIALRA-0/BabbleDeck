@@ -80,7 +80,7 @@ export async function getSessionForAdmin(id: string, ownerUserId: string) {
       providerUsage: true,
       transcriptSegments: {
         include: { translations: true },
-        orderBy: { segmentIndex: "asc" },
+        orderBy: [{ trackId: "asc" }, { segmentIndex: "asc" }],
       },
     },
   });
@@ -101,7 +101,7 @@ export async function getSessionForRecorderToken(
       providerUsage: true,
       transcriptSegments: {
         include: { translations: true },
-        orderBy: { segmentIndex: "asc" },
+        orderBy: [{ trackId: "asc" }, { segmentIndex: "asc" }],
       },
     },
   });
@@ -114,7 +114,7 @@ export async function getSessionByShareToken(shareToken: string) {
       providerUsage: true,
       transcriptSegments: {
         include: { translations: true },
-        orderBy: { segmentIndex: "asc" },
+        orderBy: [{ trackId: "asc" }, { segmentIndex: "asc" }],
       },
     },
   });
@@ -130,7 +130,7 @@ export async function buildExport(input: {
     include: {
       transcriptSegments: {
         include: { translations: true },
-        orderBy: { segmentIndex: "asc" },
+        orderBy: [{ trackId: "asc" }, { segmentIndex: "asc" }],
       },
     },
   });
@@ -140,6 +140,8 @@ export async function buildExport(input: {
     const translation = segment.translations[0] ?? null;
     return {
       index: segment.segmentIndex,
+      trackId: segment.trackId,
+      speakerLabel: segment.speakerLabel,
       startMs: segment.startMs,
       endMs: segment.endMs,
       originalText: segment.finalOriginalText ?? segment.originalText,
@@ -173,7 +175,7 @@ export async function transcriptPayload(sessionId: string) {
   const segments = await prisma.transcriptSegment.findMany({
     where: { sessionId },
     include: { translations: true },
-    orderBy: { segmentIndex: "asc" },
+    orderBy: [{ trackId: "asc" }, { segmentIndex: "asc" }],
   });
   return { segments: segments.map(serializeSegment) };
 }

@@ -199,6 +199,8 @@ model TranscriptEvent {
   eventType      TranscriptEventType
   sequenceNo     Int
   segmentId      String?             @db.Uuid
+  trackId        String              @default("main")
+  speakerLabel   String?
   language       String?
   targetLanguage String?
   text           String?
@@ -230,6 +232,7 @@ model TranscriptSegment {
   confidence        Decimal?     @db.Decimal(6, 5)
   speakerLabel      String?
   providerName      ProviderName
+  trackId           String       @default("main")
   editedByUserId    String?      @db.Uuid
   editedAt          DateTime?
   createdAt         DateTime     @default(now())
@@ -238,8 +241,8 @@ model TranscriptSegment {
   session      LiveSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   translations Translation[]
 
-  @@unique([sessionId, segmentIndex])
-  @@index([sessionId, segmentIndex])
+  @@unique([sessionId, trackId, segmentIndex])
+  @@index([sessionId, trackId, segmentIndex])
   @@map("transcript_segments")
 }
 

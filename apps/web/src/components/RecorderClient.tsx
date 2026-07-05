@@ -104,6 +104,8 @@ type SessionSnapshotResponse =
           estimatedCostUsd: number;
         };
         segments: {
+          trackId: string;
+          speakerLabel: string | null;
           originalText: string;
           translationText: string | null;
         }[];
