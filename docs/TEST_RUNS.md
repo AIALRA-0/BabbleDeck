@@ -1519,5 +1519,12 @@
   - Static checks, unit tests, script typecheck, and production build passed.
   - The dedicated desktop Playwright input-health test passed with controlled Web Audio streams for silent microphone input and high-gain clipping input.
   - Desktop and mobile Playwright MVP flows passed, confirming the new input-health indicators do not disrupt normal recorder start/stop, backup upload, viewer captions, history corrections, and exports.
+  - Production deploy passed for commit `45fbf91` through `pnpm db:generate && pnpm deploy:production`; required readiness, seed-admin login smoke, and anonymous protected-route Playwright smoke passed.
+  - Production desktop Playwright input-health test passed against `https://babbledeck.aialra.online`.
+  - Production desktop and mobile Playwright MVP flows passed after scoping the retention-settings `Saved.` assertion to its form.
+  - Strict production readiness with live Soniox passed every required check and still failed only the external `off_host_audio_storage` check because production uses local audio storage.
+  - Production health reported `audioDriver=local`, `offHostReady=false`, `soniox=true`, and `livekit=true`; web, recorder WebSocket, and LiveKit services were active with `NRestarts=0`.
+  - Production cleanup archived `3` recent Playwright smoke sessions and found no remaining `Playwright glossary` terms.
 - Screenshots/traces:
   - Local rerun passed without failure screenshots after narrowing the clipping assertion to the exact badge text.
+  - Production reruns passed without final failure screenshots; the initial mobile run exposed an ambiguous `Saved.` locator and the follow-up passed after the locator was scoped to the retention form.

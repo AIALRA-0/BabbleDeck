@@ -227,12 +227,9 @@ test.describe("BabbleDeck MVP browser flow", () => {
     const retentionInput = page.getByLabel("Raw audio retention");
     await expect(retentionInput).toBeVisible();
     await retentionInput.fill((await retentionInput.inputValue()) || "30");
-    await page
-      .locator("form")
-      .filter({ has: retentionInput })
-      .getByRole("button", { name: /^save$/i })
-      .click();
-    await expect(page.getByText("Saved.")).toBeVisible();
+    const retentionForm = page.locator("form").filter({ has: retentionInput });
+    await retentionForm.getByRole("button", { name: /^save$/i }).click();
+    await expect(retentionForm.getByText("Saved.")).toBeVisible();
 
     const glossarySection = page.locator("section").filter({
       has: page.getByRole("heading", { name: "Glossary" }),
