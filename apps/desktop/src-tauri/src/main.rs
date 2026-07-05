@@ -1,5 +1,3 @@
 fn main() {
-    tauri::Builder::default()
-        .run(tauri::generate_context!())
-        .expect("error while running BabbleDeck desktop app");
+    babbledeck_desktop_lib::run();
 }

@@ -5,6 +5,8 @@
 .turbo/
 coverage/
 dist/
+target/
+apps/desktop/src-tauri/gen/
 node_modules/
 playwright-report/
 test-results/

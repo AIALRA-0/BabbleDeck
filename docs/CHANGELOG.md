@@ -54,3 +54,4 @@
 - Added a production Soniox recorder WebSocket smoke and readiness check.
 - Added Capacitor and Tauri wrapper scaffolds that load the deployed production PWA and verify secure wrapper config.
 - Added production readiness checks for unexpected systemd auto-restarts on the web and recorder WebSocket services.
+- Fixed the Tauri desktop scaffold crate layout, added a generated app icon, installed Linux Tauri prerequisites on the server, and validated cargo check, native release build, and headless startup smoke.

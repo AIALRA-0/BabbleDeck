@@ -9,8 +9,15 @@ Useful commands:
 ```bash
 pnpm --filter @babbledeck/desktop check
 pnpm --filter @babbledeck/desktop native:info
+pnpm --filter @babbledeck/desktop native:check
+pnpm --filter @babbledeck/desktop native:build
+pnpm --filter @babbledeck/desktop native:smoke:headless
 pnpm --filter @babbledeck/desktop native:dev
 ```
 
 The wrapper does not expose `window.__TAURI__` to the remote page and does not
 grant remote capabilities by default.
+
+`native:smoke:headless` expects a built Linux binary and treats the 15s timeout
+as success because it means the app stayed alive. Any immediate non-timeout exit
+should be treated as a wrapper startup failure.

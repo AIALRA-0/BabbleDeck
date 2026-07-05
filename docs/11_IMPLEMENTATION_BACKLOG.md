@@ -283,6 +283,8 @@ Progress:
   production PWA for live-site-first wrapper testing.
 - Added `pnpm --filter @babbledeck/desktop check` and root `pnpm wrappers:check`
   verification.
+- Fixed the Rust crate layout, added the app icon, and verified Linux
+  `native:check`, `native:build`, and `native:smoke:headless` on the server.
 
 ## Epic 10: LiveKit V2
 

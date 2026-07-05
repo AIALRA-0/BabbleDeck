@@ -8,8 +8,10 @@
     "lint": "pnpm check",
     "typecheck": "pnpm check",
     "test": "pnpm check",
+    "native:check": "cargo check --manifest-path src-tauri/Cargo.toml",
     "native:dev": "tauri dev",
     "native:build": "tauri build",
+    "native:smoke:headless": "bash -lc 'timeout 15s env WEBKIT_DISABLE_COMPOSITING_MODE=1 GDK_BACKEND=x11 NO_AT_BRIDGE=1 xvfb-run -a src-tauri/target/release/babbledeck-desktop; status=$?; if [ \"$status\" -eq 124 ]; then exit 0; fi; exit \"$status\"'",
     "native:info": "tauri info"
   },
   "dependencies": {

@@ -1,5 +1,17 @@
 # Test Runs
 
+## 2026-07-05 R2 Credential Probe
+
+- Environment: production server workspace and `/srv/aialra/config/secrets/babbledeck.env`.
+- Commands:
+  - `npx wrangler whoami`
+  - Server secret variable-name scan for `CLOUDFLARE`, `CF_`, `R2_`, `S3_`, `AWS_`, and `WRANGLER` prefixes.
+  - `pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --strict --check-soniox-live`
+- Results:
+  - `wrangler` is not authenticated on this server.
+  - No Cloudflare/R2/S3/AWS credential variable names are present in the BabbleDeck production env or other inspected server secret files.
+  - Strict readiness still fails only the external `off_host_audio_storage` check until off-host bucket credentials are supplied.
+
 ## 2026-07-05 Native Wrapper Scaffold
 
 - Environment: local workspace with production deployment at `https://babbledeck.aialra.online`.
@@ -10,13 +22,19 @@
   - `pnpm --filter @babbledeck/desktop check`
   - `pnpm --filter @babbledeck/mobile exec cap doctor`
   - `pnpm --filter @babbledeck/desktop native:info`
+  - `pnpm --filter @babbledeck/desktop native:check`
+  - `pnpm --filter @babbledeck/desktop native:build`
+  - `pnpm --filter @babbledeck/desktop native:smoke:headless` (treats timeout after the app stays alive for 15s as success)
   - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/verify-wrapper-configs.ts`
 - Results:
   - Added `apps/mobile` as a Capacitor scaffold that defaults to the deployed production PWA.
   - Added `apps/desktop` as a Tauri 2 scaffold that defaults to the deployed production PWA.
   - Added wrapper config verification for HTTPS production URLs and no default Tauri remote capabilities.
   - Capacitor Doctor reports the installed Capacitor dependencies are current.
-  - Tauri CLI reads the app config and production URLs, but this server lacks `webkit2gtk-4.1` and `rsvg2`, so actual desktop GUI launch still needs a native desktop toolchain host.
+  - Installed the Linux Tauri prerequisites on this host and fixed the Rust scaffold with `src/lib.rs` plus a generated PNG icon.
+  - Tauri CLI now reports `webkit2gtk-4.1`, `rsvg2`, Rust, and app config as healthy; `cargo check` validates the desktop wrapper crate.
+  - `pnpm --filter @babbledeck/desktop native:build` produced the Linux release binary at `apps/desktop/src-tauri/target/release/babbledeck-desktop`.
+  - The headless Xvfb smoke kept the desktop app running until the timeout, with only DRI acceleration warnings from the virtual display.
 
 ## 2026-07-05 Service Restart Readiness Gate
 
