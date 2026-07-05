@@ -69,3 +69,4 @@
 - Added admin settings management for persisted default session language/budget, glossary CRUD, and a read-only audit log view with desktop/mobile Playwright coverage.
 - Added viewer caption controls for translation-only, bilingual, and original-only modes, large/compact captions, light/dark theme switching, and copying the visible transcript.
 - Added recorder microphone input health feedback for no-input and clipping states, with real-browser coverage using controlled silent and high-gain audio streams.
+- Added recorder-side cleanup for uploaded IndexedDB backup chunks, preserving pending/failed recovery chunks, with local and production Playwright coverage.

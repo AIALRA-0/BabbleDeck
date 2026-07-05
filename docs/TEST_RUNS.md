@@ -1,5 +1,43 @@
 # Test Runs
 
+## 2026-07-05 Uploaded Local Backup Cleanup
+
+- Environment: local workspace with Playwright dev server on `127.0.0.1:3100`, production deployment at `https://babbledeck.aialra.online`, production `SONIOX_API_KEY` present, self-hosted LiveKit present, and production audio storage still local.
+- Commands:
+  - `pnpm --filter @babbledeck/web typecheck`
+  - `pnpm --filter @babbledeck/web lint`
+  - `E2E_ADMIN_EMAIL="${SEED_ADMIN_EMAIL:-admin@example.invalid}" E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD" pnpm e2e e2e/mvp.spec.ts --project=chromium-desktop --grep "recorder cleans uploaded local backup chunks"`
+  - `E2E_ADMIN_EMAIL="${SEED_ADMIN_EMAIL:-admin@example.invalid}" E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD" pnpm e2e e2e/mvp.spec.ts --grep "admin creates a live session"`
+  - `pnpm format:check`
+  - `pnpm test`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/recorder-ws-server.ts scripts/prune-audio-retention.ts scripts/migrate-audio-storage.ts scripts/audit-audio-storage.ts scripts/preflight-audio-storage.ts scripts/preflight-livekit.ts scripts/collect-production-metrics.ts scripts/load-smoke-production.ts scripts/soniox-smoke-production.ts scripts/security-baseline-audit.ts scripts/verify-wrapper-configs.ts scripts/check-production-readiness.ts scripts/sync-seed-admin.ts playwright.config.ts`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm db:validate && pnpm db:generate`
+  - `pnpm build`
+  - `pnpm deploy:production`
+  - `E2E_BASE_URL=https://babbledeck.aialra.online E2E_ADMIN_EMAIL="${SEED_ADMIN_EMAIL:-admin@example.invalid}" E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD" pnpm e2e e2e/mvp.spec.ts --grep "admin creates a live session|recorder cleans uploaded local backup chunks"`
+  - `curl -fsS https://babbledeck.aialra.online/api/health | jq -r '{status:.data.status,version:.data.version,audioDriver:.data.checks.audioStorage.driver,offHostReady:.data.checks.audioStorage.offHostReady,soniox:.data.checks.providers.soniox.configured,livekit:.data.checks.providers.livekit.configured,uptime:.data.uptimeSeconds}'`
+  - `systemctl show aialra-babbledeck.service aialra-babbledeck-ws.service aialra-babbledeck-livekit.service -p Id -p ActiveState -p SubState -p NRestarts -p ExecMainStartTimestamp`
+  - `pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --strict --check-soniox-live`
+  - `pnpm soniox:smoke:production`
+  - `pnpm soniox:ui-smoke:production`
+- Results:
+  - Added `deleteUploadedLocalChunks()` for browser IndexedDB backup storage and a recorder `Clean uploaded` action that deletes only chunks with `status="uploaded"`.
+  - The cleanup action is disabled while recording or when no uploaded local chunks remain; failed/pending chunks remain visible and recoverable.
+  - The main MVP browser flow now cleans uploaded local backup after stopping recording, before returning to the history page.
+  - Added deterministic desktop Playwright coverage that seeds two uploaded chunks and one failed chunk, verifies `2/3 uploaded`, cleans uploaded chunks, then verifies `0/1 uploaded` with `1 pending · 1 failed`.
+  - Local targeted cleanup E2E passed, and local desktop/mobile main MVP flow passed.
+  - Full local format, lint, typecheck, Vitest/unit, script typecheck, Prisma validate/generate, and production build gates passed.
+  - Production deploy for commit `2602746534c4` passed the deployment wrapper: forced build, systemd web/WS restart, HTTPS/readiness checks, seed-admin login smoke, and anonymous protected-route Playwright smoke.
+  - Production Playwright passed desktop main flow, desktop cleanup-specific flow, and mobile main flow on `https://babbledeck.aialra.online`.
+  - Production `/api/health` returned `status="ok"`, audio storage `driver="local"`, `offHostReady=false`, Soniox configured, and LiveKit configured.
+  - Web, recorder WS, and LiveKit systemd services were active/running with `NRestarts=0`.
+  - Strict production readiness had all required checks passing, including live Soniox websocket probe, and exited nonzero only because the external `off_host_audio_storage` check still fails while production remains on local storage.
+  - Production Soniox recorder smoke passed with one audio chunk, `360ms` provider usage, zero provider errors, and cleanup archiving.
+  - Production Soniox UI smoke passed in Chromium using fake-microphone speech and verified expected `Brooklyn` captions on recorder and viewer.
+  - Recent Playwright/smoke sessions were archived after validation; zero recent unarchived smoke sessions remained.
+
 ## 2026-07-05 Recorder Microphone Input Selector
 
 - Environment: local workspace with Docker Postgres on `localhost:55432`, Playwright dev servers on `127.0.0.1:3112` and `127.0.0.1:3113`, and production secret env loaded only for the local seed-admin password.
