@@ -1,5 +1,27 @@
 # Test Runs
 
+## 2026-07-05 Mobile Recorder Viewport Coverage
+
+- Environment: local workspace, production deployment at `https://babbledeck.aialra.online`, production secret env loaded without printing secrets.
+- Commands:
+  - `pnpm prettier --write e2e/mvp.spec.ts`
+  - `E2E_BASE_URL=https://babbledeck.aialra.online E2E_ADMIN_EMAIL="$SEED_ADMIN_EMAIL" E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD" pnpm e2e e2e/mvp.spec.ts --grep "admin creates a live session"`
+  - `pnpm format:check`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck playwright.config.ts e2e/mvp.spec.ts`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `pnpm build`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/recorder-ws-server.ts scripts/prune-audio-retention.ts scripts/migrate-audio-storage.ts scripts/audit-audio-storage.ts scripts/check-production-readiness.ts scripts/sync-seed-admin.ts playwright.config.ts e2e/mvp.spec.ts`
+  - `pnpm tsx scripts/check-production-readiness.ts --strict`
+- Results:
+  - The core Playwright flow now opens the recorder page at `390x844` when running under the `chromium-mobile` project while keeping the wider recorder context for desktop.
+  - Production Playwright desktop and mobile MVP flows passed; the mobile project now covers recorder backup reconnect/retry, microphone grant, recording, viewer streaming, stop/history, legal hold, transcript correction, and all export downloads from a phone-sized recorder page.
+  - Format, lint, app typecheck, full unit tests, script/E2E typecheck, and production build passed.
+  - Unit tests remained at `14` files and `44` tests.
+  - Production smoke cleanup removed 2 temporary Playwright sessions and 6 local audio objects.
+  - Strict production readiness still fails only because `AUDIO_STORAGE_DRIVER=local`; all required checks pass.
+
 ## 2026-07-05 Provider Error Viewer UI
 
 - Environment: local workspace, production deployment at `https://babbledeck.aialra.online`, production secret env loaded without printing secrets.

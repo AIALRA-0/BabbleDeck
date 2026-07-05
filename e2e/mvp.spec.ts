@@ -144,7 +144,7 @@ test.describe("BabbleDeck MVP browser flow", () => {
   test("admin creates a live session, viewer receives captions, and export downloads", async ({
     browser,
     page,
-  }) => {
+  }, testInfo) => {
     const title = `Playwright session ${Date.now()}`;
 
     await page.goto("/");
@@ -205,7 +205,10 @@ test.describe("BabbleDeck MVP browser flow", () => {
     expect(restoredViewerUrl).toBe(viewerUrl);
 
     const recorderContext = await browser.newContext({
-      viewport: { width: 900, height: 900 },
+      viewport:
+        testInfo.project.name === "chromium-mobile"
+          ? { width: 390, height: 844 }
+          : { width: 900, height: 900 },
       permissions: ["microphone"],
     });
     const recorder = await recorderContext.newPage();

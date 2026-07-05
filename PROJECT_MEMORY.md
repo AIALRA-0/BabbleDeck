@@ -56,6 +56,7 @@
 - Session history now exposes SRT alongside Markdown, TXT, JSON, and VTT; production desktop/mobile Playwright verifies all five download formats contain corrected transcript text.
 - Recorder microphone denied recovery guidance is now covered by production Playwright using a real Chromium recorder context without automatic microphone permission grants.
 - Viewer pages now surface provider-error events as a visible provider issue banner; production Playwright injects a recorder-token provider_error event and verifies the live viewer update.
+- The production core Playwright flow now opens the recorder page at a phone viewport for the mobile project, covering mobile recorder controls, backup retry, microphone grant, recording, and stop/history navigation.
 
 ## Next Recommended Tasks
 
