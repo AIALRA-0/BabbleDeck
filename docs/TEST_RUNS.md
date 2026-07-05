@@ -1,5 +1,24 @@
 # Test Runs
 
+## 2026-07-06 Production Soniox Key Revalidation
+
+- Environment: production deployment at `https://babbledeck.aialra.online`, refreshed production `SONIOX_API_KEY` loaded from `/srv/aialra/config/secrets/babbledeck.env` without printing secrets, self-hosted LiveKit present, Chromium fake-microphone capture, and production audio storage still local.
+- Commands:
+  - `curl -fsS https://babbledeck.aialra.online/api/health`
+  - `bash -lc 'set -a; . /srv/aialra/config/secrets/babbledeck.env; set +a; pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --check-soniox-live'`
+  - `pnpm soniox:smoke:production`
+  - `pnpm soniox:ui-smoke:production`
+  - `pnpm soniox:trace:production`
+  - `curl -fsSL https://api.github.com/repos/AIALRA-0/BabbleDeck/actions/runs/28757203997`
+- Results:
+  - Production `/api/health` returned `status="ok"`, audio storage `driver="local"`, `offHostReady=false`, Soniox configured, and LiveKit configured.
+  - Live Soniox readiness passed: `SONIOX_API_KEY` was configured and the realtime websocket accepted the generated probe audio with `360ms` processed.
+  - Production Soniox recorder smoke passed with recorder WebSocket readiness, ack, `1` persisted audio chunk, `360ms` Soniox provider usage, `0` provider errors, completed session status, and archived cleanup.
+  - Production Soniox UI smoke passed through Chromium fake-microphone capture against the deployed site.
+  - Production Soniox long trace passed with `40000ms` Soniox provider usage, `40` audio chunks, `15` transcript segments, `14` translations, expected matches for `Brooklyn`, `Spanish`, and `French`, `0` provider errors, and archived cleanup.
+  - Production readiness returned `requiredOk=true`; `externalOk=false` remains because production still needs off-host R2/S3-compatible audio storage and recent Android, iOS, and desktop runtime evidence.
+  - GitHub Actions run `28757203997` for commit `98044d2` completed successfully.
+
 ## 2026-07-05 Production Network Recovery UI
 
 - Environment: local browser test server first, then production deployment at `https://babbledeck.aialra.online`, configured production seed admin credentials loaded from env without printing secrets, configured Soniox key, self-hosted LiveKit present, and production audio storage still local.

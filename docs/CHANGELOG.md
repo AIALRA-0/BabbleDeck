@@ -2,6 +2,7 @@
 
 ## 2026-07-06
 
+- Revalidated the refreshed production Soniox key against the deployed site with live readiness, recorder smoke, UI fake-microphone smoke, and a long trace; required readiness is green while external storage/device evidence gates remain open.
 - Added a production device runtime evidence command and wired recent Android, iOS, and desktop evidence into strict production readiness as an external completion gate.
 - Added a production device runtime readiness command for Android, iOS, and desktop wrapper prerequisites against the deployed production PWA, with non-secret strict-mode gating for physical-device follow-up.
 
