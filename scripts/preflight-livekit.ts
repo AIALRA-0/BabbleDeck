@@ -1,4 +1,4 @@
-import { RoomServiceClient } from "livekit-server-sdk";
+import { AccessToken } from "livekit-server-sdk";
 import {
   createLiveKitJoinToken,
   getLiveKitConfig,
@@ -28,14 +28,19 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "LiveKit preflight failed.";
 }
 
-function managementApiUrl(rawUrl: string) {
+function managementApiTarget(rawUrl: string) {
   const url = new URL(rawUrl);
   if (url.protocol === "wss:") url.protocol = "https:";
   if (url.protocol === "ws:") url.protocol = "http:";
   if (url.protocol !== "https:" && url.protocol !== "http:") {
     throw new Error("LIVEKIT_URL must use wss, ws, https, or http.");
   }
-  return url.toString().replace(/\/$/, "");
+  const pathPrefix = url.pathname.replace(/\/+$/, "");
+  return {
+    host: `${url.protocol}//${url.host}`,
+    rpcPrefix: pathPrefix ? `${pathPrefix}/twirp` : "/twirp",
+    displayUrl: `${url.protocol}//${url.host}${pathPrefix}`,
+  };
 }
 
 function decodeJwtPayload(token: string) {
@@ -50,6 +55,43 @@ function decodeJwtPayload(token: string) {
       canSubscribe?: boolean;
     };
   };
+}
+
+async function createManagementAuthHeader(input: {
+  apiKey: string;
+  apiSecret: string;
+}) {
+  const token = new AccessToken(input.apiKey, input.apiSecret, { ttl: "5m" });
+  token.addGrant({ roomList: true });
+  return `Bearer ${await token.toJwt()}`;
+}
+
+async function listRoomsViaTwirp(input: {
+  target: ReturnType<typeof managementApiTarget>;
+  apiKey: string;
+  apiSecret: string;
+  names: string[];
+  timeoutMs: number;
+}) {
+  const url = new URL(
+    `${input.target.rpcPrefix}/livekit.RoomService/ListRooms`,
+    input.target.host,
+  );
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json;charset=UTF-8",
+      Authorization: await createManagementAuthHeader(input),
+    },
+    body: JSON.stringify({ names: input.names }),
+    signal: AbortSignal.timeout(input.timeoutMs),
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return (await response.json()) as { rooms?: unknown[] };
 }
 
 async function main() {
@@ -80,7 +122,7 @@ async function main() {
   let managementApiOk = false;
   let roomCount: number | null = null;
   let operationError: string | undefined;
-  const apiUrl = managementApiUrl(config.url);
+  const apiTarget = managementApiTarget(config.url);
 
   try {
     const token = await createLiveKitJoinToken({
@@ -100,14 +142,14 @@ async function main() {
 
     if (!skipConnectivity) {
       managementApiChecked = true;
-      const client = new RoomServiceClient(
-        apiUrl,
-        config.apiKey,
-        config.apiSecret,
-        { requestTimeout: requestTimeoutMs },
-      );
-      const rooms = await client.listRooms([room]);
-      roomCount = rooms.length;
+      const rooms = await listRoomsViaTwirp({
+        target: apiTarget,
+        apiKey: config.apiKey,
+        apiSecret: config.apiSecret,
+        names: [room],
+        timeoutMs: requestTimeoutMs,
+      });
+      roomCount = rooms.rooms?.length ?? 0;
       managementApiOk = true;
     }
   } catch (error) {
@@ -126,7 +168,8 @@ async function main() {
       ok,
       configured: true,
       livekitHost: new URL(config.url).host,
-      managementApiHost: new URL(apiUrl).host,
+      managementApiHost: new URL(apiTarget.host).host,
+      managementApiPath: new URL(apiTarget.displayUrl).pathname,
       room,
       tokenGenerated,
       tokenGrantOk,

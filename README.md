@@ -176,13 +176,34 @@ target. The first cutover command then validates the local source objects. The
 apply run migrates batches to the configured off-host target, audits object
 presence and metadata, then runs a strict production deploy smoke.
 
-Production LiveKit V2 credentials should use the guarded wrapper after
-`LIVEKIT_URL`, `LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET` are available in the
-current shell:
+Production LiveKit V2 room audio can be self-hosted on the existing production
+server. The installer follows the current systemd + Nginx project pattern,
+creates `/srv/aialra/config/secrets/babbledeck-livekit.env`, starts
+`aialra-babbledeck-livekit.service`, and exposes LiveKit on the same production
+origin under `/livekit/`:
+
+```bash
+pnpm livekit:selfhost:install:production
+set -a; . /srv/aialra/config/secrets/babbledeck-livekit.env; set +a
+LIVEKIT_URL=wss://babbledeck.aialra.online/livekit pnpm livekit:configure:production
+pnpm deploy:production
+pnpm livekit:ui-smoke:production
+```
+
+The self-host default uses signal port `11972`, WebRTC TCP `7881`, UDP
+`50000-50020`, Redis at `127.0.0.1:6379`, and leaves LiveKit TURN disabled
+because this server already reserves the standard TURN port for coturn. Normal
+browser networks can use the same-domain WebSocket path plus LiveKit TCP/UDP
+ICE candidates; very restricted corporate networks may still need a dedicated
+TURN plan later.
+
+External LiveKit deployments can use the guarded wrapper after `LIVEKIT_URL`,
+`LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET` are available in the current shell:
 
 ```bash
 pnpm livekit:configure:production
 pnpm deploy:production
+pnpm livekit:ui-smoke:production
 ```
 
 The configure step patches the production env file from the current shell,
@@ -196,6 +217,11 @@ to the BabbleDeck room and viewers subscribe to room audio from the browser. If
 LiveKit is missing or unavailable, room audio shows a not-configured/unavailable
 state while captions, local audio backup, recorder WebSocket upload, and viewer
 SSE/polling continue.
+
+The LiveKit UI smoke opens the deployed recorder and viewer pages on the real
+domain, starts a mock-caption session with Chromium fake microphone capture,
+verifies recorder publishing plus viewer `Audio live`, and writes a non-secret
+JSONL marker to `/srv/aialra/logs/babbledeck/livekit-ui-smoke.jsonl`.
 
 Synchronize the bootstrap admin with `SEED_ADMIN_EMAIL` and
 `SEED_ADMIN_PASSWORD` after credential changes:

@@ -181,6 +181,28 @@ BABBLEDECK_SONIOX_SMOKE_PROBE_MS=1000 pnpm soniox:smoke:production
 BABBLEDECK_SONIOX_SMOKE_TIMEOUT_SECONDS=60 pnpm soniox:smoke:production
 ```
 
+## LiveKit Room-Audio Smoke
+
+Self-host production LiveKit on the existing server with the guarded installer:
+
+```bash
+pnpm livekit:selfhost:install:production
+set -a; . /srv/aialra/config/secrets/babbledeck-livekit.env; set +a
+LIVEKIT_URL=wss://babbledeck.aialra.online/livekit pnpm livekit:configure:production
+pnpm deploy:production
+pnpm livekit:ui-smoke:production
+```
+
+The installer writes a root-readable secret env, installs
+`aialra-babbledeck-livekit.service`, and adds the Nginx `/livekit/` WebSocket
+proxy for the same production origin. Its default ports are signal `11972`,
+WebRTC TCP `7881`, UDP `50000-50020`, and Redis `127.0.0.1:6379`; LiveKit TURN
+is disabled because the server already has coturn ownership of the standard
+TURN port. The UI smoke opens the deployed recorder and viewer pages, verifies
+the recorder reaches `Publishing`, verifies the viewer reaches `Audio live`,
+and writes a non-secret JSONL record to
+`/srv/aialra/logs/babbledeck/livekit-ui-smoke.jsonl`.
+
 ## Security Baseline Audit
 
 Run the production security baseline audit after security-sensitive changes:

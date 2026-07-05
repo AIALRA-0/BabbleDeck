@@ -17,6 +17,8 @@
     "audio:cutover:production": "scripts/cutover-audio-storage.sh",
     "livekit:configure:production": "scripts/configure-production-livekit.sh",
     "livekit:preflight:production": "scripts/preflight-livekit-production.sh",
+    "livekit:selfhost:install:production": "scripts/install-production-livekit-selfhost.sh",
+    "livekit:ui-smoke:production": "scripts/livekit-ui-smoke-production.sh",
     "backup:verify:production": "scripts/verify-latest-backup-production.sh",
     "backup:verify:install:production": "scripts/install-production-backup-verify.sh",
     "health:monitor:production": "scripts/monitor-production-health.sh",
