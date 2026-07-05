@@ -1,5 +1,24 @@
 # Test Runs
 
+## 2026-07-05 Production Security Baseline Audit
+
+- Environment: local workspace and production deployment at `https://babbledeck.aialra.online`.
+- Commands:
+  - `bash -n scripts/security-baseline-production.sh scripts/load-smoke-production.sh scripts/collect-production-metrics.sh`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/security-baseline-audit.ts scripts/check-production-readiness.ts`
+  - Secret scan regex used by CI and the production audit.
+  - `pnpm security:audit:production`
+  - `tail -n 3 /srv/aialra/logs/babbledeck/security-baseline.jsonl`
+  - `pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --strict --check-soniox-live`
+- Results:
+  - Added `scripts/security-baseline-audit.ts` and `pnpm security:audit:production` for a non-secret MVP security baseline check.
+  - Added `AUTH_SECRET=replace-with-random-64-byte-secret` to `.env.example` so required sensitive envs have placeholders.
+  - Initial audit correctly failed because the repo secret-like scan matched a historical fake R2 secret assignment and the audit script's own regex literal.
+  - Reworked the audit regex to avoid self-matching and rewrote the historical fake R2 command as prose with a redacted secret value.
+  - The production security baseline audit then passed all 9 checks: repo secret scan, `.env.example` placeholders, source-level same-origin/rate-limit/hashed-token/audit/E2E/CI controls, live security headers, unauthenticated `/api/auth/me`, `/api/settings`, and `/api/sessions`, cross-origin mutation rejection, and non-secret `/api/health` output.
+  - Strict production readiness now passes the required `recent_security_baseline` check with `Recent production security baseline audit passed with 9 checks.`
+  - Strict production completion still waits on off-host audio storage because production currently has `AUDIO_STORAGE_DRIVER=local`.
+
 ## 2026-07-05 Production Viewer Load Smoke
 
 - Environment: local workspace and production deployment at `https://babbledeck.aialra.online`.
@@ -231,7 +250,7 @@
   - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/recorder-ws-server.ts scripts/prune-audio-retention.ts scripts/migrate-audio-storage.ts scripts/audit-audio-storage.ts scripts/check-production-readiness.ts scripts/sync-seed-admin.ts playwright.config.ts e2e/mvp.spec.ts`
   - `pnpm build`
   - `pnpm tsx scripts/check-production-readiness.ts --strict --check-soniox-live`
-  - `AUDIO_STORAGE_DRIVER=r2 R2_ACCOUNT_ID=readiness-account-smoke R2_BUCKET=readiness-smoke R2_ACCESS_KEY_ID=readiness-smoke R2_SECRET_ACCESS_KEY=readiness-smoke pnpm tsx scripts/check-production-readiness.ts --strict`
+  - A fake R2 env smoke with `AUDIO_STORAGE_DRIVER=r2`, fake account/bucket/access-key values, and a redacted fake secret key, followed by `pnpm tsx scripts/check-production-readiness.ts --strict`.
 - Results:
   - Audio storage now derives `https://ACCOUNT_ID.r2.cloudflarestorage.com` from `R2_ACCOUNT_ID` when no explicit endpoint is set.
   - Strict readiness now accepts `R2_ACCOUNT_ID` as the Cloudflare R2 endpoint source.

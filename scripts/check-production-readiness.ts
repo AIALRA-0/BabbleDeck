@@ -450,6 +450,70 @@ async function recentLoadSmokeOk() {
   }
 }
 
+async function recentSecurityBaselineOk() {
+  const securityLog =
+    process.env.BABBLEDECK_SECURITY_BASELINE_LOG ??
+    "/srv/aialra/logs/babbledeck/security-baseline.jsonl";
+  const maxAgeHours = Number(
+    process.env.BABBLEDECK_SECURITY_BASELINE_MAX_AGE_HOURS ?? 168,
+  );
+  const maxAgeMs =
+    Number.isFinite(maxAgeHours) && maxAgeHours > 0
+      ? maxAgeHours * 60 * 60 * 1000
+      : 168 * 60 * 60 * 1000;
+  try {
+    const stat = await fs.stat(securityLog);
+    if (Date.now() - stat.mtimeMs > maxAgeMs) {
+      return {
+        ok: false,
+        message: `Production security baseline audit is older than ${Math.round(maxAgeMs / 3600000)} hours.`,
+      };
+    }
+
+    const contents = await fs.readFile(securityLog, "utf8");
+    const latest = contents
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .at(-1);
+    if (!latest) {
+      return {
+        ok: false,
+        message:
+          "Production security baseline log exists but has no JSONL records.",
+      };
+    }
+
+    const record = JSON.parse(latest);
+    const checkedAtMs = Date.parse(record.checkedAt);
+    const freshCheckedAt =
+      Number.isFinite(checkedAtMs) && Date.now() - checkedAtMs <= maxAgeMs;
+    const checks = Array.isArray(record.checks) ? record.checks : [];
+    const checksOk =
+      checks.length > 0 && checks.every((item) => item?.ok === true);
+    return {
+      ok:
+        record.app === "babbledeck" &&
+        record.ok === true &&
+        checksOk &&
+        freshCheckedAt,
+      message:
+        record.app === "babbledeck" &&
+        record.ok === true &&
+        checksOk &&
+        freshCheckedAt
+          ? `Recent production security baseline audit passed with ${checks.length} checks.`
+          : "Latest production security baseline JSONL record is missing required fields, failed, or is stale.",
+    };
+  } catch {
+    return {
+      ok: false,
+      message:
+        "Production security baseline JSONL record could not be checked.",
+    };
+  }
+}
+
 async function logrotateConfigOk() {
   const configPath =
     process.env.BABBLEDECK_LOGROTATE_CONFIG ??
@@ -583,6 +647,13 @@ async function main() {
     name: "recent_load_smoke",
     ok: loadSmoke.ok,
     message: loadSmoke.message,
+  });
+
+  const securityBaseline = await recentSecurityBaselineOk();
+  check(checks, {
+    name: "recent_security_baseline",
+    ok: securityBaseline.ok,
+    message: securityBaseline.message,
   });
 
   check(checks, {

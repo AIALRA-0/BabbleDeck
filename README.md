@@ -92,6 +92,17 @@ viewer SSE streams, injects a transcript through the recorder-token API,
 confirms every viewer receives it, then archives the smoke session and writes a
 non-secret record to `/srv/aialra/logs/babbledeck/load-smoke.jsonl`.
 
+Run the production security baseline audit after security-sensitive changes:
+
+```bash
+pnpm security:audit:production
+```
+
+The audit checks repo secret hygiene, `.env.example` placeholders, source-level
+security controls, live security headers, unauthenticated admin API protection,
+same-origin mutation rejection, and `/api/health` non-secret output. It appends
+a non-secret record to `/srv/aialra/logs/babbledeck/security-baseline.jsonl`.
+
 Install log rotation for the app, WebSocket, backup, health monitor, deploy,
 and Nginx logs:
 

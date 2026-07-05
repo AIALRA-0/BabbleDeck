@@ -70,6 +70,7 @@
 - Production latest-backup restore verification can be installed with `pnpm backup:verify:install:production`; readiness checks that `aialra-babbledeck-backup-verify.timer` is active and that a recent verification marker exists.
 - Production metrics snapshots can be installed with `pnpm metrics:install:production`; readiness checks that `aialra-babbledeck-metrics.timer` is active and that a recent non-secret JSONL metrics record exists.
 - Production viewer load smoke can be run with `pnpm load:smoke:production -- --viewers=N`; readiness checks for a recent passing non-secret JSONL load-smoke record.
+- Production security baseline can be run with `pnpm security:audit:production`; readiness checks for a recent passing non-secret JSONL audit covering repo hygiene, env placeholders, live security headers, unauthenticated admin API protection, CSRF rejection, and non-secret health output.
 
 ## Next Recommended Tasks
 

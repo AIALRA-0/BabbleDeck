@@ -150,6 +150,21 @@ BABBLEDECK_LOAD_SMOKE_VIEWERS=25 pnpm load:smoke:production
 BABBLEDECK_LOAD_SMOKE_TIMEOUT_SECONDS=90 pnpm load:smoke:production
 ```
 
+## Security Baseline Audit
+
+Run the production security baseline audit after security-sensitive changes:
+
+```bash
+pnpm security:audit:production
+```
+
+The audit checks repo secret hygiene, `.env.example` placeholders,
+source-level same-origin/rate-limit/token/audit controls, live production
+security headers, unauthenticated admin API protection, same-origin mutation
+rejection, and `/api/health` non-secret output. It writes a non-secret JSONL
+record to `/srv/aialra/logs/babbledeck/security-baseline.jsonl`. Strict
+readiness requires a recent passing security baseline audit.
+
 ## Log Rotation
 
 Install or refresh production log rotation with:
