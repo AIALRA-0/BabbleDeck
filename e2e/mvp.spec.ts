@@ -350,6 +350,7 @@ test.describe("BabbleDeck MVP browser flow", () => {
 
     const viewerContext = await browser.newContext({
       viewport: { width: 390, height: 844 },
+      permissions: ["clipboard-read", "clipboard-write"],
     });
     const viewer = await viewerContext.newPage();
     await viewer.route("**/api/viewer/session/**/livekit-token", (route) =>
@@ -394,6 +395,37 @@ test.describe("BabbleDeck MVP browser flow", () => {
       timeout: 12_000,
     });
     await expect(viewer.getByText(/final segments/i)).toBeVisible();
+    await viewer.getByRole("button", { name: /original only/i }).click();
+    await expect(
+      viewer.getByText("Welcome to BabbleDeck. The recorder is now live."),
+    ).toBeVisible();
+    await expect(viewer.getByText("欢迎使用 BabbleDeck")).toHaveCount(0);
+    await viewer.getByRole("button", { name: /^both$/i }).click();
+    await expect(viewer.getByText("欢迎使用 BabbleDeck")).toBeVisible();
+    await expect(
+      viewer.getByText("Welcome to BabbleDeck. The recorder is now live."),
+    ).toBeVisible();
+    await viewer
+      .getByRole("button", { name: /copy visible transcript/i })
+      .click();
+    await expect(viewer.getByText("Copied.")).toBeVisible();
+    const copiedTranscript = await viewer.evaluate(() =>
+      navigator.clipboard.readText(),
+    );
+    expect(copiedTranscript).toContain("Welcome to BabbleDeck");
+    expect(copiedTranscript).toContain("欢迎使用 BabbleDeck");
+    await viewer.getByRole("button", { name: /translation only/i }).click();
+    await expect(viewer.getByText("欢迎使用 BabbleDeck")).toBeVisible();
+    await expect(
+      viewer.getByText("Welcome to BabbleDeck. The recorder is now live."),
+    ).toHaveCount(0);
+    await viewer.getByRole("button", { name: /toggle caption size/i }).click();
+    await viewer
+      .getByRole("button", { name: /switch to light theme/i })
+      .click();
+    await expect(
+      viewer.getByRole("button", { name: /switch to dark theme/i }),
+    ).toBeVisible();
 
     await recorder.getByRole("button", { name: /stop recording/i }).click();
     await expect(

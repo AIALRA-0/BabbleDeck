@@ -9,7 +9,7 @@ Production: https://babbledeck.aialra.online
 - Next.js App Router web app in `apps/web`.
 - Prisma/PostgreSQL persistence in `db/schema.prisma`.
 - Bootstrap admin seed via `SEED_ADMIN_PASSWORD`.
-- Login, dashboard, live session creation, recorder page, public viewer page, session history, provider usage, budget caps with degraded-provider status, and exports.
+- Login, dashboard, live session creation, recorder page, public viewer page with caption display controls and transcript copy, session history, provider usage, budget caps with degraded-provider status, and exports.
 - Browser microphone permission flow, volume meter, IndexedDB local backup with recorder-side reconnect/retry controls, binary audio chunk upload to local/S3-compatible object storage, SSE viewer stream with polling fallback, and deterministic mock transcript provider.
 - Recorder WebSocket transport streams audio chunks to server-side provider adapters; Soniox realtime activates when `SONIOX_API_KEY` is configured.
 - Playwright desktop/mobile E2E for the full MVP flow.

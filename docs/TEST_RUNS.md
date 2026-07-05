@@ -1471,3 +1471,24 @@
 - Screenshots/traces:
   - Local runs passed without failure screenshots.
   - Production reruns passed without final failure screenshots; the transient LiveKit failure screenshot remains in local Playwright artifacts for diagnosis.
+
+## 2026-07-05 Viewer Caption Controls
+
+- Environment: local workspace with Docker Postgres on `localhost:55432`, Playwright dev servers on `127.0.0.1:3124` and `127.0.0.1:3126`, and secrets loaded from the server env file without printing values.
+- Commands:
+  - `pnpm format:check`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `pnpm build`
+  - Script TypeScript check for recorder, storage, LiveKit, readiness, metrics, Soniox, security, wrapper, seed-admin, and Playwright config scripts.
+  - `pnpm e2e e2e/mvp.spec.ts --project=chromium-desktop --grep "admin creates a live session"`
+  - `pnpm e2e e2e/mvp.spec.ts --project=chromium-mobile --grep "admin creates a live session"`
+- Browser/device:
+  - Playwright Chromium desktop, `1440x960`.
+  - Playwright Chromium mobile, Pixel 7 profile.
+- Results:
+  - Static checks, unit tests, script typecheck, and production build passed.
+  - Desktop and mobile Playwright MVP flows passed with coverage for viewer translation-only, bilingual, and original-only caption modes, copy-visible-transcript clipboard behavior, caption size toggle, light/dark theme toggle, session create, recorder flow, viewer captions, history corrections, and exports.
+- Screenshots/traces:
+  - Local runs passed without failure screenshots.
