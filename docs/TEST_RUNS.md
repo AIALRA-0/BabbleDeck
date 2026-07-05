@@ -8,11 +8,22 @@
   - `pnpm --filter @babbledeck/web typecheck`
   - `pnpm --filter @babbledeck/web test -- livekit`
   - `pnpm tsx scripts/security-baseline-audit.ts --base-url=https://babbledeck.aialra.online`
+  - `pnpm format:check`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `pnpm build`
+  - `pnpm db:generate && pnpm deploy:production`
+  - Production LiveKit token smoke with a temporary mock session and recorder token.
 - Results:
   - Added optional LiveKit V2 token generation with short TTL, BabbleDeck room naming, publisher/subscriber roles, and microphone-only publish grants.
   - Added `/api/sessions/[id]/livekit-token` for owner/recorder-token access and `/api/viewer/session/[shareToken]/livekit-token` for subscriber-only viewer access.
   - Added non-secret LiveKit configured status to settings and `/api/health`.
   - LiveKit-specific tests passed with `19` files and `62` tests, including JWT grant decoding and route behavior.
+  - Full format, lint, typecheck, test, and build gates passed.
+  - Production deploy for commit `0e5ff0a` passed the deployment wrapper, including build, service restart, readiness, seed-admin login smoke, and anonymous protected-route Playwright smoke.
+  - Production `/api/health` returned LiveKit `configured=false`, as expected before LiveKit server credentials are supplied.
+  - The production recorder/admin LiveKit token endpoint returned `503 PROVIDER_NOT_CONFIGURED` for a temporary session, and the smoke session was archived on cleanup.
   - Production security baseline passed after adding LiveKit env placeholders and sensitive-key checks.
   - Production LiveKit remains unconfigured until `LIVEKIT_URL`, `LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET` are supplied.
 
