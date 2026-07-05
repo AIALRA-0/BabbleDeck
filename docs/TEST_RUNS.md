@@ -9,11 +9,22 @@
   - `pnpm --filter @babbledeck/web typecheck`
   - `pnpm --filter @babbledeck/web lint`
   - `pnpm build`
+  - `BABBLEDECK_RELEASE_COMMIT=abc1234 BABBLEDECK_RELEASE_BRANCH=release-test BABBLEDECK_RELEASE_BUILT_AT=2026-07-05T23:11:22Z pnpm build --force`
+  - `pnpm db:generate`
+  - `pnpm deploy:production`
+  - `curl -fsS https://babbledeck.aialra.online/api/health`
+  - `bash -lc 'set -a; . /srv/aialra/config/secrets/babbledeck.env; set +a; pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --check-soniox-live --expected-release-commit=521306e51a16'`
 - Results:
   - `/api/health` now includes sanitized non-secret release metadata fields: `release.commit`, `release.branch`, and `release.builtAt`.
   - `next.config.mjs` captures `BABBLEDECK_RELEASE_*` values at build time, `turbo.json` passes those non-secret variables into build tasks, and `pnpm deploy:production` injects the current git commit, branch, and build timestamp before building the standalone server.
   - `scripts/check-production-readiness.ts` accepts `--expected-release-commit` / `BABBLEDECK_EXPECT_RELEASE_COMMIT`; `pnpm deploy:production` passes the current commit so the deployment smoke fails if `/api/health` reports a different release.
   - Health unit coverage verifies valid release metadata is reported and malformed values are dropped instead of echoed.
+  - A forced release-env build confirmed the standalone output contains the expected non-secret release values.
+  - The first deployment attempt correctly failed when Turbo had not passed `BABBLEDECK_RELEASE_*` into the build; adding the Turbo `globalEnv` whitelist fixed release injection.
+  - The forced production build also exposed a strict Next type error in export download content-type indexing; the route now narrows the export format before indexing the content-type map.
+  - Production deploy for commit `521306e51a16` passed: forced build, service restart, readiness with expected release commit, seed-admin login/logout smoke, and anonymous protected-route Playwright smoke.
+  - Live `/api/health` now reports `release.commit="521306e51a16"`, `release.branch="main"`, and a non-secret build timestamp.
+  - Web, recorder WebSocket, and LiveKit services were active/running after deployment with `NRestarts=0`.
   - This lets production health output prove which git commit is actually deployed, instead of relying only on local deployment logs.
 
 ## 2026-07-06 Production Deploy Log Evidence
