@@ -12,6 +12,7 @@
     "e2e": "env -u NO_COLOR playwright test",
     "e2e:headed": "env -u NO_COLOR playwright test --headed",
     "deploy:production": "scripts/deploy-production.sh",
+    "audio:configure:production": "scripts/configure-production-audio-storage.sh",
     "audio:preflight:production": "scripts/preflight-audio-storage-production.sh",
     "audio:cutover:production": "scripts/cutover-audio-storage.sh",
     "backup:verify:production": "scripts/verify-latest-backup-production.sh",

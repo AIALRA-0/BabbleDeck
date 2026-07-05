@@ -162,16 +162,19 @@ Production raw-audio storage cutovers should use the guarded wrapper after the
 R2/S3 target variables are present in the production env file:
 
 ```bash
+pnpm audio:configure:production
 pnpm audio:preflight:production
 pnpm audio:cutover:production
 BABBLEDECK_AUDIO_CUTOVER_APPLY=1 pnpm audio:cutover:production
 ```
 
-The preflight creates, heads, and deletes a temporary object on the configured
-off-host target. The first cutover command then validates the local source
-objects. The apply run migrates batches to the configured off-host target,
-audits object presence and metadata, then runs a strict production deploy
-smoke.
+The configure step patches the production env file from the R2/S3 variables in
+the current shell, runs the off-host preflight against a temporary env copy, and
+only then installs the patched env with a timestamped backup. The preflight
+creates, heads, and deletes a temporary object on the configured off-host
+target. The first cutover command then validates the local source objects. The
+apply run migrates batches to the configured off-host target, audits object
+presence and metadata, then runs a strict production deploy smoke.
 
 Synchronize the bootstrap admin with `SEED_ADMIN_EMAIL` and
 `SEED_ADMIN_PASSWORD` after credential changes:

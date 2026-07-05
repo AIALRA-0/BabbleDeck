@@ -1,5 +1,19 @@
 # Test Runs
 
+## 2026-07-05 Production Audio Storage Env Configure Wrapper
+
+- Environment: local workspace, temporary env files, and production audio storage management scripts.
+- Commands:
+  - `bash -n scripts/configure-production-audio-storage.sh`
+  - Missing-credential smoke with `BABBLEDECK_ENV_FILE` pointed at a temporary `.env.example` copy.
+  - Fake R2 env smoke with `BABBLEDECK_AUDIO_STORAGE_CONFIGURE_PREFLIGHT=0`, `BABBLEDECK_AUDIO_STORAGE_DRIVER=r2`, fake R2 account/bucket/access-key values, and a redacted fake secret value.
+- Results:
+  - Added `pnpm audio:configure:production`.
+  - The script prepares a patched env without printing secrets, runs off-host storage preflight against the temporary env by default, and only installs the production env after preflight passes.
+  - The script writes a timestamped backup and appends a non-secret JSONL record containing the target driver and updated key names.
+  - The missing-credential smoke exited nonzero and left the temporary env checksum unchanged.
+  - The fake R2 smoke with preflight disabled exited zero, wrote the expected R2 key names to the temporary env, created a non-secret configure log, and did not print the fake secret value.
+
 ## 2026-07-05 R2 Generic Bucket Region Hardening
 
 - Environment: local workspace, TypeScript unit tests, and production R2/S3 cutover configuration code.

@@ -59,3 +59,4 @@
 - Added the Capacitor Android platform project and Android wrapper build scripts, installed the server Android SDK/JDK toolchain, and validated Android Gradle project resolution plus debug APK assembly.
 - Added the Capacitor iOS platform project with Swift Package Manager integration, split mobile sync scripts by platform, and verified Android/iOS native microphone permission declarations.
 - Hardened R2 audio storage config so `AUDIO_STORAGE_DRIVER=r2` uses the required `auto` S3 SDK region even when operators use the generic `AUDIO_STORAGE_BUCKET` variable.
+- Added a guarded production audio storage env configuration wrapper that preflights a temporary R2/S3 env before installing it with a timestamped backup.
