@@ -353,6 +353,7 @@ async function main() {
     "aialra-babbledeck-ws.service",
     "aialra-babbledeck-backup.timer",
     "aialra-babbledeck-audio-retention.timer",
+    "aialra-babbledeck-health-monitor.timer",
   ]) {
     const active = await serviceActive(service);
     check(checks, {

@@ -272,6 +272,9 @@ Minimum metrics:
 - `/api/health` exposes non-secret core readiness status for external uptime
   monitors, including database connectivity, audio storage configuration,
   process uptime, and provider configuration booleans.
+- `aialra-babbledeck-health-monitor.timer` checks `/api/health` every five
+  minutes and writes non-secret JSONL status records under
+  `/srv/aialra/logs/babbledeck/health-monitor.jsonl`.
 
 Minimum logs:
 

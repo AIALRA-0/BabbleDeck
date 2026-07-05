@@ -10,6 +10,8 @@ Production backups follow the server's systemd-managed project pattern.
 - Timer: `aialra-babbledeck-backup.timer`
 - Raw audio retention service: `aialra-babbledeck-audio-retention.service`
 - Raw audio retention timer: `aialra-babbledeck-audio-retention.timer`
+- Health monitor service: `aialra-babbledeck-health-monitor.service`
+- Health monitor timer: `aialra-babbledeck-health-monitor.timer`
 - Recorder WebSocket service: `aialra-babbledeck-ws.service`
 
 Each backup directory contains:
@@ -77,6 +79,25 @@ Useful overrides:
 BABBLEDECK_DEPLOY_SKIP_BUILD=1 pnpm deploy:production
 BABBLEDECK_DEPLOY_SKIP_E2E=1 pnpm deploy:production
 BABBLEDECK_DEPLOY_STRICT=1 pnpm deploy:production
+```
+
+## Health Monitoring
+
+Install or refresh the production health monitor with:
+
+```bash
+pnpm health:install:production
+```
+
+The timer checks `https://babbledeck.aialra.online/api/health` every five
+minutes. It writes non-secret JSONL records to
+`/srv/aialra/logs/babbledeck/health-monitor.jsonl` and exits nonzero if the
+endpoint, database check, or audio storage core configuration is unhealthy.
+Inspect the latest records with:
+
+```bash
+tail -n 20 /srv/aialra/logs/babbledeck/health-monitor.jsonl
+systemctl status aialra-babbledeck-health-monitor.timer
 ```
 
 ## Verify Latest Backup

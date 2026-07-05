@@ -61,6 +61,15 @@ Production exposes a non-secret health endpoint for monitoring at
 process uptime, and provider configuration booleans without returning secret
 values.
 
+Install the systemd health monitor after deploying the app:
+
+```bash
+pnpm health:install:production
+```
+
+The monitor runs every five minutes, checks `/api/health`, and appends
+non-secret JSONL records to `/srv/aialra/logs/babbledeck/health-monitor.jsonl`.
+
 Production deploys should use the systemd-aware wrapper:
 
 ```bash
@@ -107,6 +116,7 @@ The current production instance follows the server's existing systemd + Nginx pa
 - Production audio storage: local object root from `AUDIO_STORAGE_DIR` until R2/S3 credentials are configured.
 - Production backup timer: `aialra-babbledeck-backup.timer`
 - Production raw audio retention timer: `aialra-babbledeck-audio-retention.timer`
+- Production health monitor timer: `aialra-babbledeck-health-monitor.timer`
 - Backup root: `/srv/aialra/backups/babbledeck`
 - Raw audio retention days are configurable at `/settings`; per-session raw audio legal hold is available from session history.
 

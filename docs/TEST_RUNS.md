@@ -1,5 +1,33 @@
 # Test Runs
 
+## 2026-07-05 Production Health Monitor Timer
+
+- Environment: local workspace and production deployment at `https://babbledeck.aialra.online`.
+- Commands:
+  - `bash -n scripts/monitor-production-health.sh scripts/install-production-health-monitor.sh scripts/deploy-production.sh scripts/cutover-audio-storage.sh`
+  - `BABBLEDECK_LOG_DIR="$tmpdir" BABBLEDECK_HEALTH_BASE_URL=https://babbledeck.aialra.online pnpm health:monitor:production`
+  - `pnpm health:install:production`
+  - `systemctl status aialra-babbledeck-health-monitor.timer --no-pager`
+  - `tail -n 3 /srv/aialra/logs/babbledeck/health-monitor.jsonl`
+  - `pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --strict --check-soniox-live`
+  - `pnpm format:check`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/recorder-ws-server.ts scripts/prune-audio-retention.ts scripts/migrate-audio-storage.ts scripts/audit-audio-storage.ts scripts/check-production-readiness.ts scripts/sync-seed-admin.ts playwright.config.ts e2e/mvp.spec.ts`
+  - `pnpm build`
+  - `pnpm deploy:production`
+- Results:
+  - Added `scripts/monitor-production-health.sh` for non-secret `/api/health` probes with JSONL status output.
+  - Added `pnpm health:monitor:production` and `pnpm health:install:production`; the installer creates `aialra-babbledeck-health-monitor.service` and `aialra-babbledeck-health-monitor.timer` using the existing server systemd pattern.
+  - `scripts/check-production-readiness.ts` now requires the health monitor timer to be active.
+  - A temporary-log monitor run against the live domain returned `httpStatus=200`, `ok=true`, `databaseOk=true`, `audioStorageOk=true`, `audioStorageDriver=local`, and `sonioxConfigured=true`.
+  - The production timer was installed and is active, with the next run scheduled every five minutes.
+  - The production JSONL monitor log wrote a non-secret record with `httpStatus=200`, `healthStatus=ok`, `databaseOk=true`, `audioStorageOk=true`, `audioStorageDriver=local`, `offHostAudioReady=false`, and `sonioxConfigured=true`.
+  - Strict production readiness now passes the required `aialra-babbledeck-health-monitor.timer` check; strict completion still waits on off-host audio storage.
+  - Format, lint, app typecheck, full unit tests, script/E2E typecheck, and production build passed.
+  - Production deploy wrapper force-built the standalone app, restarted `aialra-babbledeck.service` and `aialra-babbledeck-ws.service`, confirmed readiness `requiredOk=true`, confirmed seed-admin login/logout, and passed the anonymous protected-route Playwright smoke.
+
 ## 2026-07-05 Production Health Endpoint
 
 - Environment: local workspace first, then production deployment at `https://babbledeck.aialra.online` after deployment.

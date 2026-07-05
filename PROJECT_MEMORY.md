@@ -65,6 +65,7 @@
 - Production raw-audio cutovers can now use `pnpm audio:cutover:production`; it defaults to dry-run source validation, requires `BABBLEDECK_AUDIO_CUTOVER_APPLY=1` before writing objects, migrates batches to the configured off-host target, audits target metadata, and runs strict production deploy smoke.
 - R2/S3 audio migrations now skip chunks already marked on the current target by default, so repeated batch runs continue through remaining unmigrated rows. `--include-migrated` is available for intentional rewrites.
 - Production now exposes `/api/health` for non-secret uptime monitoring; readiness checks verify that it reports database and audio storage core health.
+- Production health monitoring is systemd-managed through `aialra-babbledeck-health-monitor.timer`; it checks `/api/health` every five minutes and writes non-secret JSONL records to `/srv/aialra/logs/babbledeck/health-monitor.jsonl`.
 
 ## Next Recommended Tasks
 
