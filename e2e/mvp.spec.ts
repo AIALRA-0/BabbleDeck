@@ -1291,6 +1291,140 @@ test.describe("BabbleDeck MVP browser flow", () => {
     }
   });
 
+  test("recorder track URLs write independent mock timelines", async ({
+    browser,
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "chromium-desktop",
+      "Multi-recorder URL coverage runs once on desktop.",
+    );
+
+    const title = `Playwright session recorder tracks ${Date.now()}`;
+    const firstMockOriginal =
+      "Welcome to BabbleDeck. The recorder is now live.";
+
+    await page.goto("/");
+    await page.getByRole("link", { name: /open portal/i }).click();
+    await signIn(page);
+    await expect(
+      page.getByRole("heading", { name: "Live sessions" }),
+    ).toBeVisible();
+
+    await page
+      .getByRole("link", { name: /new live session/i })
+      .first()
+      .click();
+    await expect(page.getByLabel("Title")).toBeVisible({ timeout: 20_000 });
+    await page.getByLabel("Title").fill(title);
+    await page.getByLabel("Target language").selectOption("zh");
+    await page.getByLabel("Provider").selectOption("mock");
+    const createButton = page.getByRole("button", { name: /create session/i });
+    await expect(createButton).toBeEnabled();
+    await createButton.click();
+    await page.waitForURL(/\/sessions\/[0-9a-f-]+\/record\?.*recorder=/, {
+      timeout: 20_000,
+    });
+    await expect(page.getByRole("heading", { name: title })).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(
+      page.getByRole("button", { name: /copy speaker a recorder link/i }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: /open speaker b recorder/i }),
+    ).toBeVisible();
+
+    const baseRecorderUrl = new URL(page.url());
+    const sessionId = baseRecorderUrl.pathname.split("/")[2];
+    const trackUrl = (trackId: string, speakerLabel: string) => {
+      const url = new URL(baseRecorderUrl.toString());
+      url.searchParams.set("trackId", trackId);
+      url.searchParams.set("speakerLabel", speakerLabel);
+      return url.toString();
+    };
+
+    const recorderAContext = await browser.newContext({
+      permissions: ["microphone"],
+      viewport: { width: 1040, height: 840 },
+    });
+    const recorderBContext = await browser.newContext({
+      permissions: ["microphone"],
+      viewport: { width: 1040, height: 840 },
+    });
+
+    try {
+      const recorderA = await recorderAContext.newPage();
+      const recorderB = await recorderBContext.newPage();
+      await recorderA.goto(trackUrl("speaker-a", "Speaker A"));
+      await recorderB.goto(trackUrl("speaker-b", "Speaker B"));
+      await expect(
+        recorderA.getByText("Speaker A", { exact: true }).first(),
+      ).toBeVisible();
+      await expect(
+        recorderB.getByText("Speaker B", { exact: true }).first(),
+      ).toBeVisible();
+
+      await recorderA.getByRole("button", { name: /start recording/i }).click();
+      await expect(recorderA.getByText(firstMockOriginal).first()).toBeVisible({
+        timeout: 15_000,
+      });
+      await recorderB.getByRole("button", { name: /start recording/i }).click();
+      await expect(recorderB.getByText(firstMockOriginal).first()).toBeVisible({
+        timeout: 15_000,
+      });
+
+      await recorderA.getByRole("button", { name: /stop recording/i }).click();
+      await expect(
+        recorderA.getByRole("button", { name: /start recording/i }),
+      ).toBeVisible({ timeout: 15_000 });
+    } finally {
+      await recorderAContext.close();
+      await recorderBContext.close();
+    }
+
+    await page.goto(`/sessions/${sessionId}`);
+    await expect(
+      page.getByRole("heading", { name: "Transcript timeline" }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Speaker A", { exact: true }).first(),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Speaker B", { exact: true }).first(),
+    ).toBeVisible();
+    await expect(page.getByText(firstMockOriginal).first()).toBeVisible();
+
+    const jsonExport = await downloadExport(page, {
+      name: /json/i,
+      extension: "json",
+    });
+    const parsed = JSON.parse(jsonExport) as {
+      segments: Array<{
+        index: number;
+        trackId: string;
+        speakerLabel: string | null;
+        originalText: string;
+      }>;
+    };
+    expect(parsed.segments).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          index: 0,
+          trackId: "speaker-a",
+          speakerLabel: "Speaker A",
+          originalText: firstMockOriginal,
+        }),
+        expect.objectContaining({
+          index: 0,
+          trackId: "speaker-b",
+          speakerLabel: "Speaker B",
+          originalText: firstMockOriginal,
+        }),
+      ]),
+    );
+  });
+
   test("budget cap marks provider degraded while audio backup continues", async ({
     page,
   }) => {

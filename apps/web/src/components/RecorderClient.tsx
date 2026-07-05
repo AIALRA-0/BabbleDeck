@@ -55,6 +55,8 @@ type RecorderClientProps = {
   estimatedCostUsd: number;
   viewerUrl: string | null;
   recorderToken: string | null;
+  trackId: string;
+  speakerLabel: string | null;
   historyUrl: string | null;
 };
 
@@ -172,6 +174,8 @@ export function RecorderClient({
   estimatedCostUsd: initialEstimatedCostUsd,
   viewerUrl,
   recorderToken,
+  trackId,
+  speakerLabel,
   historyUrl,
 }: RecorderClientProps) {
   const router = useRouter();
@@ -187,6 +191,9 @@ export function RecorderClient({
   );
   const [pending, setPending] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copiedRecorderTrack, setCopiedRecorderTrack] = useState<string | null>(
+    null,
+  );
   const [backup, setBackup] = useState({
     total: 0,
     uploaded: 0,
@@ -254,6 +261,15 @@ export function RecorderClient({
       : viewerUrlFromCache;
   const providerLabel =
     providerName === "soniox" ? "Soniox realtime" : "Mock realtime";
+  const recorderTrackId = trackId || "main";
+  const recorderTrackLabel =
+    speakerLabel ??
+    (recorderTrackId === "main" ? "Main recorder" : recorderTrackId);
+  const recorderTrackPresets = [
+    { trackId: "main", speakerLabel: "Main recorder" },
+    { trackId: "speaker-a", speakerLabel: "Speaker A" },
+    { trackId: "speaker-b", speakerLabel: "Speaker B" },
+  ];
   const liveKitStatusLabel: Record<RecorderLiveKitStatus, string> = {
     standby: "Standby",
     connecting: "Connecting",
@@ -452,7 +468,7 @@ export function RecorderClient({
         },
         body: JSON.stringify({
           role: "publisher",
-          displayName: "Recorder",
+          displayName: `Recorder · ${recorderTrackLabel}`,
         }),
       });
 
@@ -501,7 +517,10 @@ export function RecorderClient({
         return;
       }
       const publication = await room.localParticipant.publishTrack(audioTrack, {
-        name: "babbledeck-microphone",
+        name:
+          recorderTrackId === "main"
+            ? "babbledeck-microphone"
+            : `babbledeck-microphone-${recorderTrackId}`,
         source: Track.Source.Microphone,
       });
       if (runId !== liveKitRunRef.current) {
@@ -585,6 +604,31 @@ export function RecorderClient({
     url.searchParams.set("sessionId", sessionId);
     if (effectiveRecorderToken) {
       url.searchParams.set("recorder", effectiveRecorderToken);
+    }
+    if (recorderTrackId !== "main") {
+      url.searchParams.set("trackId", recorderTrackId);
+    }
+    if (speakerLabel) {
+      url.searchParams.set("speakerLabel", speakerLabel);
+    }
+    return url.toString();
+  }
+
+  function recorderTrackUrl(input: { trackId: string; speakerLabel: string }) {
+    if (!clientOrigin) return null;
+    const url = new URL(`/sessions/${sessionId}/record`, clientOrigin);
+    const shareToken = shareTokenFromViewerUrl(
+      viewerUrlFromCache && viewerUrlFromCache.startsWith("/")
+        ? viewerUrlFromCache
+        : null,
+    );
+    if (shareToken) url.searchParams.set("share", shareToken);
+    if (effectiveRecorderToken) {
+      url.searchParams.set("recorder", effectiveRecorderToken);
+    }
+    if (input.trackId !== "main") {
+      url.searchParams.set("trackId", input.trackId);
+      url.searchParams.set("speakerLabel", input.speakerLabel);
     }
     return url.toString();
   }
@@ -1003,6 +1047,10 @@ export function RecorderClient({
 
   async function postMockSegment(index: number) {
     const item = script[index % script.length];
+    const trackMetadata = {
+      trackId: recorderTrackId,
+      ...(speakerLabel ? { speakerLabel } : {}),
+    };
     setLatestOriginal(item.original);
     setLatestTranslation(item.translation);
     await fetch(`/api/sessions/${sessionId}/events`, {
@@ -1015,6 +1063,7 @@ export function RecorderClient({
         events: [
           {
             type: "partial_transcript",
+            ...trackMetadata,
             text: item.original.slice(0, 24),
             language: "en",
             targetLanguage,
@@ -1025,6 +1074,7 @@ export function RecorderClient({
           },
           {
             type: "final_transcript",
+            ...trackMetadata,
             text: item.original,
             language: "en",
             targetLanguage,
@@ -1036,6 +1086,7 @@ export function RecorderClient({
           },
           {
             type: "final_translation",
+            ...trackMetadata,
             text: item.translation,
             language: "en",
             targetLanguage,
@@ -1134,6 +1185,9 @@ export function RecorderClient({
           <div>
             <p className="text-sm text-muted-foreground">Recorder</p>
             <h1 className="text-2xl font-bold tracking-normal">{title}</h1>
+            <p className="mt-2 text-sm font-medium text-muted-foreground">
+              {recorderTrackLabel}
+            </p>
           </div>
           <SessionStatusBadge status={visibleStatus} />
         </div>
@@ -1402,7 +1456,68 @@ export function RecorderClient({
       </section>
 
       <aside className="rounded-lg border border-border bg-white p-5 shadow-sm">
-        <p className="text-sm font-semibold">Viewer link</p>
+        <div className="border-b border-border pb-5">
+          <p className="text-sm font-semibold">Recorder tracks</p>
+          <div className="mt-3 space-y-2">
+            {recorderTrackPresets.map((preset) => {
+              const url = recorderTrackUrl(preset);
+              const active = preset.trackId === recorderTrackId;
+              return (
+                <div
+                  key={preset.trackId}
+                  className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">
+                      {preset.speakerLabel}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {active ? "Current" : preset.trackId}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    {url ? (
+                      <>
+                        <Button
+                          size="sm"
+                          className="h-9 w-9 px-0"
+                          variant="ghost"
+                          aria-label={`Copy ${preset.speakerLabel} recorder link`}
+                          title={`Copy ${preset.speakerLabel} recorder link`}
+                          onClick={async () => {
+                            await navigator.clipboard?.writeText(url);
+                            setCopiedRecorderTrack(preset.trackId);
+                          }}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="h-9 w-9 px-0"
+                          asChild
+                          variant="ghost"
+                          title={`Open ${preset.speakerLabel} recorder`}
+                        >
+                          <Link
+                            href={url}
+                            aria-label={`Open ${preset.speakerLabel} recorder`}
+                          >
+                            <Mic className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                      </>
+                    ) : null}
+                  </div>
+                  {copiedRecorderTrack === preset.trackId ? (
+                    <span className="sr-only">Copied</span>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <p className="mt-5 text-sm font-semibold">Viewer link</p>
         {effectiveViewerUrl ? (
           <>
             <div className="mt-4 flex justify-center rounded-md border border-border bg-white p-4">
