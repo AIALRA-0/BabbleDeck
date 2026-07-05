@@ -123,6 +123,21 @@ as the fake microphone source, runs the deployed production UI flow, verifies
 recorder and viewer captions, and writes a non-secret record to
 `/srv/aialra/logs/babbledeck/soniox-ui-smoke.jsonl`.
 
+Run the longer production Soniox trace when you need stronger evidence that the
+real deployed recorder can sustain a longer fake-microphone session and persist
+provider output:
+
+```bash
+pnpm soniox:trace:production
+```
+
+The trace generates a longer speech WAV, runs the deployed recorder/viewer UI,
+keeps recording after the first captions arrive, checks persisted transcript
+segments, translations, audio chunks, provider usage, and provider errors, then
+archives the trace session and writes a non-secret record to
+`/srv/aialra/logs/babbledeck/soniox-trace.jsonl`. Strict readiness requires a
+recent passing trace.
+
 Run the production security baseline audit after security-sensitive changes:
 
 ```bash

@@ -1,5 +1,37 @@
 # Test Runs
 
+## 2026-07-05 Production Soniox Long Trace
+
+- Environment: production deployment at `https://babbledeck.aialra.online`, configured production `SONIOX_API_KEY`, self-hosted LiveKit present, Chromium fake-microphone capture, and production audio storage still local.
+- Commands:
+  - `bash -n scripts/soniox-trace-production.sh`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/soniox-trace-summary.ts scripts/check-production-readiness.ts playwright.config.ts`
+  - `pnpm --filter @babbledeck/web typecheck`
+  - `pnpm soniox:trace:production`
+  - `pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --strict --check-soniox-live`
+  - `pnpm format:check`
+  - `pnpm lint`
+  - `pnpm test`
+  - `pnpm typecheck`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/recorder-ws-server.ts scripts/prune-audio-retention.ts scripts/migrate-audio-storage.ts scripts/audit-audio-storage.ts scripts/preflight-audio-storage.ts scripts/preflight-livekit.ts scripts/collect-production-metrics.ts scripts/load-smoke-production.ts scripts/soniox-smoke-production.ts scripts/soniox-trace-summary.ts scripts/security-baseline-audit.ts scripts/verify-wrapper-configs.ts scripts/check-production-readiness.ts scripts/sync-seed-admin.ts playwright.config.ts`
+  - `pnpm db:validate && pnpm db:generate`
+  - `pnpm build`
+  - `pnpm deploy:production`
+  - `curl -fsS https://babbledeck.aialra.online/api/health | jq -r '{status:.data.status,version:.data.version,audioDriver:.data.checks.audioStorage.driver,offHostReady:.data.checks.audioStorage.offHostReady,soniox:.data.checks.providers.soniox.configured,livekit:.data.checks.providers.livekit.configured,uptime:.data.uptimeSeconds}'`
+  - `systemctl show aialra-babbledeck.service aialra-babbledeck-ws.service aialra-babbledeck-livekit.service -p Id -p ActiveState -p SubState -p NRestarts -p ExecMainStartTimestamp`
+- Results:
+  - Added `pnpm soniox:trace:production`, which generates a longer fake-microphone WAV, runs the deployed production recorder/viewer UI, waits after captions arrive, and writes a non-secret JSONL record to `/srv/aialra/logs/babbledeck/soniox-trace.jsonl`.
+  - Added `scripts/soniox-trace-summary.ts`, which finds the trace session by title, verifies persisted transcript segments/translations, expected text matches, audio chunks, provider usage, and zero provider errors, then archives the trace session.
+  - Added `recent_soniox_trace` to strict production readiness.
+  - Parameterized the Soniox Playwright test with `E2E_SONIOX_SESSION_TITLE`, `E2E_SONIOX_EXPECTED_TEXTS`, and `E2E_SONIOX_RECORD_SECONDS`.
+  - Hardened the Soniox Playwright flow to click the app error-boundary `Retry` button if the session workspace transiently fails to load after opening `/sessions/new`.
+  - Production trace passed after deployment with `40000ms` Soniox provider usage, `40` persisted audio chunks, `15` transcript segments, `14` translations, expected text matches for `Brooklyn`, `Spanish`, and `French`, and `0` provider errors.
+  - Production `/api/health` returned `status="ok"`, audio storage `driver="local"`, `offHostReady=false`, Soniox configured, and LiveKit configured.
+  - Web, recorder WS, and LiveKit systemd services were active/running with `NRestarts=0`.
+  - Strict production readiness had all required checks passing, including live Soniox websocket probe and the new long trace check, and exited nonzero only because the external `off_host_audio_storage` check still fails while production remains on local storage.
+  - Full local format, lint, typecheck, Vitest/unit, script typecheck, Prisma validate/generate, and production build gates passed.
+  - Production deploy for commit `2c9799c3cc1f` passed the deployment wrapper: forced build, systemd web/WS restart, HTTPS/readiness checks, seed-admin login smoke, and anonymous protected-route Playwright smoke.
+
 ## 2026-07-05 Uploaded Local Backup Cleanup
 
 - Environment: local workspace with Playwright dev server on `127.0.0.1:3100`, production deployment at `https://babbledeck.aialra.online`, production `SONIOX_API_KEY` present, self-hosted LiveKit present, and production audio storage still local.

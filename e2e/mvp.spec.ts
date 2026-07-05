@@ -308,7 +308,17 @@ test.describe("BabbleDeck MVP browser flow", () => {
       .getByRole("link", { name: /new live session/i })
       .first()
       .click();
-    await page.getByLabel("Title").fill(title);
+    const titleInput = page.getByLabel("Title");
+    const retryWorkspaceButton = page.getByRole("button", { name: /^retry$/i });
+    if (
+      await retryWorkspaceButton
+        .isVisible({ timeout: 5_000 })
+        .catch(() => false)
+    ) {
+      await retryWorkspaceButton.click();
+    }
+    await expect(titleInput).toBeVisible({ timeout: 20_000 });
+    await titleInput.fill(title);
     await page.getByLabel("Target language").selectOption("zh");
     await page.getByLabel("Provider").selectOption("mock");
     const createButton = page.getByRole("button", { name: /create session/i });
