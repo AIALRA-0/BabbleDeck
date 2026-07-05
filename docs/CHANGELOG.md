@@ -2,6 +2,7 @@
 
 ## 2026-07-05
 
+- Added transcript track timelines with per-track segment indexes, speaker labels, export metadata, and production Playwright coverage for independent Speaker A/B captions.
 - Added real-browser network recovery states for viewer and recorder pages, with production Playwright coverage that simulates offline/online recovery on the deployed site.
 - Short-circuited suspicious production probe paths in the Next proxy so dotfile/config/PHP scanner requests and quoted fake static-asset requests return plain `404` responses without invoking app not-found rendering.
 - Revalidated production after the Soniox key update with a deployed long trace: live Soniox websocket readiness passed, the UI trace persisted transcript/audio/provider-usage evidence, and web/recorder services remained active with `NRestarts=0`.

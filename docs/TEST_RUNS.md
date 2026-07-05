@@ -1652,3 +1652,37 @@
 - Screenshots/traces:
   - Local rerun passed without failure screenshots after narrowing the clipping assertion to the exact badge text.
   - Production reruns passed without final failure screenshots; the initial mobile run exposed an ambiguous `Saved.` locator and the follow-up passed after the locator was scoped to the retention form.
+
+## 2026-07-05 Transcript Track Timelines
+
+- Environment: local workspace with Docker Postgres on `localhost:55432`, production `https://babbledeck.aialra.online`, production Postgres database `babbledeck_prod`, and secrets loaded from the server env file without printing values.
+- Commands:
+  - `pnpm db:validate`
+  - `pnpm --filter @babbledeck/web typecheck`
+  - `pnpm --filter @babbledeck/web lint`
+  - `pnpm --filter @babbledeck/web test -- src/lib/export.test.ts`
+  - `pnpm prettier --check` for the changed TS/TSX files.
+  - `pnpm --filter @babbledeck/web build`
+  - Local `pnpm e2e e2e/mvp.spec.ts --project=chromium-desktop --grep "multi-track transcript events"` with `E2E_BASE_URL=http://127.0.0.1:3150`.
+  - `scripts/backup-production.sh`
+  - Production `pnpm db:migrate`
+  - `pnpm deploy:production`
+  - Production `pnpm e2e e2e/mvp.spec.ts --project=chromium-desktop --grep "multi-track transcript events"`
+  - `pnpm soniox:smoke:production`
+  - `pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --check-soniox-live`
+- Browser/device:
+  - Playwright Chromium desktop, `1440x960`.
+- Results:
+  - Added `trackId` and `speakerLabel` persistence for transcript events and final segments, with a per-track unique segment index so independent provider/LiveKit tracks can each emit `segmentIndex=0`.
+  - API validation, transcript writer upserts, session serialization, viewer labels, history labels, and JSON/Markdown export metadata now preserve track identity.
+  - Local validation passed: Prisma schema valid, TypeScript, ESLint, Prettier check, production build, Vitest `20` files and `78` tests, and the dedicated multi-track Playwright flow.
+  - Production backup created `/srv/aialra/backups/babbledeck/20260705T211600Z` before the DB migration.
+  - Production migration `20260705210500_transcript_tracks` applied successfully to `babbledeck_prod`.
+  - Production deploy passed for commit `f855f30` through `pnpm deploy:production`; required readiness, seed-admin login smoke, and anonymous protected-route Playwright smoke passed.
+  - Production multi-track Playwright passed against `https://babbledeck.aialra.online`, verifying independent Speaker A/B timelines, viewer label display, history display, and JSON export `trackId`/`speakerLabel`.
+  - Production Soniox smoke passed with `360ms` probe audio, `1` audio chunk, `0` provider errors, and archived cleanup of the smoke session.
+  - Production readiness reports `requiredOk=true`; Soniox API key, LiveKit credentials, direct Soniox realtime websocket probe, recent Soniox smoke, recent Soniox UI smoke, recent Soniox trace, and recent LiveKit UI smoke are all passing.
+  - `externalOk=false` and `productionReady=false` only because `off_host_audio_storage` still reports `AUDIO_STORAGE_DRIVER=local`; R2/S3 cutover remains the outstanding infrastructure blocker.
+  - `aialra-babbledeck.service`, `aialra-babbledeck-ws.service`, and `aialra-babbledeck-livekit.service` are active with `NRestarts=0`.
+- Screenshots/traces:
+  - Local and production multi-track runs passed without final failure screenshots after strict-mode text assertions were narrowed.
