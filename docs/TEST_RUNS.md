@@ -1,5 +1,21 @@
 # Test Runs
 
+## 2026-07-06 Immutable Web Release Directory
+
+- Environment: production systemd/Nginx deployment for `https://babbledeck.aialra.online`, current web service still running before the release-dir cutover, and local workspace build output available.
+- Commands:
+  - `bash -n scripts/deploy-production.sh`
+  - `pnpm build`
+  - `find apps/web/.next/standalone/apps/web/node_modules -maxdepth 2 -type l -print -exec readlink {} \\;`
+  - `tmp=$(mktemp -d); mkdir -p "$tmp/release"; cp -a apps/web/.next/standalone/. "$tmp/release/"; test -f "$tmp/release/apps/web/server.js"; test -d "$tmp/release/apps/web/.next/static"; test -d "$tmp/release/node_modules"; rm -rf "$tmp"`
+  - `pnpm lint`
+- Results:
+  - `pnpm deploy:production` now defaults to copying the built standalone output into `/srv/aialra/releases/babbledeck/releases/<commit>-<timestamp>` and flipping `/srv/aialra/releases/babbledeck/current` before restarting the web service.
+  - The deploy wrapper installs a systemd drop-in for `aialra-babbledeck.service` so the web service runs `server.js` from the active release symlink instead of the mutable workspace `.next/standalone` directory.
+  - Deployment JSONL records now include release mode, release path, and current symlink.
+  - A local release-copy smoke verified the standalone server file, static directory, root `node_modules`, and relative standalone symlink layout survive the release copy.
+  - This prevents future workspace builds from rewriting the directory currently serving production web traffic.
+
 ## 2026-07-06 Production Health Release Metadata
 
 - Environment: local workspace plus production deployment target `https://babbledeck.aialra.online`, existing systemd/Nginx deployment wrapper, and production audio storage still local.

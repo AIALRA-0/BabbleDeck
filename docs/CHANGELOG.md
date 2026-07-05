@@ -2,6 +2,7 @@
 
 ## 2026-07-06
 
+- Changed production web deploys to publish immutable standalone release directories under `/srv/aialra/releases/babbledeck` and restart the web service through a stable `current` symlink.
 - Added build-time release metadata to `/api/health` so production can report the deployed git commit, branch, and build timestamp without exposing secrets, and made the deployment smoke verify the expected release commit.
 - Fixed strict Next build typing for export downloads by narrowing the export format before selecting the response content type.
 - Expanded production deployment JSONL records with non-secret readiness summaries and web/recorder systemd service state, result, start time, and restart counts.

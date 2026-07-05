@@ -16,6 +16,11 @@ SKIP_LOGIN_SMOKE="${BABBLEDECK_DEPLOY_SKIP_LOGIN_SMOKE:-0}"
 CHECK_SONIOX_LIVE="${BABBLEDECK_DEPLOY_CHECK_SONIOX_LIVE:-1}"
 STRICT_READINESS="${BABBLEDECK_DEPLOY_STRICT:-0}"
 HTTP_WAIT_SECONDS="${BABBLEDECK_DEPLOY_HTTP_WAIT_SECONDS:-60}"
+USE_RELEASE_DIR="${BABBLEDECK_DEPLOY_USE_RELEASE_DIR:-1}"
+RELEASE_ROOT="${BABBLEDECK_RELEASE_ROOT:-/srv/aialra/releases/babbledeck}"
+RELEASE_CURRENT_LINK="${BABBLEDECK_RELEASE_CURRENT_LINK:-$RELEASE_ROOT/current}"
+WEB_SERVICE_DROPIN_DIR="${BABBLEDECK_WEB_SERVICE_DROPIN_DIR:-/etc/systemd/system/$WEB_SERVICE.d}"
+WEB_SERVICE_RELEASE_DROPIN="${BABBLEDECK_WEB_SERVICE_RELEASE_DROPIN:-$WEB_SERVICE_DROPIN_DIR/release.conf}"
 
 tmp_files=()
 cleanup() {
@@ -50,6 +55,43 @@ wait_for_https() {
     fi
     sleep 2
   done
+}
+
+prepare_release_dir() {
+  local release_id="$commit-$(date -u +%Y%m%dT%H%M%SZ)"
+  local source_dir="$APP_DIR/apps/web/.next/standalone"
+  local release_dir="$RELEASE_ROOT/releases/$release_id"
+  local tmp_link="$RELEASE_ROOT/.current-$release_id"
+
+  if [[ ! -f "$source_dir/apps/web/server.js" ]]; then
+    echo "Standalone server output is missing: $source_dir/apps/web/server.js" >&2
+    exit 1
+  fi
+
+  mkdir -p "$RELEASE_ROOT/releases"
+  rm -rf "$release_dir"
+  mkdir -p "$release_dir"
+  cp -a "$source_dir/." "$release_dir/"
+
+  if [[ ! -f "$release_dir/apps/web/server.js" ]]; then
+    echo "Release server output is missing after copy: $release_dir/apps/web/server.js" >&2
+    exit 1
+  fi
+
+  ln -sfn "$release_dir" "$tmp_link"
+  mv -Tf "$tmp_link" "$RELEASE_CURRENT_LINK"
+  release_path="$release_dir"
+}
+
+install_web_release_dropin() {
+  mkdir -p "$WEB_SERVICE_DROPIN_DIR"
+  cat >"$WEB_SERVICE_RELEASE_DROPIN" <<UNIT
+[Service]
+WorkingDirectory=$RELEASE_CURRENT_LINK/apps/web
+ExecStart=
+ExecStart=/usr/bin/node server.js
+UNIT
+  systemctl daemon-reload
 }
 
 need_command curl
@@ -97,6 +139,7 @@ if [[ -z "${SEED_ADMIN_PASSWORD:-}" ]]; then
 fi
 
 status_line "deploying commit $commit from $branch to $BASE_URL"
+release_path="$APP_DIR/apps/web/.next/standalone"
 
 if [[ "$SKIP_BUILD" != "1" ]]; then
   status_line "building standalone output"
@@ -104,6 +147,13 @@ if [[ "$SKIP_BUILD" != "1" ]]; then
     BABBLEDECK_RELEASE_BRANCH="$branch" \
     BABBLEDECK_RELEASE_BUILT_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     pnpm build --force
+fi
+
+if [[ "$USE_RELEASE_DIR" == "1" ]]; then
+  status_line "preparing immutable web release directory"
+  prepare_release_dir
+  status_line "installing web service release drop-in"
+  install_web_release_dropin
 fi
 
 status_line "restarting $WEB_SERVICE and $WS_SERVICE"
@@ -250,6 +300,7 @@ export deployed_at commit branch BASE_URL WEB_SERVICE WS_SERVICE
 export web_started web_active web_sub web_restarts web_result
 export ws_started ws_active ws_sub ws_restarts ws_result
 export readiness_file readiness_status STRICT_READINESS
+export USE_RELEASE_DIR release_path RELEASE_CURRENT_LINK
 node <<'NODE' >>"$DEPLOY_LOG"
 const fs = require("node:fs");
 
@@ -280,6 +331,17 @@ const record = {
   commit: process.env.commit,
   branch: process.env.branch,
   baseUrl: process.env.BASE_URL,
+  release: {
+    mode:
+      process.env.USE_RELEASE_DIR === "1"
+        ? "standalone_release"
+        : "workspace_standalone",
+    path: process.env.release_path,
+    currentLink:
+      process.env.USE_RELEASE_DIR === "1"
+        ? process.env.RELEASE_CURRENT_LINK
+        : null,
+  },
   readiness,
   services: {
     web: {

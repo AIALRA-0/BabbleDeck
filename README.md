@@ -285,7 +285,8 @@ device evidence before treating native wrapper runtime validation as complete.
 The current production instance follows the server's existing systemd + Nginx pattern:
 
 - Service: `aialra-babbledeck.service`
-- Web start: standalone Next server at `apps/web/.next/standalone/apps/web/server.js`
+- Web start: standalone Next server from `/srv/aialra/releases/babbledeck/current/apps/web/server.js`
+- Release root: `/srv/aialra/releases/babbledeck/releases/<commit>-<timestamp>` with `current` as the active symlink
 - App port: `127.0.0.1:11970`
 - Recorder WebSocket service: `aialra-babbledeck-ws.service`
 - Recorder WebSocket port: `127.0.0.1:11971`
@@ -304,7 +305,7 @@ The current production instance follows the server's existing systemd + Nginx pa
 
 Soniox realtime requires `SONIOX_API_KEY`. Without it, Soniox-mode sessions are marked degraded while local backup continues. After key changes, run the live readiness probe with `--check-soniox-live`; it sends a short generated WAV silence sample over the Soniox websocket and does not print the key.
 
-`pnpm build` also copies `.next/static` and `public` into the standalone output through `scripts/prepare-standalone-assets.sh`; this keeps the production unit aligned with Next standalone hosting requirements.
+`pnpm build` also copies `.next/static` and `public` into the standalone output through `scripts/prepare-standalone-assets.sh`. `pnpm deploy:production` then copies the full standalone output into an immutable release directory and flips the `current` symlink before restarting the web service, so later builds do not rewrite the directory currently serving production traffic.
 
 To migrate existing raw audio from the local object root to R2/S3-compatible storage, configure the target `AUDIO_STORAGE_*` or `R2_*` variables, keep `SOURCE_AUDIO_STORAGE_DIR` pointed at the previous local root, run:
 
