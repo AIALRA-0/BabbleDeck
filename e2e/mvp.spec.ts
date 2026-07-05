@@ -1,5 +1,5 @@
 import fs from "node:fs/promises";
-import { expect, test, type Page } from "@playwright/test";
+import { chromium, expect, test, type Page } from "@playwright/test";
 
 const adminEmail = process.env.E2E_ADMIN_EMAIL ?? "admin@example.invalid";
 const adminPassword = process.env.E2E_ADMIN_PASSWORD;
@@ -345,6 +345,64 @@ test.describe("BabbleDeck MVP browser flow", () => {
 
     await recorderContext.close();
     await viewerContext.close();
+  });
+
+  test("recorder shows recovery guidance when microphone access is blocked", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "chromium-desktop",
+      "Microphone denied coverage runs once on desktop.",
+    );
+
+    const title = `Playwright session mic denied ${Date.now()}`;
+
+    await page.goto("/");
+    await page.getByRole("link", { name: /open portal/i }).click();
+    await signIn(page);
+    await expect(
+      page.getByRole("heading", { name: "Live sessions" }),
+    ).toBeVisible();
+
+    await page
+      .getByRole("link", { name: /new live session/i })
+      .first()
+      .click();
+    await page.getByLabel("Title").fill(title);
+    await page.getByLabel("Target language").selectOption("zh");
+    await page.getByLabel("Provider").selectOption("mock");
+    await page.getByRole("button", { name: /create session/i }).click();
+    await expect(page.getByRole("heading", { name: title })).toBeVisible();
+    const recorderUrl = page.url();
+
+    const deniedBrowser = await chromium.launch({
+      headless: true,
+      args: ["--use-fake-device-for-media-stream"],
+    });
+    try {
+      const deniedContext = await deniedBrowser.newContext({
+        viewport: { width: 390, height: 844 },
+      });
+      const recorder = await deniedContext.newPage();
+      await recorder.goto(recorderUrl);
+      await expect(
+        recorder.getByRole("heading", { name: title }),
+      ).toBeVisible();
+
+      await recorder.getByRole("button", { name: /test microphone/i }).click();
+      await expect(recorder.getByText("denied", { exact: true })).toBeVisible({
+        timeout: 10_000,
+      });
+      await expect(
+        recorder.getByText(/Microphone access is blocked/i),
+      ).toBeVisible();
+      await expect(
+        recorder.getByRole("button", { name: /start recording/i }),
+      ).toBeVisible();
+      await deniedContext.close();
+    } finally {
+      await deniedBrowser.close();
+    }
   });
 
   test("budget cap marks provider degraded while audio backup continues", async ({

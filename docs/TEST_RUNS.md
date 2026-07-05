@@ -1,5 +1,28 @@
 # Test Runs
 
+## 2026-07-05 Microphone Denied Browser Coverage
+
+- Environment: local workspace, production deployment at `https://babbledeck.aialra.online`, production secret env loaded without printing secrets.
+- Commands:
+  - `pnpm prettier --write e2e/mvp.spec.ts`
+  - `E2E_BASE_URL=https://babbledeck.aialra.online E2E_ADMIN_EMAIL="$SEED_ADMIN_EMAIL" E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD" pnpm e2e e2e/mvp.spec.ts --project=chromium-desktop --grep "microphone access is blocked"`
+  - `pnpm format:check`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/recorder-ws-server.ts scripts/prune-audio-retention.ts scripts/migrate-audio-storage.ts scripts/audit-audio-storage.ts scripts/check-production-readiness.ts scripts/sync-seed-admin.ts playwright.config.ts e2e/mvp.spec.ts`
+  - `E2E_BASE_URL=https://babbledeck.aialra.online E2E_ADMIN_EMAIL="$SEED_ADMIN_EMAIL" E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD" pnpm e2e e2e/mvp.spec.ts --grep "admin creates a live session"`
+  - `pnpm build`
+  - `pnpm tsx scripts/check-production-readiness.ts --strict`
+- Results:
+  - Added a desktop-only Playwright scenario that creates a live session, opens the recorder token URL in a real Chromium context without automatic microphone permission grants, and verifies the `denied` microphone state plus recovery guidance.
+  - First production run reached the expected denied state but failed because the assertion matched both the session title and badge text; the selector was tightened to exact badge text and the production rerun passed.
+  - Format, lint, app typecheck, full unit tests, script/E2E typecheck, and production build passed.
+  - Unit tests remained at `14` files and `44` tests.
+  - Production Playwright desktop and mobile MVP flows still passed after the new scenario was added.
+  - Production smoke cleanup removed 4 temporary Playwright sessions and 7 local audio objects across the denied-path and core-flow runs.
+  - Strict production readiness still fails only because `AUDIO_STORAGE_DRIVER=local`; all required checks pass.
+
 ## 2026-07-05 Multi-Format Export Browser Coverage
 
 - Environment: local workspace, production deployment at `https://babbledeck.aialra.online`, production secret env loaded without printing secrets.

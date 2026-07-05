@@ -32,3 +32,4 @@
 - Added rate limits for transcript export generation and server audio chunk uploads.
 - Added rate limits for recorder control actions and transcript event submissions.
 - Exposed SRT downloads in session history and expanded real-browser export coverage across Markdown, TXT, JSON, SRT, and VTT.
+- Added real-browser recorder coverage for blocked microphone access and recovery guidance.
