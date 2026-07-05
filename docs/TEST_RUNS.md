@@ -1490,5 +1490,11 @@
 - Results:
   - Static checks, unit tests, script typecheck, and production build passed.
   - Desktop and mobile Playwright MVP flows passed with coverage for viewer translation-only, bilingual, and original-only caption modes, copy-visible-transcript clipboard behavior, caption size toggle, light/dark theme toggle, session create, recorder flow, viewer captions, history corrections, and exports.
+  - Production deploy passed for commit `78e1aad` through `pnpm db:generate && pnpm deploy:production`; required readiness, seed-admin login smoke, and anonymous protected-route Playwright smoke passed.
+  - Production desktop and mobile Playwright MVP flows passed against `https://babbledeck.aialra.online` with the same viewer control assertions.
+  - Strict production readiness with live Soniox passed every required check and still failed only the external `off_host_audio_storage` check because production uses local audio storage.
+  - Production health reported `audioDriver=local`, `offHostReady=false`, `soniox=true`, and `livekit=true`; web, recorder WebSocket, and LiveKit services were active with `NRestarts=0`.
+  - Production cleanup archived `2` recent Playwright smoke sessions and found no remaining `Playwright glossary` terms.
 - Screenshots/traces:
   - Local runs passed without failure screenshots.
+  - Production runs passed without failure screenshots.
