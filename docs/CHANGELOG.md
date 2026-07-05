@@ -57,3 +57,4 @@
 - Fixed the Tauri desktop scaffold crate layout, added a generated app icon, installed Linux Tauri prerequisites on the server, and validated cargo check, native release build, and headless startup smoke.
 - Added a production Soniox UI smoke that generates fake-microphone speech, runs the real deployed recorder/viewer flow in Chromium, writes a non-secret JSONL marker, and is checked by production readiness.
 - Added the Capacitor Android platform project and Android wrapper build scripts, installed the server Android SDK/JDK toolchain, and validated Android Gradle project resolution plus debug APK assembly.
+- Added the Capacitor iOS platform project with Swift Package Manager integration, split mobile sync scripts by platform, and verified Android/iOS native microphone permission declarations.

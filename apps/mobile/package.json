@@ -9,10 +9,13 @@
     "typecheck": "tsc --noEmit",
     "test": "pnpm check",
     "native:sync": "cap sync && tsx ../../scripts/fix-capacitor-android-settings.ts",
-    "native:check:android": "pnpm native:sync && bash -lc 'export ANDROID_HOME=\"${ANDROID_HOME:-/usr/lib/android-sdk}\"; export ANDROID_SDK_ROOT=\"${ANDROID_SDK_ROOT:-$ANDROID_HOME}\"; ./android/gradlew -p android projects'",
-    "native:build:android": "pnpm native:sync && bash -lc 'export ANDROID_HOME=\"${ANDROID_HOME:-/usr/lib/android-sdk}\"; export ANDROID_SDK_ROOT=\"${ANDROID_SDK_ROOT:-$ANDROID_HOME}\"; ./android/gradlew -p android :app:assembleDebug'",
-    "native:run:android": "pnpm native:sync && cap run android",
-    "native:run:ios": "cap run ios"
+    "native:sync:android": "cap sync android && tsx ../../scripts/fix-capacitor-android-settings.ts",
+    "native:sync:ios": "cap sync ios",
+    "native:check:android": "pnpm native:sync:android && bash -lc 'export ANDROID_HOME=\"${ANDROID_HOME:-/usr/lib/android-sdk}\"; export ANDROID_SDK_ROOT=\"${ANDROID_SDK_ROOT:-$ANDROID_HOME}\"; ./android/gradlew -p android projects'",
+    "native:build:android": "pnpm native:sync:android && bash -lc 'export ANDROID_HOME=\"${ANDROID_HOME:-/usr/lib/android-sdk}\"; export ANDROID_SDK_ROOT=\"${ANDROID_SDK_ROOT:-$ANDROID_HOME}\"; ./android/gradlew -p android :app:assembleDebug'",
+    "native:check:ios": "pnpm native:sync:ios && tsx ../../scripts/verify-wrapper-configs.ts --mobile",
+    "native:run:android": "pnpm native:sync:android && cap run android",
+    "native:run:ios": "pnpm native:sync:ios && cap run ios"
   },
   "dependencies": {
     "@capacitor/core": "^8.4.1"

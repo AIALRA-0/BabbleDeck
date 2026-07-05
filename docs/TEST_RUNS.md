@@ -17,6 +17,21 @@
   - Debug APK assembly passed and produced `apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk` locally; build artifacts remain ignored.
   - Physical Android device execution and iOS wrapper validation remain follow-up items.
 
+## 2026-07-05 Capacitor iOS Scaffold
+
+- Environment: production-first mobile wrapper pointing at `https://babbledeck.aialra.online`, Linux server, Capacitor iOS package, and Swift Package Manager integration.
+- Commands:
+  - `pnpm --filter @babbledeck/mobile exec cap add ios --packagemanager SPM`
+  - `pnpm --filter @babbledeck/mobile native:sync`
+  - `pnpm --filter @babbledeck/mobile native:check:ios`
+  - `pnpm wrappers:check`
+- Results:
+  - Added the committed Capacitor iOS project in `apps/mobile/ios`.
+  - The iOS wrapper uses Swift Package Manager metadata through `CapApp-SPM/Package.swift`.
+  - Added native microphone permissions for wrapper recording: `android.permission.RECORD_AUDIO` in Android and `NSMicrophoneUsageDescription` in iOS.
+  - `scripts/verify-wrapper-configs.ts` now verifies Android and iOS wrapper project metadata, bundle identifiers, production URL config source, and microphone permission declarations.
+  - iOS build and device execution still require macOS/Xcode and a physical or simulator device outside this Linux server.
+
 ## 2026-07-05 Production Soniox UI Smoke
 
 - Environment: production deployment at `https://babbledeck.aialra.online`, configured `SONIOX_API_KEY`, Chromium desktop project, and generated fake-microphone WAV from `ffmpeg` flite speech.

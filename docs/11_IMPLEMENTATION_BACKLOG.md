@@ -273,6 +273,9 @@ Progress:
 - Added the Android Capacitor platform project, normalized the pnpm Gradle
   module path after sync, installed the server Android SDK/JDK toolchain, and
   verified `native:check:android` plus `native:build:android`.
+- Added the iOS Capacitor platform project with Swift Package Manager
+  integration and verified project metadata plus native microphone permission
+  declarations with `native:check:ios`.
 
 ### BDK-0902 Tauri wrapper
 

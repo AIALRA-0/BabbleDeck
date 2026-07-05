@@ -116,9 +116,42 @@ async function checkMobile(rootDir: string) {
     path.join(androidDir, "capacitor.settings.gradle"),
     "utf8",
   );
+  const androidManifest = await readFile(
+    path.join(androidDir, "app/src/main/AndroidManifest.xml"),
+    "utf8",
+  );
   assert(
     androidSettings.includes("../node_modules/@capacitor/android/capacitor"),
     "Capacitor Android settings must use the workspace package symlink path.",
+  );
+  assert(
+    androidManifest.includes("android.permission.INTERNET") &&
+      androidManifest.includes("android.permission.RECORD_AUDIO"),
+    "Capacitor Android manifest must request internet and microphone permissions.",
+  );
+
+  const iosDir = path.join(rootDir, "apps/mobile/ios/App");
+  await access(path.join(iosDir, "App.xcodeproj/project.pbxproj"));
+  await access(path.join(iosDir, "CapApp-SPM/Package.swift"));
+  const iosInfoPlist = await readFile(
+    path.join(iosDir, "App/Info.plist"),
+    "utf8",
+  );
+  const iosProject = await readFile(
+    path.join(iosDir, "App.xcodeproj/project.pbxproj"),
+    "utf8",
+  );
+  assert(
+    iosInfoPlist.includes("<string>BabbleDeck</string>"),
+    "Capacitor iOS display name must be BabbleDeck.",
+  );
+  assert(
+    iosInfoPlist.includes("NSMicrophoneUsageDescription"),
+    "Capacitor iOS Info.plist must include a microphone usage description.",
+  );
+  assert(
+    iosProject.includes("PRODUCT_BUNDLE_IDENTIFIER = online.aialra.babbledeck"),
+    "Capacitor iOS bundle identifier is unexpected.",
   );
 }
 

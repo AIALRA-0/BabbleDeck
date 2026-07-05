@@ -10,3 +10,9 @@ apps/mobile/android/**/build/
 apps/mobile/android/app/src/main/assets/
 apps/mobile/android/app/src/main/res/xml/config.xml
 apps/mobile/android/capacitor-cordova-android-plugins/
+apps/mobile/ios/App/App.xcodeproj/
+apps/mobile/ios/App/App/Assets.xcassets/
+apps/mobile/ios/App/App/capacitor.config.json
+apps/mobile/ios/App/App/config.xml
+apps/mobile/ios/App/App/public/
+apps/mobile/ios/capacitor-cordova-ios-plugins/
