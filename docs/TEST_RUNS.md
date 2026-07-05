@@ -1,5 +1,27 @@
 # Test Runs
 
+## 2026-07-05 Recorder Microphone Input Selector
+
+- Environment: local workspace with Docker Postgres on `localhost:55432`, Playwright dev servers on `127.0.0.1:3112` and `127.0.0.1:3113`, and production secret env loaded only for the local seed-admin password.
+- Commands:
+  - `DATABASE_URL=postgresql://babbledeck:babbledeck@localhost:55432/babbledeck_dev pnpm db:migrate`
+  - `DATABASE_URL=postgresql://babbledeck:babbledeck@localhost:55432/babbledeck_dev pnpm db:seed`
+  - `DATABASE_URL=postgresql://babbledeck:babbledeck@localhost:55432/babbledeck_dev pnpm tsx scripts/sync-seed-admin.ts`
+  - `DATABASE_URL=postgresql://babbledeck:babbledeck@localhost:55432/babbledeck_dev E2E_BASE_URL=http://127.0.0.1:3112 pnpm e2e e2e/mvp.spec.ts --project=chromium-desktop --grep "admin creates a live session"`
+  - `DATABASE_URL=postgresql://babbledeck:babbledeck@localhost:55432/babbledeck_dev E2E_BASE_URL=http://127.0.0.1:3113 pnpm e2e e2e/mvp.spec.ts --project=chromium-mobile --grep "admin creates a live session"`
+  - `pnpm format:check`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `pnpm build`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/recorder-ws-server.ts scripts/prune-audio-retention.ts scripts/migrate-audio-storage.ts scripts/audit-audio-storage.ts scripts/preflight-audio-storage.ts scripts/preflight-livekit.ts scripts/collect-production-metrics.ts scripts/load-smoke-production.ts scripts/soniox-smoke-production.ts scripts/security-baseline-audit.ts scripts/verify-wrapper-configs.ts scripts/check-production-readiness.ts scripts/sync-seed-admin.ts playwright.config.ts`
+- Results:
+  - Recorder pages now enumerate `audioinput` devices where the browser supports `navigator.mediaDevices.enumerateDevices`.
+  - The recorder shows a `Microphone input` selector with a default microphone option and any discovered input labels, refreshes labels after microphone permission is granted, and listens for `devicechange`.
+  - Starting recording uses the selected device id when present and disables the selector while recording is active.
+  - Desktop and mobile Playwright main flows passed while asserting the selector is visible/enabled before recording and disabled during active recording.
+  - Full format, lint, typecheck, unit tests, script typecheck, and production build passed.
+
 ## 2026-07-05 Production Self-Hosted LiveKit Room Audio
 
 - Environment: production deployment at `https://babbledeck.aialra.online`, self-hosted LiveKit service `aialra-babbledeck-livekit.service`, same-domain Nginx `/livekit/` proxy, configured Soniox key, and local production audio storage.

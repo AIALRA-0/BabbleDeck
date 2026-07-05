@@ -65,3 +65,4 @@
 - Added browser LiveKit room-audio publishing/subscribing with recorder/viewer fallback states when LiveKit is not configured.
 - Added self-hosted production LiveKit installation on the existing systemd/Nginx server through same-domain `/livekit/`, plus a guarded production UI smoke that verifies recorder publishing and viewer room-audio subscription.
 - Added LiveKit production readiness evidence checks for configured credentials, the self-hosted systemd service, restart count, and recent passing UI smoke.
+- Added a recorder microphone input selector backed by browser device enumeration, with desktop/mobile Playwright coverage that keeps the selector locked during active recording.

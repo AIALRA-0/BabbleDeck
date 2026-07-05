@@ -274,6 +274,8 @@ test.describe("BabbleDeck MVP browser flow", () => {
     await expect(recorder.getByRole("link", { name: /history/i })).toHaveCount(
       0,
     );
+    await expect(recorder.getByLabel("Microphone input")).toBeVisible();
+    await expect(recorder.getByLabel("Microphone input")).toBeEnabled();
     await expect(
       recorder.locator("aside p").filter({ hasText: "/s/" }),
     ).toHaveText(viewerUrl ?? "");
@@ -324,6 +326,7 @@ test.describe("BabbleDeck MVP browser flow", () => {
     await expect(
       recorder.getByText("Not configured", { exact: true }),
     ).toBeVisible({ timeout: 12_000 });
+    await expect(recorder.getByLabel("Microphone input")).toBeDisabled();
     await expect(
       recorder.getByText(/[1-9][0-9]*\/[1-9][0-9]* uploaded/),
     ).toBeVisible({

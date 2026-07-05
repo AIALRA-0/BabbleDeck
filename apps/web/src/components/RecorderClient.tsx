@@ -132,6 +132,11 @@ type RecorderWsMessage =
   | { type: "ready"; connectionId: string; sessionId: string }
   | { type: "pong"; requestId?: string };
 
+type AudioInputDevice = {
+  deviceId: string;
+  label: string;
+};
+
 const script = [
   {
     original: "Welcome to BabbleDeck. The recorder is now live.",
@@ -183,6 +188,9 @@ export function RecorderClient({
   const [backupAction, setBackupAction] = useState<
     "idle" | "connecting" | "retrying"
   >("idle");
+  const [audioDeviceSupported, setAudioDeviceSupported] = useState(false);
+  const [audioInputs, setAudioInputs] = useState<AudioInputDevice[]>([]);
+  const [selectedAudioInputId, setSelectedAudioInputId] = useState("");
   const [backupError, setBackupError] = useState<string | null>(null);
   const [backupNotice, setBackupNotice] = useState<string | null>(null);
   const [liveKitStatus, setLiveKitStatus] =
@@ -252,6 +260,34 @@ export function RecorderClient({
     setBackup(await countLocalChunks(sessionId));
   }, [sessionId]);
 
+  const refreshAudioInputs = useCallback(async () => {
+    if (!navigator.mediaDevices?.enumerateDevices) {
+      setAudioDeviceSupported(false);
+      setAudioInputs([]);
+      setSelectedAudioInputId("");
+      return;
+    }
+
+    setAudioDeviceSupported(true);
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const inputs = devices
+        .filter((device) => device.kind === "audioinput")
+        .map((device, index) => ({
+          deviceId: device.deviceId,
+          label: device.label || `Microphone ${index + 1}`,
+        }));
+      setAudioInputs(inputs);
+      setSelectedAudioInputId((current) =>
+        current && inputs.some((device) => device.deviceId === current)
+          ? current
+          : "",
+      );
+    } catch {
+      setAudioInputs([]);
+    }
+  }, []);
+
   useEffect(() => {
     recordingRef.current = recording;
   }, [recording]);
@@ -284,6 +320,20 @@ export function RecorderClient({
     }, 0);
     return () => window.clearTimeout(timeout);
   }, []);
+
+  useEffect(() => {
+    if (typeof navigator === "undefined") return;
+    const timeout = window.setTimeout(() => {
+      void refreshAudioInputs();
+    }, 0);
+
+    const mediaDevices = navigator.mediaDevices;
+    mediaDevices?.addEventListener?.("devicechange", refreshAudioInputs);
+    return () => {
+      window.clearTimeout(timeout);
+      mediaDevices?.removeEventListener?.("devicechange", refreshAudioInputs);
+    };
+  }, [refreshAudioInputs]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -584,9 +634,14 @@ export function RecorderClient({
   async function ensureMic() {
     if (streamRef.current) return streamRef.current;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: selectedAudioInputId
+          ? { deviceId: { exact: selectedAudioInputId } }
+          : true,
+      });
       streamRef.current = stream;
       setPermission("granted");
+      void refreshAudioInputs();
       const AudioContextCtor =
         window.AudioContext ||
         (window as WindowWithWebkitAudio).webkitAudioContext;
@@ -1013,6 +1068,32 @@ export function RecorderClient({
                 Microphone access is blocked. Allow microphone access in the
                 browser and retry.
               </p>
+            ) : null}
+            {audioDeviceSupported ? (
+              <div className="mt-4">
+                <label
+                  htmlFor="audioInput"
+                  className="mb-2 block text-sm font-semibold"
+                >
+                  Microphone input
+                </label>
+                <select
+                  id="audioInput"
+                  className="focus-ring h-11 w-full rounded-md border border-input bg-white px-3 text-sm"
+                  value={selectedAudioInputId}
+                  onChange={(event) =>
+                    setSelectedAudioInputId(event.target.value)
+                  }
+                  disabled={recording || pending}
+                >
+                  <option value="">Default microphone</option>
+                  {audioInputs.map((device) => (
+                    <option key={device.deviceId} value={device.deviceId}>
+                      {device.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             ) : null}
           </div>
 
