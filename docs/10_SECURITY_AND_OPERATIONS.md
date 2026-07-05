@@ -132,7 +132,7 @@ Minimum rate limits:
 - Audio chunk upload.
 - Export generation.
 - Retranslate endpoint.
-- Current production enforces login, session creation, export generation, and audio chunk upload rate limits with environment-configurable per-minute thresholds.
+- Current production enforces login, session creation, recorder control, transcript event append, export generation, and audio chunk upload rate limits with environment-configurable per-minute thresholds.
 
 If using serverless, use Redis/Upstash or provider-native rate limiting.
 

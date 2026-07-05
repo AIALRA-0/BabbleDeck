@@ -2,6 +2,8 @@ import { afterEach, describe, expect, test } from "vitest";
 import {
   checkAudioChunkUploadRateLimit,
   checkExportRateLimit,
+  checkRecorderControlRateLimit,
+  checkTranscriptEventAppendRateLimit,
 } from "@/server/sensitive-route-rate-limit";
 import { resetRateLimitsForTest } from "@/server/rate-limit";
 
@@ -57,5 +59,39 @@ describe("sensitive route rate limits", () => {
         ip: "203.0.113.11",
       }),
     ).toMatchObject({ allowed: true });
+  });
+
+  test("limits recorder controls per session and source ip", () => {
+    process.env.RECORDER_CONTROL_RATE_LIMIT_PER_MINUTE = "1";
+
+    expect(
+      checkRecorderControlRateLimit({
+        sessionId: "session-1",
+        ip: "203.0.113.10",
+      }),
+    ).toMatchObject({ allowed: true });
+    expect(
+      checkRecorderControlRateLimit({
+        sessionId: "session-1",
+        ip: "203.0.113.10",
+      }),
+    ).toMatchObject({ allowed: false });
+  });
+
+  test("limits transcript event appends per session and source ip", () => {
+    process.env.TRANSCRIPT_EVENT_APPEND_RATE_LIMIT_PER_MINUTE = "1";
+
+    expect(
+      checkTranscriptEventAppendRateLimit({
+        sessionId: "session-1",
+        ip: "203.0.113.10",
+      }),
+    ).toMatchObject({ allowed: true });
+    expect(
+      checkTranscriptEventAppendRateLimit({
+        sessionId: "session-1",
+        ip: "203.0.113.10",
+      }),
+    ).toMatchObject({ allowed: false });
   });
 });

@@ -1,8 +1,9 @@
 import { auditLog } from "@/server/audit";
-import { ok } from "@/server/api";
+import { fail, getClientIp, ok } from "@/server/api";
 import { serializeSession } from "@/server/serializers";
 import { prisma } from "@/server/db";
 import { requireRecorderAccess } from "@/server/recorder-route-access";
+import { checkRecorderControlRateLimit } from "@/server/sensitive-route-rate-limit";
 
 export async function POST(
   request: Request,
@@ -12,6 +13,15 @@ export async function POST(
   const auth = await requireRecorderAccess(request, id);
   if ("response" in auth) return auth.response;
   const { access } = auth;
+  const limited = checkRecorderControlRateLimit({
+    sessionId: id,
+    ip: getClientIp(request),
+  });
+  if (!limited.allowed) {
+    return fail("RATE_LIMITED", "Too many recorder control requests.", 429, {
+      retryAfterSeconds: limited.retryAfterSeconds,
+    });
+  }
   const existing = access.session;
   const session = await prisma.liveSession.update({
     where: { id },

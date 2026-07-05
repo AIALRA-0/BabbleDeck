@@ -27,3 +27,25 @@ export function checkAudioChunkUploadRateLimit(input: {
     WINDOW_MS,
   );
 }
+
+export function checkRecorderControlRateLimit(input: {
+  sessionId: string;
+  ip: string;
+}): RateLimitResult {
+  return checkRateLimit(
+    `recorder-control:${input.sessionId}:${input.ip}`,
+    minuteLimit("RECORDER_CONTROL_RATE_LIMIT_PER_MINUTE", 30),
+    WINDOW_MS,
+  );
+}
+
+export function checkTranscriptEventAppendRateLimit(input: {
+  sessionId: string;
+  ip: string;
+}): RateLimitResult {
+  return checkRateLimit(
+    `transcript-events:${input.sessionId}:${input.ip}`,
+    minuteLimit("TRANSCRIPT_EVENT_APPEND_RATE_LIMIT_PER_MINUTE", 120),
+    WINDOW_MS,
+  );
+}
