@@ -2,6 +2,7 @@ import appPackage from "../../package.json";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/server/db";
 import { resolveAudioStorageConfig } from "@/server/audio-storage";
+import { liveKitConfigured } from "@/server/livekit";
 
 const startedAt = Date.now();
 
@@ -22,6 +23,9 @@ export type HealthStatus = {
     };
     providers: {
       soniox: {
+        configured: boolean;
+      };
+      livekit: {
         configured: boolean;
       };
     };
@@ -112,6 +116,9 @@ export async function getHealthStatus(options?: {
       providers: {
         soniox: {
           configured: Boolean(process.env.SONIOX_API_KEY),
+        },
+        livekit: {
+          configured: liveKitConfigured(),
         },
       },
     },

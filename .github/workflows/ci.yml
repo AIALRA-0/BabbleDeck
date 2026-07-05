@@ -50,7 +50,7 @@ jobs:
       - run: pnpm build
       - name: Secret scan
         run: |
-          if rg -n "REDACTED_LEAKED_PASSWORD_PREFIX|SMOKE_PASSWORD|SECRET_ACCESS_KEY=.*[A-Za-z0-9]{8}|SONIOX_API_KEY=.*[A-Za-z0-9]{8}|SEED_ADMIN_PASSWORD=.*Aial|R2_SECRET_ACCESS_KEY=.*[A-Za-z0-9]{8}" . --glob '!node_modules/**' --glob '!apps/web/.next/**' --glob '!pnpm-lock.yaml'; then
+          if rg -n "REDACTED_LEAKED_PASSWORD_PREFIX|SMOKE_PASSWORD|SECRET_ACCESS_KEY=.*[A-Za-z0-9]{8}|SONIOX_API_KEY=.*[A-Za-z0-9]{8}|LIVEKIT_API_SECRET=.*[A-Za-z0-9]{8}|SEED_ADMIN_PASSWORD=.*Aial|R2_SECRET_ACCESS_KEY=.*[A-Za-z0-9]{8}" . --glob '!node_modules/**' --glob '!apps/web/.next/**' --glob '!pnpm-lock.yaml'; then
             echo "Secret-like value found in repository files."
             exit 1
           fi

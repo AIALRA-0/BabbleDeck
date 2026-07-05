@@ -300,6 +300,15 @@ Acceptance:
 
 - Local LiveKit room can publish/subscribe audio.
 
+Progress:
+
+- Added optional LiveKit V2 server-side token generation using the official
+  LiveKit JS server SDK.
+- Added recorder/admin publisher token API and viewer subscriber token API.
+- Added non-secret LiveKit configured status to settings and health responses.
+- Local room publish/subscribe still requires `LIVEKIT_URL`,
+  `LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET` plus a running LiveKit server.
+
 ### BDK-1002 Multi-track provider worker
 
 Acceptance:

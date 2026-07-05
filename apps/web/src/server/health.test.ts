@@ -12,6 +12,9 @@ describe("health status", () => {
     process.env.AUDIO_STORAGE_DRIVER = "local";
     process.env.AUDIO_STORAGE_DIR = "/tmp/babbledeck-health";
     process.env.SONIOX_API_KEY = "test-key";
+    process.env.LIVEKIT_URL = "wss://livekit.example.test";
+    process.env.LIVEKIT_API_KEY = "livekit-key";
+    process.env.LIVEKIT_API_SECRET = ["livekit", "secret"].join("-");
 
     const health = await getHealthStatus({
       databaseCheck: async () => true,
@@ -31,10 +34,12 @@ describe("health status", () => {
         },
         providers: {
           soniox: { configured: true },
+          livekit: { configured: true },
         },
       },
     });
     expect(JSON.stringify(health)).not.toContain("test-key");
+    expect(JSON.stringify(health)).not.toContain("livekit-secret");
   });
 
   test("marks off-host storage ready only when target credentials are present", async () => {

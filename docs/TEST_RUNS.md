@@ -1,5 +1,21 @@
 # Test Runs
 
+## 2026-07-05 LiveKit V2 Token Foundation
+
+- Environment: local workspace, official `livekit-server-sdk`, and Vitest route/module coverage.
+- Commands:
+  - `pnpm --filter @babbledeck/web add livekit-server-sdk`
+  - `pnpm --filter @babbledeck/web typecheck`
+  - `pnpm --filter @babbledeck/web test -- livekit`
+  - `pnpm tsx scripts/security-baseline-audit.ts --base-url=https://babbledeck.aialra.online`
+- Results:
+  - Added optional LiveKit V2 token generation with short TTL, BabbleDeck room naming, publisher/subscriber roles, and microphone-only publish grants.
+  - Added `/api/sessions/[id]/livekit-token` for owner/recorder-token access and `/api/viewer/session/[shareToken]/livekit-token` for subscriber-only viewer access.
+  - Added non-secret LiveKit configured status to settings and `/api/health`.
+  - LiveKit-specific tests passed with `19` files and `62` tests, including JWT grant decoding and route behavior.
+  - Production security baseline passed after adding LiveKit env placeholders and sensitive-key checks.
+  - Production LiveKit remains unconfigured until `LIVEKIT_URL`, `LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET` are supplied.
+
 ## 2026-07-05 Production Audio Storage Env Configure Wrapper
 
 - Environment: local workspace, temporary env files, and production audio storage management scripts.

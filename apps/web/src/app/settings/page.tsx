@@ -9,6 +9,14 @@ export default async function SettingsPage() {
   const audioRetentionDays = await getAudioRetentionDaysSetting();
   const providers = [
     ["Soniox", Boolean(process.env.SONIOX_API_KEY)],
+    [
+      "LiveKit V2",
+      Boolean(
+        process.env.LIVEKIT_URL &&
+        process.env.LIVEKIT_API_KEY &&
+        process.env.LIVEKIT_API_SECRET,
+      ),
+    ],
     ["Azure Translator", Boolean(process.env.AZURE_TRANSLATOR_KEY)],
     ["OpenAI", Boolean(process.env.OPENAI_API_KEY)],
   ] as const;

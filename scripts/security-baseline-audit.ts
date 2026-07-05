@@ -16,6 +16,7 @@ const SECRET_SCAN_PATTERN = [
   "SMOKE_" + "PASSWORD",
   "SECRET_" + "ACCESS_KEY=.*" + "[A-Za-z0-9]{8}",
   "SONIOX_API_KEY=.*" + "[A-Za-z0-9]{8}",
+  "LIVEKIT_API_" + "SECRET=.*" + "[A-Za-z0-9]{8}",
   "SEED_ADMIN_" + "PASSWORD=.*" + "Aial",
   "R2_SECRET_" + "ACCESS_KEY=.*" + "[A-Za-z0-9]{8}",
 ].join("|");
@@ -30,6 +31,9 @@ const REQUIRED_ENV_EXAMPLE_KEYS = [
   "R2_ACCESS_KEY_ID",
   "R2_SECRET_ACCESS_KEY",
   "R2_BUCKET",
+  "LIVEKIT_URL",
+  "LIVEKIT_API_KEY",
+  "LIVEKIT_API_SECRET",
 ];
 
 const SENSITIVE_ENV_NAMES = [
@@ -37,6 +41,7 @@ const SENSITIVE_ENV_NAMES = [
   "AUTH_SECRET",
   "SEED_ADMIN_PASSWORD",
   "SONIOX_API_KEY",
+  "LIVEKIT_API_SECRET",
   "AUDIO_STORAGE_SECRET_ACCESS_KEY",
   "R2_SECRET_ACCESS_KEY",
   "S3_SECRET_ACCESS_KEY",
@@ -44,6 +49,11 @@ const SENSITIVE_ENV_NAMES = [
   "OPENAI_API_KEY",
   "AZURE_TRANSLATOR_KEY",
 ];
+
+const NON_SECRET_TOKEN_CONFIG_KEYS = new Set([
+  "LIVEKIT_TOKEN_TTL_SECONDS",
+  "LIVEKIT_TOKEN_RATE_LIMIT_PER_MINUTE",
+]);
 
 function argValue(name: string) {
   const prefix = `${name}=`;
@@ -120,6 +130,7 @@ async function envExamplePlaceholders(checks: AuditCheck[]) {
       .filter((item): item is { key: string; value: string } => Boolean(item));
     const suspicious = assignments
       .filter(({ key, value }) =>
+        !NON_SECRET_TOKEN_CONFIG_KEYS.has(key) &&
         /PASSWORD|SECRET|API_KEY|ACCESS_KEY|TOKEN|_KEY$/i.test(key)
           ? value &&
             !value.startsWith("replace-with") &&

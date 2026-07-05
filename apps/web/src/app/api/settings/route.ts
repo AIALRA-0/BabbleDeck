@@ -24,6 +24,13 @@ export async function GET() {
     defaultProvider: process.env.SONIOX_API_KEY ? "soniox" : "mock",
     providers: {
       soniox: { configured: Boolean(process.env.SONIOX_API_KEY) },
+      livekit: {
+        configured: Boolean(
+          process.env.LIVEKIT_URL &&
+          process.env.LIVEKIT_API_KEY &&
+          process.env.LIVEKIT_API_SECRET,
+        ),
+      },
       azure: { configured: Boolean(process.env.AZURE_TRANSLATOR_KEY) },
       openai: { configured: Boolean(process.env.OPENAI_API_KEY) },
     },

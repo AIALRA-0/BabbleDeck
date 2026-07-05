@@ -416,6 +416,7 @@ Returns non-secret app settings and provider status.
     "defaultProvider": "soniox",
     "providers": {
       "soniox": { "configured": true },
+      "livekit": { "configured": false },
       "azure": { "configured": false },
       "openai": { "configured": false }
     },
@@ -436,7 +437,48 @@ Returns glossary terms.
 
 Create term.
 
-## 12. Recorder WebSocket
+## 12. LiveKit V2 Token API
+
+LiveKit V2 is optional and disabled until `LIVEKIT_URL`, `LIVEKIT_API_KEY`,
+and `LIVEKIT_API_SECRET` are configured. Token responses never expose the API
+secret.
+
+### POST /api/sessions/:id/livekit-token
+
+Requires session owner auth or a scoped recorder token. Returns a short-lived
+LiveKit token for a publisher or subscriber in the session room.
+
+Request:
+
+```json
+{
+  "role": "publisher",
+  "displayName": "Host recorder"
+}
+```
+
+Response:
+
+```json
+{
+  "ok": true,
+  "data": {
+    "url": "wss://livekit.example.com",
+    "token": "jwt",
+    "room": "babbledeck-session-id",
+    "identity": "admin-recorder-random",
+    "role": "publisher",
+    "expiresInSeconds": 900
+  }
+}
+```
+
+### POST /api/viewer/session/:shareToken/livekit-token
+
+Requires a valid public share token. Returns a subscriber-only token for viewer
+audio playback in the LiveKit room.
+
+## 13. Recorder WebSocket
 
 Endpoint:
 
@@ -526,7 +568,7 @@ configured. If the key is missing or the provider errors, the session is marked
 { "type": "pong", "requestId": "uuid" }
 ```
 
-## 13. Viewer live stream
+## 14. Viewer live stream
 
 ### Option A: WebSocket
 
@@ -568,7 +610,7 @@ data: {...}
 
 SSE is simpler for viewer-only one-way updates. WebSocket is more flexible.
 
-## 14. Event schema
+## 15. Event schema
 
 Canonical transcript event:
 
@@ -598,7 +640,7 @@ type TranscriptEvent = {
 };
 ```
 
-## 15. API security requirements
+## 16. API security requirements
 
 - Validate every request.
 - Auth required for admin endpoints.

@@ -42,6 +42,13 @@ AZURE_TRANSLATOR_ENDPOINT=https://api.cognitive.microsofttranslator.com
 # OpenAI optional fallback/retranslate/summarize
 OPENAI_API_KEY=
 
+# LiveKit V2 multi-audio mode
+LIVEKIT_URL=
+LIVEKIT_API_KEY=
+LIVEKIT_API_SECRET=
+LIVEKIT_TOKEN_TTL_SECONDS=900
+LIVEKIT_TOKEN_RATE_LIMIT_PER_MINUTE=60
+
 # Cloudflare R2 / S3-compatible storage
 R2_ACCOUNT_ID=
 R2_ACCESS_KEY_ID=

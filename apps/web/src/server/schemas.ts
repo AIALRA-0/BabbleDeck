@@ -94,6 +94,11 @@ export const updateSessionLegalHoldSchema = z.object({
   rawAudioLegalHold: z.boolean(),
 });
 
+export const liveKitTokenSchema = z.object({
+  role: z.enum(["publisher", "subscriber"]).default("publisher"),
+  displayName: z.string().trim().min(1).max(120).optional(),
+});
+
 export const updateTranscriptSegmentSchema = z
   .object({
     originalText: z.string().trim().min(1).max(5000).optional(),
