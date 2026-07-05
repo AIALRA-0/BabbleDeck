@@ -1,5 +1,23 @@
 # Test Runs
 
+## 2026-07-06 Production Soniox API Key Verification
+
+- Environment: production deployment at `https://babbledeck.aialra.online`, `SONIOX_API_KEY` present in the production secrets env, immutable web release directories enabled, and production audio storage still local.
+- Commands:
+  - `pnpm deploy:production`
+  - `curl -fsS https://babbledeck.aialra.online/api/health`
+  - `systemctl show aialra-babbledeck.service aialra-babbledeck-ws.service aialra-babbledeck-livekit.service --property=Id,ActiveState,SubState,NRestarts,ExecMainStartTimestamp --no-pager`
+  - `readlink -f /srv/aialra/releases/babbledeck/current`
+  - `tail -n 1 /srv/aialra/logs/babbledeck/deployments.jsonl`
+  - `bash -lc 'set -a; . /srv/aialra/config/secrets/babbledeck.env; set +a; pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --check-soniox-live --expected-release-commit=550611dac9e2'`
+- Results:
+  - Production deploy for commit `550611dac9e2` passed: forced standalone build, immutable release publication, web/recorder service restart, HTTPS readiness, homepage content check, readiness, seed-admin login/logout smoke, and anonymous protected-route Playwright smoke.
+  - Live `/api/health` returned `status="ok"`, `release.commit="550611dac9e2"`, Soniox configured, LiveKit configured, audio storage `driver="local"`, and `offHostReady=false`.
+  - The active release symlink pointed to `/srv/aialra/releases/babbledeck/releases/550611dac9e2-20260705T234021Z`, and the deployment JSONL record reported release mode `standalone_release`.
+  - Web, recorder WebSocket, and LiveKit services were active/running after deployment with `NRestarts=0`.
+  - Strict production readiness with `--check-soniox-live` returned `requiredOk=true`: `soniox_api_key`, `soniox_realtime_connectivity`, recent Soniox recorder smoke, recent Soniox UI smoke, and recent Soniox long trace all passed.
+  - The remaining readiness gaps are external: missing recent Android/iOS/desktop device runtime evidence, and off-host audio storage is not cut over because production still uses local audio storage.
+
 ## 2026-07-06 Immutable Web Release Directory
 
 - Environment: production systemd/Nginx deployment for `https://babbledeck.aialra.online`, current web service still running before the release-dir cutover, and local workspace build output available.
