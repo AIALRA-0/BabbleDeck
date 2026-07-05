@@ -150,6 +150,7 @@ async function envExamplePlaceholders(checks: AuditCheck[]) {
 async function sourceBaseline(checks: AuditCheck[]) {
   const files = await Promise.all([
     readText("apps/web/src/server/same-origin.ts"),
+    readText("apps/web/src/server/request-id.ts"),
     readText("apps/web/src/server/login-rate-limit.ts"),
     readText("apps/web/src/server/sensitive-route-rate-limit.ts"),
     readText("apps/web/src/server/session-service.ts"),
@@ -157,6 +158,8 @@ async function sourceBaseline(checks: AuditCheck[]) {
     readText("apps/web/src/app/api/sessions/route.ts"),
     readText("apps/web/src/app/api/settings/route.ts"),
     readText("apps/web/src/app/api/auth/login/route.ts"),
+    readText("apps/web/src/app/error.tsx"),
+    readText("apps/web/src/proxy.ts"),
     readText("e2e/mvp.spec.ts"),
     readText(".github/workflows/ci.yml"),
   ]);
@@ -173,6 +176,9 @@ async function sourceBaseline(checks: AuditCheck[]) {
     "shareTokenHash: hashToken",
     "recorderTokenHash: hashToken",
     "auth.login_failed",
+    'event: "http.request"',
+    "x-request-id",
+    "ui.error_boundary",
     "anonymous users cannot access admin surfaces",
     "Secret scan",
   ];
@@ -184,7 +190,7 @@ async function sourceBaseline(checks: AuditCheck[]) {
     ok: missing.length === 0,
     message:
       missing.length === 0
-        ? "Source checks found same-origin guards, rate limits, hashed scoped tokens, auth audit logging, protected-route E2E coverage, and CI secret scan."
+        ? "Source checks found same-origin guards, rate limits, hashed scoped tokens, auth audit logging, request correlation logging, error boundary logging, protected-route E2E coverage, and CI secret scan."
         : `Source security controls missing snippets: ${missing.join(", ")}.`,
   });
 }
@@ -230,6 +236,36 @@ async function securityHeaders(baseUrl: URL, checks: AuditCheck[]) {
       name: "live_security_headers",
       ok: false,
       message: "Live production security headers could not be checked.",
+    });
+  }
+}
+
+async function correlationHeaders(baseUrl: URL, checks: AuditCheck[]) {
+  try {
+    const incomingRequestId = "123e4567-e89b-42d3-a456-426614174000";
+    const response = await fetch(baseUrl, {
+      method: "HEAD",
+      headers: { "x-request-id": incomingRequestId },
+    });
+    const requestId = response.headers.get("x-request-id");
+    const correlationId = response.headers.get("x-correlation-id");
+    const ok =
+      response.ok &&
+      requestId === incomingRequestId &&
+      correlationId === incomingRequestId;
+    addCheck(checks, {
+      name: "live_correlation_headers",
+      ok,
+      message: ok
+        ? "Live production responses preserve x-request-id and x-correlation-id."
+        : "Live production responses did not preserve request correlation headers.",
+    });
+  } catch {
+    addCheck(checks, {
+      name: "live_correlation_headers",
+      ok: false,
+      message:
+        "Live production request correlation headers could not be checked.",
     });
   }
 }
@@ -364,6 +400,7 @@ async function main() {
   await envExamplePlaceholders(checks);
   await sourceBaseline(checks);
   await securityHeaders(baseUrl, checks);
+  await correlationHeaders(baseUrl, checks);
   await liveApiBaseline(baseUrl, checks);
   await healthDoesNotLeakSecrets(baseUrl, checks);
 

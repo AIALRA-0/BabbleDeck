@@ -47,3 +47,4 @@
 - Added a systemd production metrics snapshot timer and readiness check.
 - Added a production viewer load-smoke script and readiness check.
 - Added a production security baseline audit and readiness check.
+- Added request correlation headers, structured request logs, and an app error boundary.

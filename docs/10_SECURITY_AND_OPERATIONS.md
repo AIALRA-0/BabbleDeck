@@ -288,16 +288,17 @@ Minimum metrics:
   `/srv/aialra/logs/babbledeck/load-smoke.jsonl`.
 - `pnpm security:audit:production` checks repo secret hygiene, placeholder
   env examples, source-level auth/rate-limit/token controls, live security
-  headers, unauthenticated admin API protection, same-origin mutation rejection,
-  and `/api/health` non-secret output; it writes a non-secret baseline record
-  under `/srv/aialra/logs/babbledeck/security-baseline.jsonl`.
+  headers, request correlation headers, unauthenticated admin API protection,
+  same-origin mutation rejection, and `/api/health` non-secret output; it writes
+  a non-secret baseline record under
+  `/srv/aialra/logs/babbledeck/security-baseline.jsonl`.
 - `/etc/logrotate.d/aialra-babbledeck` rotates BabbleDeck `.log` and `.jsonl`
   files so append-style service logs do not grow without bound.
 
 Minimum logs:
 
 - Structured JSON.
-- Correlation ID.
+- Correlation ID via `x-request-id`/`x-correlation-id`.
 - Session ID.
 - Error code.
 - Provider name.
@@ -330,6 +331,7 @@ Implement:
 - [x] Recorder token scoped.
 - [ ] R2 bucket private and off-host audio cutover complete.
 - [x] Security headers configured.
+- [x] Error boundary and request correlation logging configured.
 - [x] Playwright core flows pass.
 - [x] Mobile browser smoke tested.
 - [x] Soniox live readiness probe passes after provider credential changes.

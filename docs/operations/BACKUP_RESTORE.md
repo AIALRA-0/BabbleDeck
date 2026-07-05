@@ -159,11 +159,12 @@ pnpm security:audit:production
 ```
 
 The audit checks repo secret hygiene, `.env.example` placeholders,
-source-level same-origin/rate-limit/token/audit controls, live production
-security headers, unauthenticated admin API protection, same-origin mutation
-rejection, and `/api/health` non-secret output. It writes a non-secret JSONL
-record to `/srv/aialra/logs/babbledeck/security-baseline.jsonl`. Strict
-readiness requires a recent passing security baseline audit.
+source-level same-origin/rate-limit/token/audit/request-logging/error-boundary
+controls, live production security and request-correlation headers,
+unauthenticated admin API protection, same-origin mutation rejection, and
+`/api/health` non-secret output. It writes a non-secret JSONL record to
+`/srv/aialra/logs/babbledeck/security-baseline.jsonl`. Strict readiness
+requires a recent passing security baseline audit.
 
 ## Log Rotation
 

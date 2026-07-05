@@ -71,6 +71,7 @@
 - Production metrics snapshots can be installed with `pnpm metrics:install:production`; readiness checks that `aialra-babbledeck-metrics.timer` is active and that a recent non-secret JSONL metrics record exists.
 - Production viewer load smoke can be run with `pnpm load:smoke:production -- --viewers=N`; readiness checks for a recent passing non-secret JSONL load-smoke record.
 - Production security baseline can be run with `pnpm security:audit:production`; readiness checks for a recent passing non-secret JSONL audit covering repo hygiene, env placeholders, live security headers, unauthenticated admin API protection, CSRF rejection, and non-secret health output.
+- Production web responses now carry `x-request-id` and `x-correlation-id`; production request middleware writes structured JSON request logs, and the App Router has a client error boundary that emits structured `ui.error_boundary` logs.
 
 ## Next Recommended Tasks
 

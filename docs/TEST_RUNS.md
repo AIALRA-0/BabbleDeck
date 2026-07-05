@@ -1,5 +1,31 @@
 # Test Runs
 
+## 2026-07-05 Request Correlation and Error Boundary
+
+- Environment: local workspace and production deployment at `https://babbledeck.aialra.online`.
+- Commands:
+  - `pnpm --filter @babbledeck/web test -- --run src/server/request-id.test.ts`
+  - `pnpm format:check`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/recorder-ws-server.ts scripts/prune-audio-retention.ts scripts/migrate-audio-storage.ts scripts/audit-audio-storage.ts scripts/collect-production-metrics.ts scripts/load-smoke-production.ts scripts/security-baseline-audit.ts scripts/check-production-readiness.ts scripts/sync-seed-admin.ts playwright.config.ts e2e/mvp.spec.ts`
+  - `pnpm build`
+  - `pnpm deploy:production`
+  - `curl -fsSI -H 'x-request-id: 123e4567-e89b-42d3-a456-426614174000' https://babbledeck.aialra.online/`
+  - `pnpm security:audit:production`
+  - `pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --strict --check-soniox-live`
+- Results:
+  - Added `apps/web/src/proxy.ts` to preserve or generate `x-request-id`, mirror it as `x-correlation-id`, and write structured JSON request logs in production while skipping `/api/health` noise.
+  - Added `apps/web/src/server/request-id.ts` and unit coverage for UUID validation, incoming ID preservation, replacement generation, and structured request log records.
+  - Added `apps/web/src/app/error.tsx` as an App Router error boundary with retry/dashboard actions and structured `ui.error_boundary` logging.
+  - Next production build now reports `ƒ Proxy (Middleware)` without the deprecated `middleware` file warning.
+  - Live HTTPS confirmed `x-request-id` and `x-correlation-id` both preserved the supplied request ID.
+  - Production security baseline audit now passes 10 checks, including `live_correlation_headers`.
+  - Strict production readiness now passes `recent_security_baseline` with `Recent production security baseline audit passed with 10 checks.`
+  - Production deploy wrapper passed after restart with `requiredOk=true`, seed-admin login/logout smoke, and anonymous protected-route Playwright smoke.
+  - Strict production completion still waits on off-host audio storage because production currently has `AUDIO_STORAGE_DRIVER=local`.
+
 ## 2026-07-05 Production Security Baseline Audit
 
 - Environment: local workspace and production deployment at `https://babbledeck.aialra.online`.
