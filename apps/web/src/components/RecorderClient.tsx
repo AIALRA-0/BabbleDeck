@@ -6,6 +6,7 @@ import {
   History,
   Loader2,
   Mic,
+  Radio,
   RefreshCw,
   Square,
   TestTube2,
@@ -14,6 +15,10 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import type {
+  LocalTrackPublication,
+  Room as LiveKitRoom,
+} from "livekit-client";
 import { SessionStatusBadge } from "@/components/SessionStatusBadge";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -63,6 +68,28 @@ type StartSessionResponse =
 
 type StopSessionResponse =
   { ok: true; data: { session: { status: string } } } | { ok: false };
+
+type LiveKitTokenResponse =
+  | {
+      ok: true;
+      data: {
+        url: string;
+        token: string;
+        room: string;
+        identity: string;
+        role: "publisher" | "subscriber";
+        expiresInSeconds: number;
+      };
+    }
+  | { ok: false };
+
+type RecorderLiveKitStatus =
+  | "standby"
+  | "connecting"
+  | "publishing"
+  | "disabled"
+  | "reconnecting"
+  | "error";
 
 type SessionSnapshotResponse =
   | {
@@ -158,6 +185,9 @@ export function RecorderClient({
   >("idle");
   const [backupError, setBackupError] = useState<string | null>(null);
   const [backupNotice, setBackupNotice] = useState<string | null>(null);
+  const [liveKitStatus, setLiveKitStatus] =
+    useState<RecorderLiveKitStatus>("standby");
+  const [liveKitNotice, setLiveKitNotice] = useState<string | null>(null);
   const [providerNotice, setProviderNotice] = useState<string | null>(
     status === "provider_degraded"
       ? "Budget cap reached. Local backup continues."
@@ -175,6 +205,11 @@ export function RecorderClient({
   const streamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
+  const recordingRef = useRef(recording);
+  const liveKitRoomRef = useRef<LiveKitRoom | null>(null);
+  const liveKitTrackRef = useRef<MediaStreamTrack | null>(null);
+  const liveKitPublicationRef = useRef<LocalTrackPublication | null>(null);
+  const liveKitRunRef = useRef(0);
   const recorderSocketRef = useRef<WebSocket | null>(null);
   const recorderSocketPromiseRef = useRef<Promise<WebSocket | null> | null>(
     null,
@@ -198,6 +233,14 @@ export function RecorderClient({
       : viewerUrlFromCache;
   const providerLabel =
     providerName === "soniox" ? "Soniox realtime" : "Mock realtime";
+  const liveKitStatusLabel: Record<RecorderLiveKitStatus, string> = {
+    standby: "Standby",
+    connecting: "Connecting",
+    publishing: "Publishing",
+    disabled: "Not configured",
+    reconnecting: "Reconnecting",
+    error: "Unavailable",
+  };
   const visibleStatus =
     sessionStatus === "provider_degraded"
       ? sessionStatus
@@ -208,6 +251,10 @@ export function RecorderClient({
   const refreshBackupSummary = useCallback(async () => {
     setBackup(await countLocalChunks(sessionId));
   }, [sessionId]);
+
+  useEffect(() => {
+    recordingRef.current = recording;
+  }, [recording]);
 
   useEffect(() => {
     let cancelled = false;
@@ -222,6 +269,7 @@ export function RecorderClient({
       cancelled = true;
       window.clearTimeout(timeout);
       if (timerRef.current) window.clearInterval(timerRef.current);
+      closeLiveKitRoom();
       recorderRef.current?.stop();
       recorderSocketRef.current?.close();
       streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -268,6 +316,120 @@ export function RecorderClient({
     return effectiveRecorderToken
       ? { "X-BabbleDeck-Recorder-Token": effectiveRecorderToken }
       : undefined;
+  }
+
+  function closeLiveKitRoom(nextStatus?: RecorderLiveKitStatus) {
+    liveKitRunRef.current += 1;
+    const room = liveKitRoomRef.current;
+    const track = liveKitTrackRef.current;
+    liveKitRoomRef.current = null;
+    liveKitTrackRef.current = null;
+    liveKitPublicationRef.current = null;
+
+    if (room) {
+      room.removeAllListeners();
+      if (track) {
+        void room.localParticipant
+          .unpublishTrack(track, false)
+          .catch(() => undefined);
+      }
+      void room.disconnect(false).catch(() => undefined);
+    }
+    if (nextStatus) setLiveKitStatus(nextStatus);
+  }
+
+  async function connectLiveKitPublisher(stream: MediaStream) {
+    const audioTrack = stream.getAudioTracks()[0];
+    if (!audioTrack) {
+      setLiveKitStatus("error");
+      setLiveKitNotice("No microphone track is available for room audio.");
+      return;
+    }
+
+    closeLiveKitRoom();
+    const runId = liveKitRunRef.current;
+    setLiveKitStatus("connecting");
+    setLiveKitNotice(null);
+
+    try {
+      const response = await fetch(`/api/sessions/${sessionId}/livekit-token`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(recorderAuthHeaders() ?? {}),
+        },
+        body: JSON.stringify({
+          role: "publisher",
+          displayName: "Recorder",
+        }),
+      });
+
+      if (runId !== liveKitRunRef.current) return;
+      if (response.status === 503) {
+        setLiveKitStatus("disabled");
+        setLiveKitNotice("LiveKit is not configured.");
+        return;
+      }
+      if (!response.ok) {
+        throw new Error("LiveKit token request failed.");
+      }
+
+      const payload = (await response.json()) as LiveKitTokenResponse;
+      if (!payload.ok) {
+        throw new Error("LiveKit token request failed.");
+      }
+
+      const { Room, RoomEvent, Track } = await import("livekit-client");
+      if (runId !== liveKitRunRef.current) return;
+      const room = new Room({
+        adaptiveStream: true,
+        dynacast: true,
+      });
+
+      room.on(RoomEvent.Reconnecting, () => {
+        if (liveKitRoomRef.current === room) setLiveKitStatus("reconnecting");
+      });
+      room.on(RoomEvent.Reconnected, () => {
+        if (liveKitRoomRef.current === room) setLiveKitStatus("publishing");
+      });
+      room.on(RoomEvent.Disconnected, () => {
+        if (liveKitRoomRef.current === room) {
+          liveKitRoomRef.current = null;
+          liveKitTrackRef.current = null;
+          liveKitPublicationRef.current = null;
+          setLiveKitStatus(recordingRef.current ? "error" : "standby");
+        }
+      });
+
+      await room.connect(payload.data.url, payload.data.token, {
+        autoSubscribe: false,
+      });
+      if (runId !== liveKitRunRef.current) {
+        await room.disconnect(false);
+        return;
+      }
+      const publication = await room.localParticipant.publishTrack(audioTrack, {
+        name: "babbledeck-microphone",
+        source: Track.Source.Microphone,
+      });
+      if (runId !== liveKitRunRef.current) {
+        await room.localParticipant.unpublishTrack(audioTrack, false);
+        await room.disconnect(false);
+        return;
+      }
+
+      liveKitRoomRef.current = room;
+      liveKitTrackRef.current = audioTrack;
+      liveKitPublicationRef.current = publication;
+      setLiveKitStatus("publishing");
+      setLiveKitNotice(null);
+    } catch {
+      if (runId !== liveKitRunRef.current) return;
+      setLiveKitStatus("error");
+      setLiveKitNotice(
+        "Room audio is unavailable; captions and backup continue.",
+      );
+    }
   }
 
   useEffect(() => {
@@ -743,7 +905,7 @@ export function RecorderClient({
 
   async function startRecording() {
     setPending(true);
-    await ensureMic();
+    const stream = await ensureMic();
     const startResponse = await fetch(`/api/sessions/${sessionId}/start`, {
       method: "POST",
       headers: recorderAuthHeaders(),
@@ -758,6 +920,7 @@ export function RecorderClient({
     );
     setRecording(true);
     setPending(false);
+    void connectLiveKitPublisher(stream);
 
     if (streamRef.current && "MediaRecorder" in window) {
       const recorder = new MediaRecorder(streamRef.current);
@@ -787,6 +950,7 @@ export function RecorderClient({
   async function stopRecording() {
     setPending(true);
     if (timerRef.current) window.clearInterval(timerRef.current);
+    closeLiveKitRoom("standby");
     recorderRef.current?.stop();
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
@@ -871,7 +1035,7 @@ export function RecorderClient({
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-md border border-border p-3">
               <p className="text-xs text-muted-foreground">Backup</p>
               <p className="mt-1 font-semibold">
@@ -928,6 +1092,34 @@ export function RecorderClient({
             <div className="rounded-md border border-border p-3">
               <p className="text-xs text-muted-foreground">Events</p>
               <p className="mt-1 font-semibold">{eventsSent}</p>
+            </div>
+            <div className="rounded-md border border-border p-3">
+              <p className="text-xs text-muted-foreground">Room audio</p>
+              <p className="mt-1 flex items-center gap-2 font-semibold">
+                <Radio className="h-4 w-4" />
+                {liveKitStatusLabel[liveKitStatus]}
+              </p>
+              {liveKitNotice ? (
+                <p className="mt-1 text-xs font-medium text-amber-700">
+                  {liveKitNotice}
+                </p>
+              ) : null}
+              {recording &&
+              (liveKitStatus === "error" || liveKitStatus === "disabled") ? (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="mt-3"
+                  onClick={() => {
+                    if (streamRef.current) {
+                      void connectLiveKitPublisher(streamRef.current);
+                    }
+                  }}
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Retry audio
+                </Button>
+              ) : null}
             </div>
             <div className="rounded-md border border-border p-3">
               <p className="text-xs text-muted-foreground">Provider</p>

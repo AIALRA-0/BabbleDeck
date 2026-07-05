@@ -361,3 +361,9 @@ token, verifies microphone publish grants, and calls the LiveKit management API
 with `RoomServiceClient.listRooms()`. If preflight passes, the wrapper backs up
 the production env with a UTC timestamp, installs the patched env, and appends a
 non-secret JSONL record.
+
+After LiveKit is configured, the browser recorder publishes its existing
+microphone track to the LiveKit room, and viewers subscribe to room audio from
+the public viewer page. When LiveKit is not configured or temporarily
+unavailable, the room-audio status degrades without blocking captions, local
+backup, recorder WebSocket upload, or viewer SSE/polling.

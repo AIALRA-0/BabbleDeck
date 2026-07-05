@@ -1,5 +1,25 @@
 # Test Runs
 
+## 2026-07-05 LiveKit Browser Room Audio Client
+
+- Environment: local workspace, `livekit-client@2.20.0`, current BabbleDeck browser UI, and current production env loaded only for Playwright authentication.
+- Commands:
+  - `pnpm --filter @babbledeck/web typecheck`
+  - `pnpm --filter @babbledeck/web lint`
+  - `pnpm format:check`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `pnpm build`
+  - `SESSION_CREATE_RATE_LIMIT_PER_MINUTE=1000 pnpm e2e e2e/mvp.spec.ts --project=chromium-desktop --grep "admin creates a live session"`
+- Results:
+  - Added `livekit-client` to the web app.
+  - The recorder now requests a publisher token when recording starts and, when LiveKit is configured, publishes the existing microphone track to the BabbleDeck room without requesting a second microphone stream.
+  - The viewer now requests a subscriber token, joins the BabbleDeck room, attaches remote audio tracks to hidden audio elements, and exposes a compact room-audio status with an autoplay recovery button.
+  - If LiveKit is not configured or token fetch/connection fails, room audio shows an unavailable/not-configured state while existing Soniox captions, mock captions, local backup, recorder WebSocket upload, and viewer SSE/polling continue.
+  - Playwright mocked both LiveKit token endpoints to `503 PROVIDER_NOT_CONFIGURED` and verified the recorder/viewer fallback states while the full MVP browser flow still passed.
+  - Full format, lint, typecheck, unit tests, and production build passed.
+
 ## 2026-07-05 Latest Production Soniox Recheck
 
 - Environment: production deployment at `https://babbledeck.aialra.online`, commit `19f77c7`, systemd services `aialra-babbledeck.service` and `aialra-babbledeck-ws.service`, configured `SONIOX_API_KEY`, and local production audio storage.

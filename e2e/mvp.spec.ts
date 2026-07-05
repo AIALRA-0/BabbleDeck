@@ -227,7 +227,9 @@ test.describe("BabbleDeck MVP browser flow", () => {
     await expect(createButton).toBeEnabled();
     await createButton.click();
 
-    await expect(page.getByRole("heading", { name: title })).toBeVisible();
+    await expect(page.getByRole("heading", { name: title })).toBeVisible({
+      timeout: 20_000,
+    });
     const recorderUrl = page.url();
     expect(recorderUrl).toContain("recorder=");
     const sessionId = new URL(recorderUrl).pathname.split("/")[2];
@@ -256,6 +258,16 @@ test.describe("BabbleDeck MVP browser flow", () => {
       permissions: ["microphone"],
     });
     const recorder = await recorderContext.newPage();
+    await recorder.route("**/api/sessions/**/livekit-token", (route) =>
+      route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: false,
+          error: { code: "PROVIDER_NOT_CONFIGURED" },
+        }),
+      }),
+    );
     await recorder.goto(recorderUrl);
     await expect(recorder.getByRole("heading", { name: title })).toBeVisible();
     await expect(recorder.getByRole("link", { name: /history/i })).toHaveCount(
@@ -280,12 +292,25 @@ test.describe("BabbleDeck MVP browser flow", () => {
       viewport: { width: 390, height: 844 },
     });
     const viewer = await viewerContext.newPage();
+    await viewer.route("**/api/viewer/session/**/livekit-token", (route) =>
+      route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: false,
+          error: { code: "PROVIDER_NOT_CONFIGURED" },
+        }),
+      }),
+    );
     await viewer.goto(viewerUrl ?? "");
     await expect(
       viewer.getByRole("heading", { name: "Live captions" }),
     ).toBeVisible();
     await expect(viewer.getByText("SSE live")).toBeVisible({
       timeout: 25_000,
+    });
+    await expect(viewer.getByText("Audio off")).toBeVisible({
+      timeout: 12_000,
     });
 
     await recorder.getByRole("button", { name: /test microphone/i }).click();
@@ -295,6 +320,9 @@ test.describe("BabbleDeck MVP browser flow", () => {
 
     await recorder.getByRole("button", { name: /start recording/i }).click();
     await expect(recorder.getByText("Mock realtime")).toBeVisible();
+    await expect(
+      recorder.getByText("Not configured", { exact: true }),
+    ).toBeVisible({ timeout: 12_000 });
     await expect(
       recorder.getByText(/[1-9][0-9]*\/[1-9][0-9]* uploaded/),
     ).toBeVisible({

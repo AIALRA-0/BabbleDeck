@@ -191,6 +191,12 @@ patched env after the preflight passes. The preflight generates a short-lived
 BabbleDeck publisher token, verifies its room grants, and checks the LiveKit
 management API without printing secrets.
 
+When LiveKit is configured, the recorder publishes the active microphone track
+to the BabbleDeck room and viewers subscribe to room audio from the browser. If
+LiveKit is missing or unavailable, room audio shows a not-configured/unavailable
+state while captions, local audio backup, recorder WebSocket upload, and viewer
+SSE/polling continue.
+
 Synchronize the bootstrap admin with `SEED_ADMIN_EMAIL` and
 `SEED_ADMIN_PASSWORD` after credential changes:
 

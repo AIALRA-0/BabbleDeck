@@ -62,3 +62,4 @@
 - Added a guarded production audio storage env configuration wrapper that preflights a temporary R2/S3 env before installing it with a timestamped backup.
 - Added the first LiveKit V2 foundation with official server SDK token generation, recorder/admin publisher tokens, viewer subscriber tokens, and non-secret configured status.
 - Added guarded LiveKit production configure and preflight wrappers that validate token grants and management API connectivity before installing LiveKit env changes.
+- Added browser LiveKit room-audio publishing/subscribing with recorder/viewer fallback states when LiveKit is not configured.
