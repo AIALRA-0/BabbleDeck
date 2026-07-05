@@ -19,6 +19,26 @@ function sonioxExpectedText() {
   return new RegExp(process.env.E2E_SONIOX_EXPECTED_TEXT ?? "Brooklyn", "i");
 }
 
+function sonioxExpectedTexts() {
+  const values = process.env.E2E_SONIOX_EXPECTED_TEXTS?.split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return values?.length
+    ? values.map((value) => new RegExp(value, "i"))
+    : [sonioxExpectedText()];
+}
+
+function sonioxSessionTitle() {
+  return (
+    process.env.E2E_SONIOX_SESSION_TITLE ?? `Soniox UI session ${Date.now()}`
+  );
+}
+
+function sonioxRecordSeconds() {
+  const parsed = Number(process.env.E2E_SONIOX_RECORD_SECONDS ?? 0);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
 async function signIn(page: Page) {
   const passwords = [rotatedAdminPassword, adminPassword].filter(
     (value): value is string => Boolean(value),
@@ -1133,8 +1153,9 @@ test.describe("BabbleDeck MVP browser flow", () => {
       "Real Soniox UI smoke only runs once on desktop.",
     );
 
-    const title = `Soniox UI session ${Date.now()}`;
-    const expectedText = sonioxExpectedText();
+    const title = sonioxSessionTitle();
+    const expectedTexts = sonioxExpectedTexts();
+    const recordSeconds = sonioxRecordSeconds();
 
     await page.goto("/");
     await page.getByRole("link", { name: /open portal/i }).click();
@@ -1179,21 +1200,29 @@ test.describe("BabbleDeck MVP browser flow", () => {
     await expect(page.getByText("WebSocket backup")).toBeVisible({
       timeout: 15_000,
     });
-    await expect(page.getByText(expectedText).first()).toBeVisible({
-      timeout: 60_000,
-    });
-    await expect(viewer.getByText(expectedText).first()).toBeVisible({
-      timeout: 60_000,
-    });
+    for (const expectedText of expectedTexts) {
+      await expect(page.getByText(expectedText).first()).toBeVisible({
+        timeout: 60_000,
+      });
+      await expect(viewer.getByText(expectedText).first()).toBeVisible({
+        timeout: 60_000,
+      });
+    }
+
+    if (recordSeconds > 0) {
+      await page.waitForTimeout(recordSeconds * 1000);
+    }
 
     await page.getByRole("button", { name: /stop recording/i }).click();
     await page.waitForURL(/\/sessions\/[0-9a-f-]+$/, { timeout: 20_000 });
     await expect(page.getByRole("heading", { name: title })).toBeVisible({
       timeout: 20_000,
     });
-    await expect(page.getByText(expectedText).first()).toBeVisible({
-      timeout: 20_000,
-    });
+    for (const expectedText of expectedTexts) {
+      await expect(page.getByText(expectedText).first()).toBeVisible({
+        timeout: 20_000,
+      });
+    }
     await expect(
       page.getByText("Backup chunks").locator("xpath=.."),
     ).toContainText(/[1-9]/);

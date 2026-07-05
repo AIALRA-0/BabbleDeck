@@ -634,6 +634,88 @@ async function recentSonioxUiSmokeOk() {
   }
 }
 
+async function recentSonioxTraceOk() {
+  const sonioxTraceLog =
+    process.env.BABBLEDECK_SONIOX_TRACE_LOG ??
+    "/srv/aialra/logs/babbledeck/soniox-trace.jsonl";
+  const maxAgeHours = Number(
+    process.env.BABBLEDECK_SONIOX_TRACE_MAX_AGE_HOURS ?? 168,
+  );
+  const maxAgeMs =
+    Number.isFinite(maxAgeHours) && maxAgeHours > 0
+      ? maxAgeHours * 60 * 60 * 1000
+      : 168 * 60 * 60 * 1000;
+  try {
+    const stat = await fs.stat(sonioxTraceLog);
+    if (Date.now() - stat.mtimeMs > maxAgeMs) {
+      return {
+        ok: false,
+        message: `Production Soniox trace is older than ${Math.round(maxAgeMs / 3600000)} hours.`,
+      };
+    }
+
+    const contents = await fs.readFile(sonioxTraceLog, "utf8");
+    const latest = contents
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .at(-1);
+    if (!latest) {
+      return {
+        ok: false,
+        message: "Production Soniox trace log exists but has no JSONL records.",
+      };
+    }
+
+    const record = JSON.parse(latest);
+    const finishedAtMs = Date.parse(record.finishedAt);
+    const freshFinishedAt =
+      Number.isFinite(finishedAtMs) && Date.now() - finishedAtMs <= maxAgeMs;
+    const expectedMatches = Array.isArray(
+      record.transcript?.expectedTextMatches,
+    )
+      ? record.transcript.expectedTextMatches
+      : [];
+    const allExpectedMatched =
+      expectedMatches.length > 0 &&
+      expectedMatches.every((item: { matched?: boolean }) => item.matched);
+    const minUsageMs = Number(record.thresholds?.minUsageMs ?? 0);
+    const minAudioChunks = Number(record.thresholds?.minAudioChunks ?? 0);
+    const minSegments = Number(record.thresholds?.minSegments ?? 0);
+    const providerUsageMs = Number(record.providerUsage?.totalAudioMs ?? 0);
+    const audioChunks = Number(record.audioChunks?.count ?? 0);
+    const segmentCount = Number(record.transcript?.segmentCount ?? 0);
+    return {
+      ok:
+        record.app === "babbledeck" &&
+        record.ok === true &&
+        record.archived === true &&
+        Number(record.playwright?.status) === 0 &&
+        record.playwright?.passed === true &&
+        record.fakeAudio?.generated === true &&
+        Number(record.providerErrors) === 0 &&
+        providerUsageMs >= minUsageMs &&
+        audioChunks >= minAudioChunks &&
+        segmentCount >= minSegments &&
+        allExpectedMatched &&
+        freshFinishedAt,
+      message:
+        record.app === "babbledeck" &&
+        record.ok === true &&
+        Number(record.providerErrors) === 0 &&
+        allExpectedMatched &&
+        freshFinishedAt
+          ? `Recent production Soniox long trace passed with ${providerUsageMs}ms provider usage, ${audioChunks} audio chunks, and ${segmentCount} transcript segment(s).`
+          : "Latest production Soniox trace JSONL record is missing required fields, failed, or is stale.",
+    };
+  } catch {
+    return {
+      ok: false,
+      message: "Production Soniox trace JSONL record could not be checked.",
+    };
+  }
+}
+
 async function recentLiveKitUiSmokeOk() {
   const liveKitUiSmokeLog =
     process.env.BABBLEDECK_LIVEKIT_UI_SMOKE_LOG ??
@@ -938,6 +1020,13 @@ async function main() {
     name: "recent_soniox_ui_smoke",
     ok: sonioxUiSmoke.ok,
     message: sonioxUiSmoke.message,
+  });
+
+  const sonioxTrace = await recentSonioxTraceOk();
+  check(checks, {
+    name: "recent_soniox_trace",
+    ok: sonioxTrace.ok,
+    message: sonioxTrace.message,
   });
 
   if (liveKitReady) {
