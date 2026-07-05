@@ -127,6 +127,29 @@ tail -n 20 /srv/aialra/logs/babbledeck/metrics.jsonl
 systemctl status aialra-babbledeck-metrics.timer
 ```
 
+## Viewer Load Smoke
+
+Run the production viewer load smoke before release checks:
+
+```bash
+pnpm load:smoke:production -- --viewers=10
+```
+
+The smoke uses the seed admin secret from the production env file, creates a
+temporary mock-provider session on the real domain, opens N concurrent viewer
+SSE streams, injects a transcript through the scoped recorder-token API,
+confirms every viewer receives it, stops and archives the smoke session, and
+writes a non-secret JSONL record to
+`/srv/aialra/logs/babbledeck/load-smoke.jsonl`. Strict readiness requires a
+recent passing load-smoke record.
+
+Useful overrides:
+
+```bash
+BABBLEDECK_LOAD_SMOKE_VIEWERS=25 pnpm load:smoke:production
+BABBLEDECK_LOAD_SMOKE_TIMEOUT_SECONDS=90 pnpm load:smoke:production
+```
+
 ## Log Rotation
 
 Install or refresh production log rotation with:

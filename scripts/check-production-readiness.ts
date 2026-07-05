@@ -388,6 +388,68 @@ async function recentMetricsSnapshotOk() {
   }
 }
 
+async function recentLoadSmokeOk() {
+  const loadSmokeLog =
+    process.env.BABBLEDECK_LOAD_SMOKE_LOG ??
+    "/srv/aialra/logs/babbledeck/load-smoke.jsonl";
+  const maxAgeHours = Number(
+    process.env.BABBLEDECK_LOAD_SMOKE_MAX_AGE_HOURS ?? 168,
+  );
+  const maxAgeMs =
+    Number.isFinite(maxAgeHours) && maxAgeHours > 0
+      ? maxAgeHours * 60 * 60 * 1000
+      : 168 * 60 * 60 * 1000;
+  try {
+    const stat = await fs.stat(loadSmokeLog);
+    if (Date.now() - stat.mtimeMs > maxAgeMs) {
+      return {
+        ok: false,
+        message: `Production load smoke is older than ${Math.round(maxAgeMs / 3600000)} hours.`,
+      };
+    }
+
+    const contents = await fs.readFile(loadSmokeLog, "utf8");
+    const latest = contents
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .at(-1);
+    if (!latest) {
+      return {
+        ok: false,
+        message: "Production load smoke log exists but has no JSONL records.",
+      };
+    }
+
+    const record = JSON.parse(latest);
+    const finishedAtMs = Date.parse(record.finishedAt);
+    const freshFinishedAt =
+      Number.isFinite(finishedAtMs) && Date.now() - finishedAtMs <= maxAgeMs;
+    const viewerCount = Number(record.viewerCount ?? 0);
+    const received = Number(record.transcriptFanout?.received ?? 0);
+    return {
+      ok:
+        record.app === "babbledeck" &&
+        record.ok === true &&
+        viewerCount > 0 &&
+        received === viewerCount &&
+        freshFinishedAt,
+      message:
+        record.app === "babbledeck" &&
+        record.ok === true &&
+        received === viewerCount &&
+        freshFinishedAt
+          ? `Recent production load smoke passed with ${viewerCount} viewers.`
+          : "Latest production load smoke JSONL record is missing required fields, failed, or is stale.",
+    };
+  } catch {
+    return {
+      ok: false,
+      message: "Production load smoke JSONL record could not be checked.",
+    };
+  }
+}
+
 async function logrotateConfigOk() {
   const configPath =
     process.env.BABBLEDECK_LOGROTATE_CONFIG ??
@@ -514,6 +576,13 @@ async function main() {
     name: "recent_metrics_snapshot",
     ok: metricsSnapshot.ok,
     message: metricsSnapshot.message,
+  });
+
+  const loadSmoke = await recentLoadSmokeOk();
+  check(checks, {
+    name: "recent_load_smoke",
+    ok: loadSmoke.ok,
+    message: loadSmoke.message,
   });
 
   check(checks, {

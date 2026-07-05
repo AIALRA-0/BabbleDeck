@@ -1,5 +1,22 @@
 # Test Runs
 
+## 2026-07-05 Production Viewer Load Smoke
+
+- Environment: local workspace and production deployment at `https://babbledeck.aialra.online`.
+- Commands:
+  - `bash -n scripts/load-smoke-production.sh scripts/collect-production-metrics.sh scripts/install-production-metrics-monitor.sh`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/load-smoke-production.ts scripts/check-production-readiness.ts`
+  - `pnpm load:smoke:production -- --viewers=10`
+  - `tail -n 3 /srv/aialra/logs/babbledeck/load-smoke.jsonl`
+  - `pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --strict --check-soniox-live`
+  - Production DB query for latest `Load smoke` session archive status.
+- Results:
+  - Added `scripts/load-smoke-production.ts` and `pnpm load:smoke:production` for release-gate viewer load smoke on the real production domain.
+  - The smoke signs in with the production seed admin, creates a temporary mock-provider session, opens N concurrent viewer SSE streams, injects transcript and translation events through the scoped recorder-token API, verifies every viewer receives the text, stops the session, archives it, and writes a non-secret JSONL marker.
+  - The production run with `--viewers=10` passed: all `10` viewers received the transcript, `p95FirstByteMs=228`, `p95ReceivedMs=1262`, and the temporary session was archived.
+  - Strict production readiness now passes the required `recent_load_smoke` check with `Recent production load smoke passed with 10 viewers.`
+  - Strict production completion still waits on off-host audio storage because production currently has `AUDIO_STORAGE_DRIVER=local`.
+
 ## 2026-07-05 Production Metrics Snapshot Timer
 
 - Environment: local workspace and production deployment at `https://babbledeck.aialra.online`.

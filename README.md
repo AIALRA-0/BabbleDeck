@@ -81,6 +81,17 @@ The timer runs every five minutes and appends non-secret JSONL records to
 viewer connections, provider errors, first-token latency, upload failures, auth
 failures, and estimated provider cost.
 
+Run the production viewer load smoke after deploys or before release checks:
+
+```bash
+pnpm load:smoke:production -- --viewers=10
+```
+
+The smoke creates a temporary mock-provider session on the real domain, opens N
+viewer SSE streams, injects a transcript through the recorder-token API,
+confirms every viewer receives it, then archives the smoke session and writes a
+non-secret record to `/srv/aialra/logs/babbledeck/load-smoke.jsonl`.
+
 Install log rotation for the app, WebSocket, backup, health monitor, deploy,
 and Nginx logs:
 

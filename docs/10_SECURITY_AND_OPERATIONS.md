@@ -282,6 +282,10 @@ Minimum metrics:
   five minutes under `/srv/aialra/logs/babbledeck/metrics.jsonl`, covering the
   minimum operational metrics above plus uploaded audio byte/duration totals
   and export completion/failure counts.
+- `pnpm load:smoke:production -- --viewers=N` opens N concurrent viewer SSE
+  streams against the real production domain, verifies transcript fanout, and
+  writes a non-secret release-gate record under
+  `/srv/aialra/logs/babbledeck/load-smoke.jsonl`.
 - `/etc/logrotate.d/aialra-babbledeck` rotates BabbleDeck `.log` and `.jsonl`
   files so append-style service logs do not grow without bound.
 

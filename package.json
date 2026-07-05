@@ -19,6 +19,7 @@
     "health:install:production": "scripts/install-production-health-monitor.sh",
     "metrics:collect:production": "scripts/collect-production-metrics.sh",
     "metrics:install:production": "scripts/install-production-metrics-monitor.sh",
+    "load:smoke:production": "scripts/load-smoke-production.sh",
     "logs:install:production": "scripts/install-production-logrotate.sh",
     "db:validate": "DATABASE_URL=${DATABASE_URL:-postgresql://babbledeck:babbledeck@localhost:55432/babbledeck_dev} prisma validate --schema db/schema.prisma",
     "db:generate": "DATABASE_URL=${DATABASE_URL:-postgresql://babbledeck:babbledeck@localhost:55432/babbledeck_dev} prisma generate --schema db/schema.prisma",
