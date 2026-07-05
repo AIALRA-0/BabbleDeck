@@ -9,11 +9,21 @@
   - `find apps/web/.next/standalone/apps/web/node_modules -maxdepth 2 -type l -print -exec readlink {} \\;`
   - `tmp=$(mktemp -d); mkdir -p "$tmp/release"; cp -a apps/web/.next/standalone/. "$tmp/release/"; test -f "$tmp/release/apps/web/server.js"; test -d "$tmp/release/apps/web/.next/static"; test -d "$tmp/release/node_modules"; rm -rf "$tmp"`
   - `pnpm lint`
+  - `pnpm deploy:production`
+  - `systemctl cat aialra-babbledeck.service --no-pager`
+  - `readlink -f /srv/aialra/releases/babbledeck/current`
+  - `curl -fsS https://babbledeck.aialra.online/api/health`
+  - `bash -lc 'set -a; . /srv/aialra/config/secrets/babbledeck.env; set +a; pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --check-soniox-live --expected-release-commit=9bb1a504cfbd'`
 - Results:
   - `pnpm deploy:production` now defaults to copying the built standalone output into `/srv/aialra/releases/babbledeck/releases/<commit>-<timestamp>` and flipping `/srv/aialra/releases/babbledeck/current` before restarting the web service.
   - The deploy wrapper installs a systemd drop-in for `aialra-babbledeck.service` so the web service runs `server.js` from the active release symlink instead of the mutable workspace `.next/standalone` directory.
   - Deployment JSONL records now include release mode, release path, and current symlink.
   - A local release-copy smoke verified the standalone server file, static directory, root `node_modules`, and relative standalone symlink layout survive the release copy.
+  - Production deploy for commit `9bb1a504cfbd` passed and installed `/etc/systemd/system/aialra-babbledeck.service.d/release.conf`.
+  - `systemctl show` confirmed the web service runs from `/srv/aialra/releases/babbledeck/current/apps/web` with `ExecStart=/usr/bin/node server.js`.
+  - The active release symlink points to `/srv/aialra/releases/babbledeck/releases/9bb1a504cfbd-20260705T233435Z`.
+  - Live `/api/health` reports `release.commit="9bb1a504cfbd"`, and expected-release readiness passed for that commit.
+  - Web, recorder WebSocket, and LiveKit services were active/running after the release-dir cutover with `NRestarts=0`.
   - This prevents future workspace builds from rewriting the directory currently serving production web traffic.
 
 ## 2026-07-06 Production Health Release Metadata
