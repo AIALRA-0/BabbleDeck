@@ -342,3 +342,22 @@ Non-dry R2/S3 migrations skip chunks already marked on the current target, so
 repeat runs continue from the remaining unmigrated rows instead of rewriting the
 first batch. Use `--include-migrated` only when intentionally refreshing objects
 already present on the target.
+
+## LiveKit V2 Configuration
+
+Use the guarded production wrapper when LiveKit server credentials are
+available:
+
+```bash
+pnpm livekit:configure:production
+pnpm deploy:production
+```
+
+The wrapper reads `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, and
+optional token TTL/rate-limit variables from the current shell, writes a patched
+temporary env file, and runs `pnpm livekit:preflight:production` before touching
+the production env. The preflight generates a short-lived BabbleDeck publisher
+token, verifies microphone publish grants, and calls the LiveKit management API
+with `RoomServiceClient.listRooms()`. If preflight passes, the wrapper backs up
+the production env with a UTC timestamp, installs the patched env, and appends a
+non-secret JSONL record.

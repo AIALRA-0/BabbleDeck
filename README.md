@@ -176,6 +176,21 @@ target. The first cutover command then validates the local source objects. The
 apply run migrates batches to the configured off-host target, audits object
 presence and metadata, then runs a strict production deploy smoke.
 
+Production LiveKit V2 credentials should use the guarded wrapper after
+`LIVEKIT_URL`, `LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET` are available in the
+current shell:
+
+```bash
+pnpm livekit:configure:production
+pnpm deploy:production
+```
+
+The configure step patches the production env file from the current shell,
+runs a LiveKit preflight against a temporary env copy, and only installs the
+patched env after the preflight passes. The preflight generates a short-lived
+BabbleDeck publisher token, verifies its room grants, and checks the LiveKit
+management API without printing secrets.
+
 Synchronize the bootstrap admin with `SEED_ADMIN_EMAIL` and
 `SEED_ADMIN_PASSWORD` after credential changes:
 

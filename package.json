@@ -15,6 +15,8 @@
     "audio:configure:production": "scripts/configure-production-audio-storage.sh",
     "audio:preflight:production": "scripts/preflight-audio-storage-production.sh",
     "audio:cutover:production": "scripts/cutover-audio-storage.sh",
+    "livekit:configure:production": "scripts/configure-production-livekit.sh",
+    "livekit:preflight:production": "scripts/preflight-livekit-production.sh",
     "backup:verify:production": "scripts/verify-latest-backup-production.sh",
     "backup:verify:install:production": "scripts/install-production-backup-verify.sh",
     "health:monitor:production": "scripts/monitor-production-health.sh",
@@ -37,6 +39,7 @@
   },
   "dependencies": {
     "@prisma/client": "6",
+    "livekit-server-sdk": "^2.16.0",
     "ws": "^8.21.0"
   },
   "devDependencies": {

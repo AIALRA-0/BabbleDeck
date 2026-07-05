@@ -1,5 +1,20 @@
 # Test Runs
 
+## 2026-07-05 LiveKit Production Configure and Preflight Wrappers
+
+- Environment: local workspace, temporary env files, and official `livekit-server-sdk`.
+- Commands:
+  - `bash -n scripts/preflight-livekit-production.sh scripts/configure-production-livekit.sh`
+  - Missing-credential smoke with `BABBLEDECK_ENV_FILE` pointed at a temporary `.env.example` copy.
+  - Fake LiveKit preflight with temporary `LIVEKIT_URL`, `LIVEKIT_API_KEY`, and redacted fake secret values plus `--skip-connectivity`.
+  - Fake LiveKit configure smoke with `BABBLEDECK_LIVEKIT_CONFIGURE_PREFLIGHT=0`.
+- Results:
+  - Added `pnpm livekit:preflight:production` and `pnpm livekit:configure:production`.
+  - The preflight generates a short-lived publisher token, verifies the room grant and microphone publish grant, and can check the LiveKit management API with `RoomServiceClient.listRooms()` when credentials point at a real server.
+  - The configure wrapper prepares a patched env without printing secrets, runs the preflight against the temporary env by default, and only installs the production env after preflight passes.
+  - Missing-credential smoke exited nonzero with missing `LIVEKIT_URL`, `LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET`.
+  - Fake token-only preflight and configure smokes exited zero, wrote non-secret JSONL markers, and did not print the fake secret value.
+
 ## 2026-07-05 LiveKit V2 Token Foundation
 
 - Environment: local workspace, official `livekit-server-sdk`, and Vitest route/module coverage.

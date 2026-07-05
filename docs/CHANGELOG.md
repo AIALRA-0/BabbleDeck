@@ -61,3 +61,4 @@
 - Hardened R2 audio storage config so `AUDIO_STORAGE_DRIVER=r2` uses the required `auto` S3 SDK region even when operators use the generic `AUDIO_STORAGE_BUCKET` variable.
 - Added a guarded production audio storage env configuration wrapper that preflights a temporary R2/S3 env before installing it with a timestamped backup.
 - Added the first LiveKit V2 foundation with official server SDK token generation, recorder/admin publisher tokens, viewer subscriber tokens, and non-secret configured status.
+- Added guarded LiveKit production configure and preflight wrappers that validate token grants and management API connectivity before installing LiveKit env changes.

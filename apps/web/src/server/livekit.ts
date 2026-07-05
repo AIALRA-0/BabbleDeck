@@ -1,5 +1,5 @@
 import { AccessToken, TrackSource } from "livekit-server-sdk";
-import { randomToken } from "@/server/security";
+import { randomToken } from "./security";
 
 export type LiveKitParticipantRole = "publisher" | "subscriber";
 
