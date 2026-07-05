@@ -10,6 +10,12 @@ export type RateLimitResult = {
 
 const buckets = new Map<string, Bucket>();
 
+export function minuteLimit(name: string, fallback: number) {
+  const value = Number(process.env[name]);
+  if (!Number.isFinite(value) || value < 1) return fallback;
+  return Math.floor(value);
+}
+
 export function checkRateLimit(
   key: string,
   limit: number,

@@ -29,3 +29,4 @@
 - Hardened trusted proxy client IP parsing for rate limits and audit logs.
 - Added same-origin mutation guards for cookie-authenticated admin writes while preserving recorder-token flows.
 - Added HSTS and stricter production security header readiness checks.
+- Added rate limits for transcript export generation and server audio chunk uploads.

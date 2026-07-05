@@ -1,16 +1,14 @@
-import { checkRateLimit, type RateLimitResult } from "@/server/rate-limit";
+import {
+  checkRateLimit,
+  minuteLimit,
+  type RateLimitResult,
+} from "@/server/rate-limit";
 
 const WINDOW_MS = 60_000;
 
 type LoginRateLimitResult = RateLimitResult & {
   scope?: "ip" | "account";
 };
-
-function minuteLimit(name: string, fallback: number) {
-  const value = Number(process.env[name]);
-  if (!Number.isFinite(value) || value < 1) return fallback;
-  return Math.floor(value);
-}
 
 export function checkLoginRateLimit(input: {
   ip: string;

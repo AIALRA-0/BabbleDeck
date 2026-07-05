@@ -1,10 +1,11 @@
-import { fail, ok, validationError } from "@/server/api";
+import { fail, getClientIp, ok, validationError } from "@/server/api";
 import {
   AudioChunkUploadError,
   saveSessionAudioChunk,
 } from "@/server/audio-chunk-service";
 import { requireRecorderAccess } from "@/server/recorder-route-access";
 import { audioChunkSchema } from "@/server/schemas";
+import { checkAudioChunkUploadRateLimit } from "@/server/sensitive-route-rate-limit";
 
 export const runtime = "nodejs";
 
@@ -21,6 +22,15 @@ export async function POST(
   const auth = await requireRecorderAccess(request, id);
   if ("response" in auth) return auth.response;
   const { access } = auth;
+  const limited = checkAudioChunkUploadRateLimit({
+    sessionId: id,
+    ip: getClientIp(request),
+  });
+  if (!limited.allowed) {
+    return fail("RATE_LIMITED", "Too many audio chunks uploaded.", 429, {
+      retryAfterSeconds: limited.retryAfterSeconds,
+    });
+  }
 
   let parsed;
   let file: File | null = null;

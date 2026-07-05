@@ -1,5 +1,31 @@
 # Test Runs
 
+## 2026-07-05 Export and Audio Upload Rate Limits
+
+- Environment: local workspace, production deployment at `https://babbledeck.aialra.online`, production secret env loaded without printing secrets.
+- Commands:
+  - `pnpm --filter @babbledeck/web test -- --run src/server/sensitive-route-rate-limit.test.ts src/server/login-rate-limit.test.ts`
+  - `pnpm format:check`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/recorder-ws-server.ts scripts/prune-audio-retention.ts scripts/migrate-audio-storage.ts scripts/audit-audio-storage.ts scripts/check-production-readiness.ts scripts/sync-seed-admin.ts playwright.config.ts`
+  - `pnpm build`
+  - `systemctl restart aialra-babbledeck.service aialra-babbledeck-ws.service`
+  - `curl -fsSI https://babbledeck.aialra.online/`
+  - `pnpm tsx scripts/check-production-readiness.ts --strict`
+  - `E2E_BASE_URL=https://babbledeck.aialra.online E2E_ADMIN_EMAIL="$SEED_ADMIN_EMAIL" E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD" pnpm e2e e2e/mvp.spec.ts --project=chromium-desktop --grep "admin creates a live session"`
+- Results:
+  - Added configurable `EXPORT_RATE_LIMIT_PER_MINUTE` and `AUDIO_CHUNK_UPLOAD_RATE_LIMIT_PER_MINUTE`.
+  - Export generation is now limited per user/session; audio chunk upload is now limited per session/source IP before multipart body parsing.
+  - Format, lint, app typecheck, script typecheck, full unit tests, and production build passed.
+  - Unit tests passed with `14` files and `39` tests, including export and audio chunk upload throttling coverage.
+  - Production services restarted successfully and remained active.
+  - Production HTTPS returned `HTTP/2 200`.
+  - Strict production readiness still fails only because `AUDIO_STORAGE_DRIVER=local`; all required checks pass.
+  - Production Playwright desktop MVP passed after restart, confirming normal audio backup uploads and Markdown export generation still work.
+  - Production smoke cleanup removed 1 temporary Playwright session and 3 local audio objects.
+
 ## 2026-07-05 Security Headers Readiness
 
 - Environment: local workspace, production deployment at `https://babbledeck.aialra.online`, production secret env loaded without printing secrets.

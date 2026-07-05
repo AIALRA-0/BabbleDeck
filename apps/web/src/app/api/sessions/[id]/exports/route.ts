@@ -5,6 +5,7 @@ import {
   requireSameOriginMutation,
   validationError,
 } from "@/server/api";
+import { checkExportRateLimit } from "@/server/sensitive-route-rate-limit";
 import { buildExport, getSessionForAdmin } from "@/server/session-service";
 import { exportSchema } from "@/server/schemas";
 
@@ -21,6 +22,12 @@ export async function POST(
   const { id } = await context.params;
   const session = await getSessionForAdmin(id, user.id);
   if (!session) return fail("NOT_FOUND", "Session not found.", 404);
+  const limited = checkExportRateLimit({ userId: user.id, sessionId: id });
+  if (!limited.allowed) {
+    return fail("RATE_LIMITED", "Too many exports requested.", 429, {
+      retryAfterSeconds: limited.retryAfterSeconds,
+    });
+  }
   let parsed;
   try {
     parsed = exportSchema.parse(await request.json());

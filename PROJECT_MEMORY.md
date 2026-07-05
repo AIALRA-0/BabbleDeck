@@ -51,6 +51,7 @@
 - Client IP parsing now prefers Nginx-managed `X-Real-IP` and otherwise uses the proxy-appended `X-Forwarded-For` address, protecting rate limits and audit IP hashes from spoofed leading XFF values.
 - Cookie-authenticated admin mutation endpoints now enforce same-origin `Origin`/Fetch Metadata checks; recorder-token writes remain available for no-cookie recorder links.
 - Production responses now include HSTS, COOP, and Permissions-Policy headers; strict readiness verifies the core security headers as required checks.
+- Export generation and server audio chunk uploads now have configurable per-minute rate limits; production E2E confirms normal export and backup upload flows still pass.
 
 ## Next Recommended Tasks
 
