@@ -91,6 +91,7 @@
 - Production LiveKit env setup can use `pnpm livekit:selfhost:install:production` plus `pnpm livekit:configure:production`; configure prepares a patched env from the current shell, runs `pnpm livekit:preflight:production` against the temporary env by default, and only installs the env after token grant and management API checks pass.
 - Production readiness checks `NRestarts=0` for the web and recorder WebSocket systemd services, after a one-off web service `SIGSEGV` during security-baseline probing showed that active/running alone can mask an auto-restart.
 - After the latest production deploy, `https://babbledeck.aialra.online` reports Soniox and LiveKit configured, web/recorder WS/LiveKit services active with `NRestarts=0`, Soniox recorder/UI/long-trace smokes passed after the newly added key was present, and strict live readiness has all required checks passing while the only remaining external failure is local audio storage.
+- Soniox recorder WebSocket connections can now carry validated `trackId`/`speakerLabel` metadata into provider-generated transcript events; a production smoke with generated speech verified `28` tracked transcript events and `3` tracked transcript segments for `soniox-smoke-alpha` on the deployed site.
 - Cloudflare/R2 provisioning is not currently authenticated on the server: `wrangler whoami` reports not logged in, and no inspected server secret files expose Cloudflare/R2/S3/AWS credential variable names for BabbleDeck.
 
 ## Next Recommended Tasks

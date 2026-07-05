@@ -2,6 +2,7 @@
 
 ## 2026-07-05
 
+- Propagated Soniox recorder WebSocket track metadata into provider-generated transcript events, and extended the production Soniox smoke to assert persisted track events and segments from a real audio file.
 - Added transcript track timelines with per-track segment indexes, speaker labels, export metadata, and production Playwright coverage for independent Speaker A/B captions.
 - Added real-browser network recovery states for viewer and recorder pages, with production Playwright coverage that simulates offline/online recovery on the deployed site.
 - Short-circuited suspicious production probe paths in the Next proxy so dotfile/config/PHP scanner requests and quoted fake static-asset requests return plain `404` responses without invoking app not-found rendering.

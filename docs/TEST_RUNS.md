@@ -1686,3 +1686,28 @@
   - `aialra-babbledeck.service`, `aialra-babbledeck-ws.service`, and `aialra-babbledeck-livekit.service` are active with `NRestarts=0`.
 - Screenshots/traces:
   - Local and production multi-track runs passed without final failure screenshots after strict-mode text assertions were narrowed.
+
+## 2026-07-05 Soniox Track Metadata Propagation
+
+- Environment: production `https://babbledeck.aialra.online`, production Postgres database `babbledeck_prod`, production recorder WebSocket service `aialra-babbledeck-ws.service`, and secrets loaded from the server env file without printing values.
+- Commands:
+  - `pnpm --filter @babbledeck/web test -- src/server/soniox-realtime.test.ts`
+  - `pnpm --filter @babbledeck/web typecheck`
+  - `pnpm --filter @babbledeck/web lint`
+  - `pnpm prettier --check` for the changed TS files.
+  - CI-style script typecheck for recorder, storage, LiveKit, readiness, metrics, Soniox, security, wrapper, seed-admin, and Playwright config scripts.
+  - `pnpm --filter @babbledeck/web build`
+  - `pnpm deploy:production`
+  - Generated a short WAV with `ffmpeg`/`flite`, then ran `pnpm soniox:smoke:production -- --audio-file=... --probe-ms=5597 --track-id=soniox-smoke-alpha --speaker-label="Soniox Smoke Alpha" --min-track-events=1 --min-track-segments=1`
+  - `pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --check-soniox-live`
+- Results:
+  - Soniox response mapping now preserves optional `trackId` and `speakerLabel` on original and translation transcript events.
+  - Recorder WebSocket connections now accept validated `trackId` and `speakerLabel` URL parameters, record them in `recorder_connections.clientInfo`, and pass them into the Soniox realtime bridge.
+  - The production Soniox smoke script can now send an explicit audio file, attach track metadata to the recorder WebSocket URL, and assert minimum persisted track events/segments.
+  - Local validation passed: Soniox unit coverage, app typecheck, ESLint, changed-file Prettier, script typecheck, and production build.
+  - Production deploy passed for commit `4a5cc6d`; required readiness, seed-admin login smoke, and anonymous protected-route Playwright smoke passed.
+  - Production tracked Soniox smoke passed with `5597ms` provider usage, `1` audio chunk, `0` provider errors, archived cleanup, recorder connection metadata `trackId=soniox-smoke-alpha`, `28` matching transcript events, and `3` matching transcript segments.
+  - Production readiness reports `requiredOk=true`; recent Soniox recorder smoke now reflects `5597ms` provider usage, Soniox live websocket probe passes, LiveKit remains configured, and all systemd services are active with `NRestarts=0`.
+  - `externalOk=false` and `productionReady=false` still only because `off_host_audio_storage` reports local audio storage.
+- Screenshots/traces:
+  - This slice used direct production recorder WebSocket smoke and database assertions; no browser failure screenshots were produced.
