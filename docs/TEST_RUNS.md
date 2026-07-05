@@ -11,11 +11,24 @@
   - Isolated prune smoke using a temporary release root with four fake releases, `keep=2`, and `current` deliberately pointing at the oldest release.
   - `pnpm --filter @babbledeck/mobile native:build:android`
   - `pnpm device:readiness:production -- --check-desktop-headless`
+  - GitHub Actions run `28759270730`
+  - `pnpm deploy:production`
+  - `curl -fsS https://babbledeck.aialra.online/api/health`
+  - `tail -n 1 /srv/aialra/logs/babbledeck/deployments.jsonl`
+  - `systemctl show aialra-babbledeck.service aialra-babbledeck-ws.service aialra-babbledeck-livekit.service --property=Id,ActiveState,SubState,NRestarts,ExecMainStartTimestamp --no-pager`
+  - `bash -lc 'set -a; . /srv/aialra/config/secrets/babbledeck.env; set +a; pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --check-soniox-live --expected-release-commit=55c7266a9731'`
 - Results:
   - Added `BABBLEDECK_RELEASE_PRUNE` and `BABBLEDECK_RELEASES_KEEP` to `pnpm deploy:production`; pruning defaults on and keeps the newest five immutable releases while always protecting the active `current` symlink target.
   - Deployment JSONL release records now include a non-secret `release.prune` summary with prune enablement, keep count, release directory, current target, and pruned release names/paths.
   - The isolated prune smoke kept the two newest releases plus the oldest current target and pruned only the unprotected older release.
   - `bash -n scripts/deploy-production.sh` passed.
+  - CI run `28759270730` passed for commit `55c7266a9731`.
+  - Production deploy for commit `55c7266a9731` passed: forced standalone build, immutable release publication, web/recorder service restart, HTTPS readiness, homepage content check, readiness, seed-admin login/logout smoke, anonymous protected-route Playwright smoke, and release prune.
+  - Live `/api/health` returned `release.commit="55c7266a9731"`, `status="ok"`, audio storage `driver="local"`, Soniox configured, and LiveKit configured.
+  - The active release symlink pointed to `/srv/aialra/releases/babbledeck/releases/55c7266a9731-20260705T235713Z`.
+  - Deployment JSONL recorded `release.prune.enabled=true`, `keep=5`, current release path, and `pruned=[]` because only four release directories existed.
+  - Web, recorder WebSocket, and LiveKit services were active/running after deployment with `NRestarts=0`.
+  - Strict production readiness with live Soniox returned `requiredOk=true`; `externalOk=false` remains because production still lacks Android/iOS/desktop runtime evidence and off-host audio storage.
   - Android debug APK was rebuilt successfully after the deploy/build cycle had removed it; device readiness again reports `debugApkExists=true` with sha256 `857955bcd635774ee5af6adafb2c1f6b84e79a528d09ad5ec19773ad4109b0f8`.
   - Device readiness still cannot produce full runtime evidence on this host: no physical Android device is connected, Linux lacks macOS/Xcode for iOS, and no interactive desktop display session is available, though the Tauri release binary still passes the Xvfb headless launch smoke.
   - Android emulator installation was not attempted because the server has no `/dev/kvm` and only about `4.5G` free root disk space.
