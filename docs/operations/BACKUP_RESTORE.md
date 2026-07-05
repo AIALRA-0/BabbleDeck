@@ -135,12 +135,15 @@ R2/S3 run:
 ```bash
 SOURCE_AUDIO_STORAGE_DIR=/srv/aialra/storage/babbledeck \
 AUDIO_STORAGE_DRIVER=r2 \
+R2_ACCOUNT_ID=ACCOUNT_ID \
 R2_BUCKET=babbledeck-prod \
-R2_ENDPOINT=https://ACCOUNT_ID.r2.cloudflarestorage.com \
 R2_ACCESS_KEY_ID=... \
 R2_SECRET_ACCESS_KEY=... \
   pnpm tsx scripts/migrate-audio-storage.ts --limit=500
 ```
+
+`R2_ENDPOINT` can still be set explicitly, but BabbleDeck derives the standard
+Cloudflare R2 endpoint from `R2_ACCOUNT_ID` when it is omitted.
 
 Repeat the non-dry run while `hasMore` is `true`. The script refuses to copy
 local audio onto the same local target directory. After switching

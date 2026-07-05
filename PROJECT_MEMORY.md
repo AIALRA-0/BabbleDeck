@@ -59,6 +59,7 @@
 - The production core Playwright flow now opens the recorder page at a phone viewport for the mobile project, covering mobile recorder controls, backup retry, microphone grant, recording, and stop/history navigation.
 - Viewer network resilience now has production Playwright coverage: the test aborts the SSE stream, verifies the UI enters `Polling`, injects transcript events through the recorder API, and confirms the viewer still receives captions.
 - Protected admin surfaces now have production Playwright coverage: anonymous browser visits to `/dashboard`, `/sessions/new`, and `/settings` redirect to login, and anonymous admin API calls return `UNAUTHENTICATED`.
+- R2 audio storage configuration now derives the standard Cloudflare endpoint from `R2_ACCOUNT_ID`; `R2_ENDPOINT` is only needed for overrides.
 
 ## Next Recommended Tasks
 

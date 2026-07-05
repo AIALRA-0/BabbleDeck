@@ -93,6 +93,13 @@ function boolEnv(value: string | undefined, fallback: boolean) {
   return ["1", "true", "yes", "on"].includes(value.toLowerCase());
 }
 
+function r2EndpointFromAccountId() {
+  const accountId = process.env.R2_ACCOUNT_ID?.trim();
+  return accountId
+    ? `https://${accountId}.r2.cloudflarestorage.com`
+    : undefined;
+}
+
 function defaultLocalStorageDir() {
   return path.join(
     /*turbopackIgnore: true*/ process.cwd(),
@@ -119,6 +126,11 @@ export function resolveAudioStorageConfig(): AudioStorageConfig {
         : hasS3Config
           ? "s3"
           : "local";
+  const endpoint =
+    process.env.AUDIO_STORAGE_ENDPOINT ??
+    process.env.R2_ENDPOINT ??
+    process.env.S3_ENDPOINT ??
+    r2EndpointFromAccountId();
 
   if (driver === "local") {
     return {
@@ -138,10 +150,7 @@ export function resolveAudioStorageConfig(): AudioStorageConfig {
         process.env.S3_BUCKET,
       "AUDIO_STORAGE_BUCKET, R2_BUCKET, or S3_BUCKET must be set for S3 audio storage.",
     ),
-    endpoint:
-      process.env.AUDIO_STORAGE_ENDPOINT ??
-      process.env.R2_ENDPOINT ??
-      process.env.S3_ENDPOINT,
+    endpoint,
     region:
       process.env.AUDIO_STORAGE_REGION ??
       process.env.AWS_REGION ??
@@ -158,11 +167,7 @@ export function resolveAudioStorageConfig(): AudioStorageConfig {
       process.env.AWS_SECRET_ACCESS_KEY,
     forcePathStyle: boolEnv(
       process.env.AUDIO_STORAGE_FORCE_PATH_STYLE,
-      Boolean(
-        process.env.AUDIO_STORAGE_ENDPOINT ??
-        process.env.R2_ENDPOINT ??
-        process.env.S3_ENDPOINT,
-      ),
+      Boolean(endpoint),
     ),
   };
 }

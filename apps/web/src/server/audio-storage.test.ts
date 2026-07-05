@@ -6,6 +6,7 @@ import {
   deleteAudioObject,
   headAudioObject,
   putAudioObject,
+  resolveAudioStorageConfig,
   sha256Hex,
   uploadAudioChunk,
 } from "@/server/audio-storage";
@@ -110,6 +111,24 @@ describe("audio storage", () => {
       driver: "local",
       objectKey: uploaded.objectKey,
       byteSize: body.length,
+    });
+  });
+
+  test("derives the R2 endpoint from the account id", () => {
+    process.env.AUDIO_STORAGE_DRIVER = "r2";
+    process.env.R2_ACCOUNT_ID = "account-123";
+    process.env.R2_BUCKET = "babbledeck-prod";
+    process.env.R2_ACCESS_KEY_ID = "access-key";
+    process.env.R2_SECRET_ACCESS_KEY = "secret-key";
+
+    expect(resolveAudioStorageConfig()).toMatchObject({
+      driver: "s3",
+      bucket: "babbledeck-prod",
+      endpoint: "https://account-123.r2.cloudflarestorage.com",
+      region: "auto",
+      accessKeyId: "access-key",
+      secretAccessKey: "secret-key",
+      forcePathStyle: true,
     });
   });
 });

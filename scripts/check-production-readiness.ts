@@ -180,6 +180,7 @@ function offHostAudioStorageStatus() {
   const endpointVar = configuredEnvName([
     "AUDIO_STORAGE_ENDPOINT",
     "R2_ENDPOINT",
+    "R2_ACCOUNT_ID",
     "S3_ENDPOINT",
   ]);
   const accessKeyVar = configuredEnvName([
@@ -198,12 +199,13 @@ function offHostAudioStorageStatus() {
     driverSetting === "r2" ||
     Boolean(process.env.R2_BUCKET) ||
     Boolean(process.env.R2_ENDPOINT) ||
+    Boolean(process.env.R2_ACCOUNT_ID) ||
     Boolean(process.env.AUDIO_STORAGE_ENDPOINT) ||
     Boolean(process.env.S3_ENDPOINT);
   const missing = [
     bucketVar ? undefined : "AUDIO_STORAGE_BUCKET/R2_BUCKET/S3_BUCKET",
     requiresEndpoint && !endpointVar
-      ? "AUDIO_STORAGE_ENDPOINT/R2_ENDPOINT/S3_ENDPOINT"
+      ? "AUDIO_STORAGE_ENDPOINT/R2_ENDPOINT/R2_ACCOUNT_ID/S3_ENDPOINT"
       : undefined,
     accessKeyVar
       ? undefined

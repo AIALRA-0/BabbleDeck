@@ -1,5 +1,28 @@
 # Test Runs
 
+## 2026-07-05 R2 Endpoint Derivation
+
+- Environment: local workspace, production deployment at `https://babbledeck.aialra.online`, production secret env loaded without printing secrets.
+- Commands:
+  - `pnpm --filter @babbledeck/web test -- --run src/server/audio-storage.test.ts`
+  - `pnpm format:check`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/recorder-ws-server.ts scripts/prune-audio-retention.ts scripts/migrate-audio-storage.ts scripts/audit-audio-storage.ts scripts/check-production-readiness.ts scripts/sync-seed-admin.ts playwright.config.ts e2e/mvp.spec.ts`
+  - `pnpm build`
+  - `pnpm tsx scripts/check-production-readiness.ts --strict --check-soniox-live`
+  - `AUDIO_STORAGE_DRIVER=r2 R2_ACCOUNT_ID=readiness-account-smoke R2_BUCKET=readiness-smoke R2_ACCESS_KEY_ID=readiness-smoke R2_SECRET_ACCESS_KEY=readiness-smoke pnpm tsx scripts/check-production-readiness.ts --strict`
+- Results:
+  - Audio storage now derives `https://ACCOUNT_ID.r2.cloudflarestorage.com` from `R2_ACCOUNT_ID` when no explicit endpoint is set.
+  - Strict readiness now accepts `R2_ACCOUNT_ID` as the Cloudflare R2 endpoint source.
+  - Documented that `R2_ENDPOINT` is optional when using the standard R2 account endpoint.
+  - Format, lint, app typecheck, full unit tests, script/E2E typecheck, and production build passed.
+  - Unit tests now cover `14` files and `45` tests, including R2 endpoint derivation.
+  - The live Soniox readiness probe passed with `360ms` of accepted probe audio.
+  - A read-only fake-R2 readiness smoke confirmed `off_host_audio_storage` passes with `R2_ACCOUNT_ID` and no `R2_ENDPOINT`; strict readiness then fails on `off_host_audio_migration`, as expected before real migration metadata exists.
+  - Strict production readiness still fails only because `AUDIO_STORAGE_DRIVER=local`; all required checks, including live Soniox connectivity, pass.
+
 ## 2026-07-05 Protected Admin Route Coverage
 
 - Environment: local workspace, production deployment at `https://babbledeck.aialra.online`, production secret env loaded without printing secrets.

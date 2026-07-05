@@ -37,3 +37,4 @@
 - Expanded the production core browser flow so the mobile project exercises the recorder page at a phone viewport.
 - Added real-browser coverage for viewer SSE failure fallback to polling.
 - Added real-browser/API coverage that anonymous users are redirected or denied on protected admin surfaces.
+- Allowed Cloudflare R2 audio storage to derive the standard endpoint from `R2_ACCOUNT_ID`.

@@ -88,6 +88,8 @@ Soniox realtime requires `SONIOX_API_KEY`. Without it, Soniox-mode sessions are 
 
 To migrate existing raw audio from the local object root to R2/S3-compatible storage, configure the target `AUDIO_STORAGE_*` or `R2_*` variables, keep `SOURCE_AUDIO_STORAGE_DIR` pointed at the previous local root, run:
 
+For Cloudflare R2, `R2_ACCOUNT_ID` is enough to derive `https://ACCOUNT_ID.r2.cloudflarestorage.com`; set `R2_ENDPOINT` only when overriding that endpoint.
+
 ```bash
 pnpm tsx scripts/audit-audio-storage.ts --limit=500
 pnpm tsx scripts/migrate-audio-storage.ts --dry-run --limit=500
