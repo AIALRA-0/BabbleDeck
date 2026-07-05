@@ -1,5 +1,37 @@
 # Test Runs
 
+## 2026-07-05 Production Self-Hosted LiveKit Room Audio
+
+- Environment: production deployment at `https://babbledeck.aialra.online`, self-hosted LiveKit service `aialra-babbledeck-livekit.service`, same-domain Nginx `/livekit/` proxy, configured Soniox key, and local production audio storage.
+- Commands:
+  - `bash -n scripts/start-production-livekit.sh scripts/install-production-livekit-selfhost.sh scripts/livekit-ui-smoke-production.sh`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/preflight-livekit.ts`
+  - `pnpm format:check`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `pnpm build`
+  - `pnpm db:validate && pnpm db:generate`
+  - CI secret-scan pattern from `.github/workflows/ci.yml`
+  - `pnpm db:generate && pnpm deploy:production`
+  - `curl -fsS https://babbledeck.aialra.online/api/health | jq`
+  - `pnpm livekit:preflight:production`
+  - `pnpm livekit:ui-smoke:production`
+  - `pnpm soniox:smoke:production`
+  - `pnpm soniox:ui-smoke:production`
+  - `pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --strict --check-soniox-live`
+- Results:
+  - Installed self-hosted LiveKit on the existing production server through systemd and Nginx, using same-domain `wss://babbledeck.aialra.online/livekit`.
+  - Updated LiveKit preflight to support path-prefixed deployments by calling Twirp management APIs under `/livekit/twirp`.
+  - Added `pnpm livekit:ui-smoke:production`; Chromium verified recorder room-audio `Publishing` and viewer `Audio live` on the real deployed site.
+  - `/api/health` returned `status="ok"`, database ok, audio storage `driver="local"` with `offHostReady=false`, Soniox `configured=true`, and LiveKit `configured=true`.
+  - LiveKit preflight passed with `managementApiPath="/livekit"`, token grant checks, and room list connectivity.
+  - Soniox recorder smoke passed with one uploaded audio chunk, `360ms` provider usage, zero provider errors, and cleanup archiving.
+  - Soniox UI smoke passed with Chromium fake-microphone speech and expected `Brooklyn` captions.
+  - Web, recorder WS, and LiveKit systemd services were active/running with `NRestarts=0`.
+  - Strict live readiness now checks LiveKit credentials, LiveKit service state/restart count, and recent LiveKit UI smoke; all required checks pass.
+  - Strict readiness still exits nonzero only because the external `off_host_audio_storage` check fails while `AUDIO_STORAGE_DRIVER=local`.
+
 ## 2026-07-05 LiveKit Browser Room Audio Client
 
 - Environment: local workspace, `livekit-client@2.20.0`, current BabbleDeck browser UI, and current production env loaded only for Playwright authentication.

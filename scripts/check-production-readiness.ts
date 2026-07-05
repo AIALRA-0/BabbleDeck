@@ -228,6 +228,14 @@ function configuredEnvName(names: string[]) {
   return names.find((name) => Boolean(process.env[name]));
 }
 
+function liveKitConfigured() {
+  return Boolean(
+    process.env.LIVEKIT_URL &&
+    process.env.LIVEKIT_API_KEY &&
+    process.env.LIVEKIT_API_SECRET,
+  );
+}
+
 function offHostAudioStorageStatus() {
   const driverSetting = process.env.AUDIO_STORAGE_DRIVER?.toLowerCase();
   if (driverSetting === "local") {
@@ -626,6 +634,67 @@ async function recentSonioxUiSmokeOk() {
   }
 }
 
+async function recentLiveKitUiSmokeOk() {
+  const liveKitUiSmokeLog =
+    process.env.BABBLEDECK_LIVEKIT_UI_SMOKE_LOG ??
+    "/srv/aialra/logs/babbledeck/livekit-ui-smoke.jsonl";
+  const maxAgeHours = Number(
+    process.env.BABBLEDECK_LIVEKIT_UI_SMOKE_MAX_AGE_HOURS ?? 168,
+  );
+  const maxAgeMs =
+    Number.isFinite(maxAgeHours) && maxAgeHours > 0
+      ? maxAgeHours * 60 * 60 * 1000
+      : 168 * 60 * 60 * 1000;
+  try {
+    const stat = await fs.stat(liveKitUiSmokeLog);
+    if (Date.now() - stat.mtimeMs > maxAgeMs) {
+      return {
+        ok: false,
+        message: `Production LiveKit UI smoke is older than ${Math.round(maxAgeMs / 3600000)} hours.`,
+      };
+    }
+
+    const contents = await fs.readFile(liveKitUiSmokeLog, "utf8");
+    const latest = contents
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .at(-1);
+    if (!latest) {
+      return {
+        ok: false,
+        message:
+          "Production LiveKit UI smoke log exists but has no JSONL records.",
+      };
+    }
+
+    const record = JSON.parse(latest);
+    const finishedAtMs = Date.parse(record.finishedAt);
+    const freshFinishedAt =
+      Number.isFinite(finishedAtMs) && Date.now() - finishedAtMs <= maxAgeMs;
+    return {
+      ok:
+        record.app === "babbledeck" &&
+        record.ok === true &&
+        Number(record.playwright?.status) === 0 &&
+        record.playwright?.passed === true &&
+        freshFinishedAt,
+      message:
+        record.app === "babbledeck" &&
+        record.ok === true &&
+        record.playwright?.passed === true &&
+        freshFinishedAt
+          ? "Recent production LiveKit UI smoke passed through recorder publishing and viewer room audio."
+          : "Latest production LiveKit UI smoke JSONL record is missing required fields, failed, or is stale.",
+    };
+  } catch {
+    return {
+      ok: false,
+      message: "Production LiveKit UI smoke JSONL record could not be checked.",
+    };
+  }
+}
+
 async function recentSecurityBaselineOk() {
   const securityLog =
     process.env.BABBLEDECK_SECURITY_BASELINE_LOG ??
@@ -741,6 +810,15 @@ async function main() {
       : "SONIOX_API_KEY is missing.",
   });
 
+  const liveKitReady = liveKitConfigured();
+  check(checks, {
+    name: "livekit_credentials",
+    ok: liveKitReady,
+    message: liveKitReady
+      ? "LiveKit room-audio credentials are configured."
+      : "LiveKit room-audio credentials are missing.",
+  });
+
   if (checkSonioxLive) {
     const sonioxLive = await checkSonioxRealtimeConnectivity({
       sessionId: `readiness-${Date.now()}`,
@@ -759,6 +837,7 @@ async function main() {
   const coreServices = [
     "aialra-babbledeck.service",
     "aialra-babbledeck-ws.service",
+    ...(liveKitReady ? ["aialra-babbledeck-livekit.service"] : []),
   ];
   for (const service of [
     ...coreServices,
@@ -860,6 +939,15 @@ async function main() {
     ok: sonioxUiSmoke.ok,
     message: sonioxUiSmoke.message,
   });
+
+  if (liveKitReady) {
+    const liveKitUiSmoke = await recentLiveKitUiSmokeOk();
+    check(checks, {
+      name: "recent_livekit_ui_smoke",
+      ok: liveKitUiSmoke.ok,
+      message: liveKitUiSmoke.message,
+    });
+  }
 
   const securityBaseline = await recentSecurityBaselineOk();
   check(checks, {

@@ -221,7 +221,9 @@ SSE/polling continue.
 The LiveKit UI smoke opens the deployed recorder and viewer pages on the real
 domain, starts a mock-caption session with Chromium fake microphone capture,
 verifies recorder publishing plus viewer `Audio live`, and writes a non-secret
-JSONL marker to `/srv/aialra/logs/babbledeck/livekit-ui-smoke.jsonl`.
+JSONL marker to `/srv/aialra/logs/babbledeck/livekit-ui-smoke.jsonl`. Production
+readiness treats configured LiveKit credentials, the LiveKit systemd service,
+and a recent passing LiveKit UI smoke as required checks.
 
 Synchronize the bootstrap admin with `SEED_ADMIN_EMAIL` and
 `SEED_ADMIN_PASSWORD` after credential changes:

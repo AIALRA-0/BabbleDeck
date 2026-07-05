@@ -201,7 +201,9 @@ is disabled because the server already has coturn ownership of the standard
 TURN port. The UI smoke opens the deployed recorder and viewer pages, verifies
 the recorder reaches `Publishing`, verifies the viewer reaches `Audio live`,
 and writes a non-secret JSONL record to
-`/srv/aialra/logs/babbledeck/livekit-ui-smoke.jsonl`.
+`/srv/aialra/logs/babbledeck/livekit-ui-smoke.jsonl`. When LiveKit credentials
+are configured, strict readiness requires the LiveKit service to be active with
+no auto-restarts and requires a recent passing LiveKit UI smoke record.
 
 ## Security Baseline Audit
 
