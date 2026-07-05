@@ -564,6 +564,68 @@ async function recentSonioxSmokeOk() {
   }
 }
 
+async function recentSonioxUiSmokeOk() {
+  const sonioxUiSmokeLog =
+    process.env.BABBLEDECK_SONIOX_UI_SMOKE_LOG ??
+    "/srv/aialra/logs/babbledeck/soniox-ui-smoke.jsonl";
+  const maxAgeHours = Number(
+    process.env.BABBLEDECK_SONIOX_UI_SMOKE_MAX_AGE_HOURS ?? 168,
+  );
+  const maxAgeMs =
+    Number.isFinite(maxAgeHours) && maxAgeHours > 0
+      ? maxAgeHours * 60 * 60 * 1000
+      : 168 * 60 * 60 * 1000;
+  try {
+    const stat = await fs.stat(sonioxUiSmokeLog);
+    if (Date.now() - stat.mtimeMs > maxAgeMs) {
+      return {
+        ok: false,
+        message: `Production Soniox UI smoke is older than ${Math.round(maxAgeMs / 3600000)} hours.`,
+      };
+    }
+
+    const contents = await fs.readFile(sonioxUiSmokeLog, "utf8");
+    const latest = contents
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .at(-1);
+    if (!latest) {
+      return {
+        ok: false,
+        message:
+          "Production Soniox UI smoke log exists but has no JSONL records.",
+      };
+    }
+
+    const record = JSON.parse(latest);
+    const finishedAtMs = Date.parse(record.finishedAt);
+    const freshFinishedAt =
+      Number.isFinite(finishedAtMs) && Date.now() - finishedAtMs <= maxAgeMs;
+    return {
+      ok:
+        record.app === "babbledeck" &&
+        record.ok === true &&
+        Number(record.playwright?.status) === 0 &&
+        record.playwright?.passed === true &&
+        record.fakeAudio?.generated === true &&
+        freshFinishedAt,
+      message:
+        record.app === "babbledeck" &&
+        record.ok === true &&
+        record.playwright?.passed === true &&
+        freshFinishedAt
+          ? "Recent production Soniox UI smoke passed through Chromium fake-microphone capture."
+          : "Latest production Soniox UI smoke JSONL record is missing required fields, failed, or is stale.",
+    };
+  } catch {
+    return {
+      ok: false,
+      message: "Production Soniox UI smoke JSONL record could not be checked.",
+    };
+  }
+}
+
 async function recentSecurityBaselineOk() {
   const securityLog =
     process.env.BABBLEDECK_SECURITY_BASELINE_LOG ??
@@ -790,6 +852,13 @@ async function main() {
     name: "recent_soniox_smoke",
     ok: sonioxSmoke.ok,
     message: sonioxSmoke.message,
+  });
+
+  const sonioxUiSmoke = await recentSonioxUiSmokeOk();
+  check(checks, {
+    name: "recent_soniox_ui_smoke",
+    ok: sonioxUiSmoke.ok,
+    message: sonioxUiSmoke.message,
   });
 
   const securityBaseline = await recentSecurityBaselineOk();

@@ -22,6 +22,7 @@
     "metrics:install:production": "scripts/install-production-metrics-monitor.sh",
     "load:smoke:production": "scripts/load-smoke-production.sh",
     "soniox:smoke:production": "scripts/soniox-smoke-production.sh",
+    "soniox:ui-smoke:production": "scripts/soniox-ui-smoke-production.sh",
     "security:audit:production": "scripts/security-baseline-production.sh",
     "logs:install:production": "scripts/install-production-logrotate.sh",
     "wrappers:check": "tsx scripts/verify-wrapper-configs.ts",

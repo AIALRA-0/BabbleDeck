@@ -110,6 +110,19 @@ acknowledgement, provider usage, and zero provider errors, then archives the
 session and writes a non-secret record to
 `/srv/aialra/logs/babbledeck/soniox-smoke.jsonl`.
 
+Run the production Soniox UI smoke when you need real browser confirmation that
+the recorder page streams fake-microphone speech through Soniox into live
+captions:
+
+```bash
+pnpm soniox:ui-smoke:production
+```
+
+The smoke generates a temporary speech WAV with `ffmpeg`, passes it to Chromium
+as the fake microphone source, runs the deployed production UI flow, verifies
+recorder and viewer captions, and writes a non-secret record to
+`/srv/aialra/logs/babbledeck/soniox-ui-smoke.jsonl`.
+
 Run the production security baseline audit after security-sensitive changes:
 
 ```bash

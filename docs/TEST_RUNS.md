@@ -1,5 +1,19 @@
 # Test Runs
 
+## 2026-07-05 Production Soniox UI Smoke
+
+- Environment: production deployment at `https://babbledeck.aialra.online`, configured `SONIOX_API_KEY`, Chromium desktop project, and generated fake-microphone WAV from `ffmpeg` flite speech.
+- Commands:
+  - `bash -n scripts/soniox-ui-smoke-production.sh scripts/soniox-smoke-production.sh scripts/deploy-production.sh`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/check-production-readiness.ts`
+  - `pnpm soniox:ui-smoke:production`
+  - `pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --strict --check-soniox-live`
+- Results:
+  - Added `scripts/soniox-ui-smoke-production.sh` and `pnpm soniox:ui-smoke:production`.
+  - The wrapper generates a temporary speech WAV, passes it to Chromium as the fake microphone source, runs the real production Soniox recorder UI, opens a mobile-width viewer page, and verifies both recorder and viewer receive expected Soniox caption text.
+  - The production run passed: Playwright reported `1 passed`, the fake audio duration was 6.34475 seconds, and a non-secret marker was appended to `/srv/aialra/logs/babbledeck/soniox-ui-smoke.jsonl`.
+  - Strict production readiness now requires `recent_soniox_ui_smoke`; all required checks pass, while strict completion still waits on the external `off_host_audio_storage` check.
+
 ## 2026-07-05 R2 Credential Probe
 
 - Environment: production server workspace and `/srv/aialra/config/secrets/babbledeck.env`.
