@@ -56,6 +56,29 @@ set -a; . /srv/aialra/config/secrets/babbledeck.env; set +a
 pnpm tsx scripts/sync-seed-admin.ts
 ```
 
+## Deployment Wrapper
+
+Use the production deployment wrapper for routine releases:
+
+```bash
+pnpm deploy:production
+```
+
+The wrapper acquires a deployment lock, refuses dirty worktrees by default,
+force-builds the Next standalone output, restarts
+`aialra-babbledeck.service` and `aialra-babbledeck-ws.service`, checks HTTPS
+and readiness, runs seed-admin login/logout smoke, runs the anonymous
+protected-route Playwright smoke, and appends a non-secret JSONL record to
+`/srv/aialra/logs/babbledeck/deployments.jsonl`.
+
+Useful overrides:
+
+```bash
+BABBLEDECK_DEPLOY_SKIP_BUILD=1 pnpm deploy:production
+BABBLEDECK_DEPLOY_SKIP_E2E=1 pnpm deploy:production
+BABBLEDECK_DEPLOY_STRICT=1 pnpm deploy:production
+```
+
 ## Verify Latest Backup
 
 This restores into a temporary database and temporary audio directory, then

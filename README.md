@@ -56,6 +56,17 @@ pnpm tsx scripts/check-production-readiness.ts --strict
 pnpm tsx scripts/check-production-readiness.ts --check-soniox-live
 ```
 
+Production deploys should use the systemd-aware wrapper:
+
+```bash
+pnpm deploy:production
+```
+
+The wrapper force-builds the standalone app, restarts the web and recorder
+WebSocket services, checks HTTPS/readiness/login, runs the anonymous protected
+route Playwright smoke, and appends a non-secret record to
+`/srv/aialra/logs/babbledeck/deployments.jsonl`.
+
 Synchronize the bootstrap admin with `SEED_ADMIN_EMAIL` and
 `SEED_ADMIN_PASSWORD` after credential changes:
 

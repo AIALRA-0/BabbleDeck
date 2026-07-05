@@ -61,6 +61,7 @@
 - Protected admin surfaces now have production Playwright coverage: anonymous browser visits to `/dashboard`, `/sessions/new`, and `/settings` redirect to login, and anonymous admin API calls return `UNAUTHENTICATED`.
 - R2 audio storage configuration now derives the standard Cloudflare endpoint from `R2_ACCOUNT_ID`; `R2_ENDPOINT` is only needed for overrides.
 - Production services were restarted after the R2 endpoint derivation build; HTTPS headers, strict readiness required checks, anonymous protected-route smoke, and seed-admin login/logout smoke passed on `https://babbledeck.aialra.online`.
+- Routine production deploys can now use `pnpm deploy:production`, which locks, force-builds, restarts systemd web/WS services, checks HTTPS/readiness/login, runs anonymous protected-route Playwright smoke, and appends a non-secret deployment record.
 
 ## Next Recommended Tasks
 

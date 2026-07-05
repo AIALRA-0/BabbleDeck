@@ -1,5 +1,26 @@
 # Test Runs
 
+## 2026-07-05 Production Deploy Wrapper
+
+- Environment: production deployment at `https://babbledeck.aialra.online`, production secret env loaded without printing secrets, systemd services `aialra-babbledeck.service` and `aialra-babbledeck-ws.service`.
+- Commands:
+  - `bash -n scripts/deploy-production.sh`
+  - `BABBLEDECK_DEPLOY_ALLOW_DIRTY=1 pnpm deploy:production`
+  - `pnpm format:check`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/recorder-ws-server.ts scripts/prune-audio-retention.ts scripts/migrate-audio-storage.ts scripts/audit-audio-storage.ts scripts/check-production-readiness.ts scripts/sync-seed-admin.ts playwright.config.ts e2e/mvp.spec.ts`
+  - `pnpm build`
+  - `pnpm tsx scripts/check-production-readiness.ts --strict --check-soniox-live`
+- Results:
+  - Added `scripts/deploy-production.sh` and `pnpm deploy:production`.
+  - The wrapper lock-checks deploys, refuses dirty worktrees unless explicitly overridden, force-builds standalone output, restarts web and recorder WebSocket services, checks HTTPS/homepage/readiness, runs seed-admin login/logout smoke, runs anonymous protected-route Playwright smoke, and writes non-secret deployment records.
+  - Initial wrapper smoke exposed a short post-restart `502` window from Nginx before the Next standalone server was ready; the wrapper now waits up to `BABBLEDECK_DEPLOY_HTTP_WAIT_SECONDS` for HTTPS readiness before continuing.
+  - Production deployment wrapper smoke passed against the live domain.
+  - The passing wrapper run restarted web and recorder WebSocket services at `2026-07-05 03:30:38 CEST`, confirmed readiness `requiredOk=true`, confirmed seed-admin login/logout, and passed the anonymous protected-route Playwright smoke.
+  - Strict production completion still waits on real R2/S3 credentials and audio chunk migration.
+
 ## 2026-07-05 Production Deploy Smoke for R2 Endpoint Build
 
 - Environment: production deployment at `https://babbledeck.aialra.online`, production secret env loaded without printing secrets, systemd services `aialra-babbledeck.service` and `aialra-babbledeck-ws.service`.

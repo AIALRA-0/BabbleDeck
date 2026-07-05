@@ -11,6 +11,7 @@
     "test": "turbo test",
     "e2e": "env -u NO_COLOR playwright test",
     "e2e:headed": "env -u NO_COLOR playwright test --headed",
+    "deploy:production": "scripts/deploy-production.sh",
     "db:validate": "DATABASE_URL=${DATABASE_URL:-postgresql://babbledeck:babbledeck@localhost:55432/babbledeck_dev} prisma validate --schema db/schema.prisma",
     "db:generate": "DATABASE_URL=${DATABASE_URL:-postgresql://babbledeck:babbledeck@localhost:55432/babbledeck_dev} prisma generate --schema db/schema.prisma",
     "db:migrate": "DATABASE_URL=${DATABASE_URL:-postgresql://babbledeck:babbledeck@localhost:55432/babbledeck_dev} prisma migrate deploy --schema db/schema.prisma",
