@@ -8,6 +8,17 @@ import {
   sha256Hex,
 } from "../apps/web/src/server/audio-storage";
 
+type MigrationChunk = {
+  id: string;
+  sessionId: string;
+  chunkIndex: number;
+  objectKey: string;
+  mimeType: string;
+  byteSize: bigint;
+  checksumSha256: string | null;
+  metadata: Prisma.JsonValue;
+};
+
 function argValue(name: string) {
   const prefix = `${name}=`;
   const match = process.argv.find((arg) => arg.startsWith(prefix));
@@ -23,6 +34,16 @@ function numberArg(name: string, fallback: number) {
 
 function boolFlag(name: string) {
   return process.argv.includes(name);
+}
+
+function targetMetadataFilter(
+  targetConfig: ReturnType<typeof resolveAudioStorageConfig> | null,
+) {
+  if (targetConfig?.driver !== "s3") return null;
+  return {
+    driver: targetConfig.driver,
+    bucket: targetConfig.bucket,
+  };
 }
 
 function sourceAudioDir() {
@@ -50,11 +71,66 @@ function metadataObject(metadata: Prisma.JsonValue) {
   return {};
 }
 
+async function findMigrationCandidates(input: {
+  limit: number;
+  targetFilter: ReturnType<typeof targetMetadataFilter>;
+}) {
+  const take = input.limit + 1;
+  if (input.targetFilter) {
+    const rows = await prisma.$queryRaw<MigrationChunk[]>(Prisma.sql`
+      select
+        id,
+        "sessionId",
+        "chunkIndex",
+        "objectKey",
+        "mimeType",
+        "byteSize",
+        "checksumSha256",
+        metadata
+      from audio_chunks
+      where status = 'UPLOADED'::"AudioChunkStatus"
+        and (
+          metadata->>'storageDriver' is distinct from ${input.targetFilter.driver}
+          or coalesce(metadata->>'storageBucket', '') is distinct from ${input.targetFilter.bucket}
+        )
+      order by "uploadedAt" asc, id asc
+      limit ${take}
+    `);
+    return {
+      chunks: rows.slice(0, input.limit),
+      hasMore: rows.length > input.limit,
+    };
+  }
+
+  const rows = await prisma.audioChunk.findMany({
+    where: { status: "UPLOADED" },
+    orderBy: [{ uploadedAt: "asc" }, { id: "asc" }],
+    take,
+    select: {
+      id: true,
+      sessionId: true,
+      chunkIndex: true,
+      objectKey: true,
+      mimeType: true,
+      byteSize: true,
+      checksumSha256: true,
+      metadata: true,
+    },
+  });
+  return {
+    chunks: rows.slice(0, input.limit),
+    hasMore: rows.length > input.limit,
+  };
+}
+
 async function main() {
   const dryRun = boolFlag("--dry-run");
+  const includeMigrated = boolFlag("--include-migrated");
   const limit = numberArg("--limit", 500);
   const sourceDir = sourceAudioDir();
   const targetConfig = dryRun ? null : resolveAudioStorageConfig();
+  const targetFilter =
+    dryRun || includeMigrated ? null : targetMetadataFilter(targetConfig);
   const targetDir =
     targetConfig?.driver === "local"
       ? path.resolve(targetConfig.rootDir)
@@ -66,10 +142,9 @@ async function main() {
     );
   }
 
-  const chunks = await prisma.audioChunk.findMany({
-    where: { status: "UPLOADED" },
-    orderBy: [{ uploadedAt: "asc" }, { id: "asc" }],
-    take: limit,
+  const { chunks, hasMore } = await findMigrationCandidates({
+    limit,
+    targetFilter,
   });
 
   let readable = 0;
@@ -142,6 +217,7 @@ async function main() {
     migrated += 1;
   }
 
+  const failed = missing > 0 || sizeMismatches > 0 || checksumMismatches > 0;
   process.stdout.write(
     `${JSON.stringify(
       {
@@ -151,19 +227,22 @@ async function main() {
           targetConfig?.driver ?? process.env.AUDIO_STORAGE_DRIVER ?? "local",
         targetBucket:
           targetConfig?.driver === "s3" ? targetConfig.bucket : undefined,
+        skipsCurrentTarget: Boolean(targetFilter),
+        includeMigrated,
         scannedChunks: chunks.length,
         readableChunks: readable,
         migratedChunks: migrated,
         missingChunks: missing,
         sizeMismatches,
         checksumMismatches,
-        hasMore: chunks.length === limit,
+        hasMore,
         errors: errors.slice(0, 20),
       },
       null,
       2,
     )}\n`,
   );
+  if (failed) process.exitCode = 1;
 }
 
 main()

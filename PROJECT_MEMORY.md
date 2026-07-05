@@ -62,9 +62,11 @@
 - R2 audio storage configuration now derives the standard Cloudflare endpoint from `R2_ACCOUNT_ID`; `R2_ENDPOINT` is only needed for overrides.
 - Production services were restarted after the R2 endpoint derivation build; HTTPS headers, strict readiness required checks, anonymous protected-route smoke, and seed-admin login/logout smoke passed on `https://babbledeck.aialra.online`.
 - Routine production deploys can now use `pnpm deploy:production`, which locks, force-builds, restarts systemd web/WS services, checks HTTPS/readiness/login, runs anonymous protected-route Playwright smoke, and appends a non-secret deployment record.
+- Production raw-audio cutovers can now use `pnpm audio:cutover:production`; it defaults to dry-run source validation, requires `BABBLEDECK_AUDIO_CUTOVER_APPLY=1` before writing objects, migrates batches to the configured off-host target, audits target metadata, and runs strict production deploy smoke.
+- R2/S3 audio migrations now skip chunks already marked on the current target by default, so repeated batch runs continue through remaining unmigrated rows. `--include-migrated` is available for intentional rewrites.
 
 ## Next Recommended Tasks
 
-1. Configure production R2/S3 credentials, run the raw audio audit plus migration dry-run, migrate storage off the local object directory, then pass strict readiness.
+1. Configure production R2/S3 credentials, run `pnpm audio:cutover:production`, rerun with `BABBLEDECK_AUDIO_CUTOVER_APPLY=1`, and pass strict readiness.
 2. Run one manual live microphone check from a physical browser/device for final hardware confidence.
 3. Collect longer real Soniox multilingual traces and compare them against persisted segments for continued alignment confidence.

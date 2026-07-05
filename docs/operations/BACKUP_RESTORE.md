@@ -139,6 +139,18 @@ from the local object directory to R2/S3-compatible storage. The script scans
 when available, writes the object through the configured audio storage adapter,
 and records migration metadata on each chunk row.
 
+For production, prefer the guarded cutover wrapper:
+
+```bash
+pnpm audio:cutover:production
+BABBLEDECK_AUDIO_CUTOVER_APPLY=1 pnpm audio:cutover:production
+```
+
+The default run only validates the current source objects. The apply run
+migrates batches to the configured R2/S3 target, audits that uploaded chunks are
+present and marked on the current target, and then runs `pnpm
+deploy:production` in strict readiness mode.
+
 Dry run:
 
 ```bash
@@ -149,8 +161,8 @@ SOURCE_AUDIO_STORAGE_DIR=/srv/aialra/storage/babbledeck \
 Audit the currently configured storage target before and after a migration:
 
 ```bash
-pnpm tsx scripts/audit-audio-storage.ts --limit=500
-pnpm tsx scripts/audit-audio-storage.ts --limit=500 --require-current-target
+pnpm tsx scripts/audit-audio-storage.ts --all --limit=500
+pnpm tsx scripts/audit-audio-storage.ts --all --limit=500 --require-current-target
 ```
 
 R2/S3 run:
@@ -173,3 +185,8 @@ local audio onto the same local target directory. After switching
 `AUDIO_STORAGE_DRIVER` to `r2` or `s3`, strict production readiness also checks
 that all `UPLOADED` chunk rows are marked as migrated to the current off-host
 target.
+
+Non-dry R2/S3 migrations skip chunks already marked on the current target, so
+repeat runs continue from the remaining unmigrated rows instead of rewriting the
+first batch. Use `--include-migrated` only when intentionally refreshing objects
+already present on the target.

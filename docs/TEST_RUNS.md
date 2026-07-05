@@ -1,5 +1,34 @@
 # Test Runs
 
+## 2026-07-05 Audio Storage Cutover Guard
+
+- Environment: local workspace, production secret env inspected without printing secrets, production audio driver still local.
+- Commands:
+  - `bash -n scripts/cutover-audio-storage.sh`
+  - `pnpm audio:cutover:production`
+  - `BABBLEDECK_ENV_FILE="$tmp_env" BABBLEDECK_AUDIO_CUTOVER_BATCH_SIZE=2 pnpm audio:cutover:production`
+  - `SOURCE_AUDIO_STORAGE_DIR=/tmp/babbledeck-source-does-not-exist AUDIO_STORAGE_DRIVER=r2 R2_ACCOUNT_ID=raw-sql-smoke R2_BUCKET=raw-sql-smoke R2_ACCESS_KEY_ID=raw-sql-smoke R2_SECRET_ACCESS_KEY=raw-sql-smoke pnpm tsx scripts/migrate-audio-storage.ts --limit=1`
+  - `pnpm tsx scripts/audit-audio-storage.ts --all --limit=2`
+  - `pnpm format:check`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/recorder-ws-server.ts scripts/prune-audio-retention.ts scripts/migrate-audio-storage.ts scripts/audit-audio-storage.ts scripts/check-production-readiness.ts scripts/sync-seed-admin.ts playwright.config.ts e2e/mvp.spec.ts`
+  - `pnpm build`
+  - `pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --strict --check-soniox-live`
+- Results:
+  - Added `pnpm audio:cutover:production` for guarded R2/S3 cutover.
+  - The wrapper defaults to dry-run source validation and requires `BABBLEDECK_AUDIO_CUTOVER_APPLY=1` before migrating objects.
+  - The storage audit script now supports `--all`, and the cutover wrapper uses it so target audits page through every uploaded chunk instead of only the first batch.
+  - With the current production env, the wrapper refuses to run because `AUDIO_STORAGE_DRIVER=local`.
+  - With a temporary fake R2 env file and production DB URL, the wrapper dry-run scanned `2` chunks, read `2` source objects, found no missing objects, size mismatches, or checksum mismatches, and exited without writing any target objects.
+  - A non-dry fake R2 smoke with a nonexistent source directory exercised the current-target skip query and returned nonzero on a missing source object before any network write.
+  - The production local storage audit with `--all --limit=2` scanned all `21` uploaded chunks, found `21` present objects, and reported no size mismatches.
+  - R2/S3 migrations now skip chunks already marked on the current target by default, which makes repeated batch runs continue from remaining unmigrated rows.
+  - Format, lint, app typecheck, full unit tests, script/E2E typecheck, and production build passed.
+  - Strict production readiness required checks passed, including live Soniox connectivity with `360ms` accepted probe audio; strict completion still waits on off-host audio storage.
+  - Production still needs real R2/S3 credentials before the cutover wrapper can perform an apply run.
+
 ## 2026-07-05 Production Deploy Wrapper
 
 - Environment: production deployment at `https://babbledeck.aialra.online`, production secret env loaded without printing secrets, systemd services `aialra-babbledeck.service` and `aialra-babbledeck-ws.service`.
