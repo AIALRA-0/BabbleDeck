@@ -9,6 +9,8 @@ const contentTypes = {
   VTT: "text/vtt; charset=utf-8",
 } as const;
 
+type ExportContentType = keyof typeof contentTypes;
+
 export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> },
@@ -25,11 +27,12 @@ export async function GET(
     include: { session: true },
   });
   if (!record) return fail("NOT_FOUND", "Export not found.", 404);
-  const ext = record.format.toLowerCase();
+  const format = record.format as ExportContentType;
+  const ext = format.toLowerCase();
   const filename = `${record.session.title.replace(/[^a-z0-9_-]+/gi, "-").slice(0, 64)}.${ext}`;
   return new Response(record.content, {
     headers: {
-      "Content-Type": contentTypes[record.format],
+      "Content-Type": contentTypes[format],
       "Content-Disposition": `attachment; filename="${filename}"`,
     },
   });
