@@ -1498,3 +1498,26 @@
 - Screenshots/traces:
   - Local runs passed without failure screenshots.
   - Production runs passed without failure screenshots.
+
+## 2026-07-05 Recorder Input Health
+
+- Environment: local workspace with Docker Postgres on `localhost:55432`, Playwright dev servers on `127.0.0.1:3130`, `127.0.0.1:3132`, and `127.0.0.1:3136`, and secrets loaded from the server env file without printing values.
+- Commands:
+  - `pnpm format:check`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `pnpm build`
+  - Script TypeScript check for recorder, storage, LiveKit, readiness, metrics, Soniox, security, wrapper, seed-admin, and Playwright config scripts.
+  - `pnpm e2e e2e/mvp.spec.ts --project=chromium-desktop --grep "microphone input health"`
+  - `pnpm e2e e2e/mvp.spec.ts --project=chromium-desktop --grep "admin creates a live session"`
+  - `pnpm e2e e2e/mvp.spec.ts --project=chromium-mobile --grep "admin creates a live session"`
+- Browser/device:
+  - Playwright Chromium desktop, `1440x960`.
+  - Playwright Chromium mobile, Pixel 7 profile.
+- Results:
+  - Static checks, unit tests, script typecheck, and production build passed.
+  - The dedicated desktop Playwright input-health test passed with controlled Web Audio streams for silent microphone input and high-gain clipping input.
+  - Desktop and mobile Playwright MVP flows passed, confirming the new input-health indicators do not disrupt normal recorder start/stop, backup upload, viewer captions, history corrections, and exports.
+- Screenshots/traces:
+  - Local rerun passed without failure screenshots after narrowing the clipping assertion to the exact badge text.

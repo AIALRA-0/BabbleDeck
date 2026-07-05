@@ -573,6 +573,136 @@ test.describe("BabbleDeck MVP browser flow", () => {
     }
   });
 
+  test("recorder shows microphone input health warnings", async ({
+    browser,
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "chromium-desktop",
+      "Input health coverage runs once on desktop.",
+    );
+
+    const title = `Playwright session mic health ${Date.now()}`;
+
+    await page.goto("/");
+    await page.getByRole("link", { name: /open portal/i }).click();
+    await signIn(page);
+    await expect(
+      page.getByRole("heading", { name: "Live sessions" }),
+    ).toBeVisible();
+
+    await page
+      .getByRole("link", { name: /new live session/i })
+      .first()
+      .click();
+    await page.getByLabel("Title").fill(title);
+    await page.getByLabel("Target language").selectOption("zh");
+    await page.getByLabel("Provider").selectOption("mock");
+    await page.getByRole("button", { name: /create session/i }).click();
+    await expect(page.getByRole("heading", { name: title })).toBeVisible();
+    const recorderUrl = page.url();
+
+    async function openRecorderWithInput(mode: "silent" | "clipping") {
+      const context = await browser.newContext({
+        viewport: { width: 390, height: 844 },
+        permissions: ["microphone"],
+      });
+      await context.addInitScript((inputMode) => {
+        const mediaDevices = navigator.mediaDevices ?? {};
+        Object.defineProperty(navigator, "mediaDevices", {
+          configurable: true,
+          value: mediaDevices,
+        });
+        Object.defineProperty(mediaDevices, "enumerateDevices", {
+          configurable: true,
+          value: async () => [
+            {
+              deviceId: `mock-${inputMode}`,
+              groupId: "mock",
+              kind: "audioinput",
+              label:
+                inputMode === "silent"
+                  ? "Silent test microphone"
+                  : "Clipping test microphone",
+              toJSON() {
+                return this;
+              },
+            },
+          ],
+        });
+        Object.defineProperty(mediaDevices, "getUserMedia", {
+          configurable: true,
+          value: async () => {
+            const AudioContextCtor =
+              window.AudioContext ||
+              (window as Window & { webkitAudioContext?: typeof AudioContext })
+                .webkitAudioContext;
+            if (!AudioContextCtor) throw new Error("AudioContext missing.");
+            const audioContext = new AudioContextCtor();
+            const destination = audioContext.createMediaStreamDestination();
+            const nodes: AudioNode[] = [];
+            if (inputMode === "clipping") {
+              const oscillator = audioContext.createOscillator();
+              const gain = audioContext.createGain();
+              oscillator.frequency.value = 440;
+              gain.gain.value = 20;
+              oscillator.connect(gain);
+              gain.connect(destination);
+              oscillator.start();
+              nodes.push(oscillator, gain);
+            }
+            await audioContext.resume();
+            (
+              window as Window & {
+                __babbledeckMockAudio?: {
+                  audioContext: AudioContext;
+                  nodes: AudioNode[];
+                };
+              }
+            ).__babbledeckMockAudio = { audioContext, nodes };
+            return destination.stream;
+          },
+        });
+      }, mode);
+      const recorder = await context.newPage();
+      await recorder.goto(recorderUrl);
+      await expect(
+        recorder.getByRole("heading", { name: title }),
+      ).toBeVisible();
+      return { context, recorder };
+    }
+
+    const silent = await openRecorderWithInput("silent");
+    await silent.recorder
+      .getByRole("button", { name: /test microphone/i })
+      .click();
+    await expect(silent.recorder.getByText("granted")).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(
+      silent.recorder.getByText("No input detected", { exact: true }),
+    ).toBeVisible({ timeout: 8_000 });
+    await expect(
+      silent.recorder.getByText(/make sure it is not muted/i),
+    ).toBeVisible();
+    await silent.context.close();
+
+    const clipping = await openRecorderWithInput("clipping");
+    await clipping.recorder
+      .getByRole("button", { name: /test microphone/i })
+      .click();
+    await expect(clipping.recorder.getByText("granted")).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(
+      clipping.recorder.getByText("Clipping detected", { exact: true }),
+    ).toBeVisible({ timeout: 8_000 });
+    await expect(
+      clipping.recorder.getByText(/lower the input gain/i),
+    ).toBeVisible();
+    await clipping.context.close();
+  });
+
   test("viewer shows provider error events without blocking local backup", async ({
     browser,
     page,

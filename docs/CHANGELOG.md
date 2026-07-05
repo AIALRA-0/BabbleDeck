@@ -68,3 +68,4 @@
 - Added a recorder microphone input selector backed by browser device enumeration, with desktop/mobile Playwright coverage that keeps the selector locked during active recording.
 - Added admin settings management for persisted default session language/budget, glossary CRUD, and a read-only audit log view with desktop/mobile Playwright coverage.
 - Added viewer caption controls for translation-only, bilingual, and original-only modes, large/compact captions, light/dark theme switching, and copying the visible transcript.
+- Added recorder microphone input health feedback for no-input and clipping states, with real-browser coverage using controlled silent and high-gain audio streams.

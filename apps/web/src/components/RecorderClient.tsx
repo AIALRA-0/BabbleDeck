@@ -91,6 +91,8 @@ type RecorderLiveKitStatus =
   | "reconnecting"
   | "error";
 
+type InputHealthStatus = "idle" | "listening" | "no_input" | "clipping";
+
 type SessionSnapshotResponse =
   | {
       ok: true;
@@ -152,6 +154,10 @@ const script = [
   },
 ];
 
+const SILENCE_PEAK_THRESHOLD = 0.02;
+const SILENCE_WARNING_DELAY_MS = 1500;
+const CLIPPING_PEAK_THRESHOLD = 0.96;
+
 export function RecorderClient({
   sessionId,
   title,
@@ -169,6 +175,7 @@ export function RecorderClient({
     "untested" | "granted" | "denied"
   >("untested");
   const [volume, setVolume] = useState(0);
+  const [inputHealth, setInputHealth] = useState<InputHealthStatus>("idle");
   const [recording, setRecording] = useState(status === "recording");
   const [sessionStatus, setSessionStatus] = useState(status);
   const [estimatedCostUsd, setEstimatedCostUsd] = useState(
@@ -212,6 +219,7 @@ export function RecorderClient({
   const [clientOrigin, setClientOrigin] = useState<string | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const silenceStartedAtRef = useRef<number | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const recordingRef = useRef(recording);
   const liveKitRoomRef = useRef<LiveKitRoom | null>(null);
@@ -248,6 +256,21 @@ export function RecorderClient({
     disabled: "Not configured",
     reconnecting: "Reconnecting",
     error: "Unavailable",
+  };
+  const inputHealthLabel: Record<InputHealthStatus, string> = {
+    idle: "Not listening",
+    listening: "Signal OK",
+    no_input: "No input detected",
+    clipping: "Clipping detected",
+  };
+  const inputHealthTone: Record<
+    InputHealthStatus,
+    "neutral" | "green" | "amber" | "red"
+  > = {
+    idle: "neutral",
+    listening: "green",
+    no_input: "amber",
+    clipping: "red",
   };
   const visibleStatus =
     sessionStatus === "provider_degraded"
@@ -651,18 +674,55 @@ export function RecorderClient({
       analyser.fftSize = 256;
       const source = audioContext.createMediaStreamSource(stream);
       source.connect(analyser);
-      const data = new Uint8Array(analyser.frequencyBinCount);
+      const frequencyData = new Uint8Array(analyser.frequencyBinCount);
+      const timeData = new Uint8Array(analyser.fftSize);
+      silenceStartedAtRef.current = null;
+      setInputHealth("listening");
       const tick = () => {
-        analyser.getByteFrequencyData(data);
-        const average =
-          data.reduce((sum, value) => sum + value, 0) / data.length;
-        setVolume(Math.min(100, Math.round((average / 255) * 140)));
-        if (streamRef.current) requestAnimationFrame(tick);
+        analyser.getByteFrequencyData(frequencyData);
+        analyser.getByteTimeDomainData(timeData);
+        const frequencyAverage =
+          frequencyData.reduce((sum, value) => sum + value, 0) /
+          frequencyData.length;
+        let peak = 0;
+        let squareSum = 0;
+        for (const sample of timeData) {
+          const centered = Math.abs(sample - 128) / 128;
+          peak = Math.max(peak, centered);
+          squareSum += centered * centered;
+        }
+        const rms = Math.sqrt(squareSum / timeData.length);
+        const level = Math.max((frequencyAverage / 255) * 140, rms * 180);
+        setVolume(Math.min(100, Math.round(level)));
+
+        const now = performance.now();
+        if (peak >= CLIPPING_PEAK_THRESHOLD) {
+          silenceStartedAtRef.current = null;
+          setInputHealth("clipping");
+        } else if (peak <= SILENCE_PEAK_THRESHOLD) {
+          silenceStartedAtRef.current ??= now;
+          setInputHealth(
+            now - silenceStartedAtRef.current >= SILENCE_WARNING_DELAY_MS
+              ? "no_input"
+              : "listening",
+          );
+        } else {
+          silenceStartedAtRef.current = null;
+          setInputHealth("listening");
+        }
+
+        if (streamRef.current) {
+          requestAnimationFrame(tick);
+        } else {
+          setVolume(0);
+          setInputHealth("idle");
+        }
       };
       tick();
       return stream;
     } catch {
       setPermission("denied");
+      setInputHealth("idle");
       throw new Error("Microphone permission denied.");
     }
   }
@@ -1009,6 +1069,8 @@ export function RecorderClient({
     recorderRef.current?.stop();
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
+    setInputHealth("idle");
+    setVolume(0);
     const stopResponse = await fetch(`/api/sessions/${sessionId}/stop`, {
       method: "POST",
       headers: recorderAuthHeaders(),
@@ -1042,17 +1104,22 @@ export function RecorderClient({
           <div>
             <div className="mb-2 flex items-center justify-between">
               <p className="text-sm font-semibold">Microphone level</p>
-              <Badge
-                tone={
-                  permission === "denied"
-                    ? "red"
-                    : permission === "granted"
-                      ? "green"
-                      : "neutral"
-                }
-              >
-                {permission === "untested" ? "Not tested" : permission}
-              </Badge>
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <Badge tone={inputHealthTone[inputHealth]}>
+                  {inputHealthLabel[inputHealth]}
+                </Badge>
+                <Badge
+                  tone={
+                    permission === "denied"
+                      ? "red"
+                      : permission === "granted"
+                        ? "green"
+                        : "neutral"
+                  }
+                >
+                  {permission === "untested" ? "Not tested" : permission}
+                </Badge>
+              </div>
             </div>
             <div
               className="h-4 overflow-hidden rounded-full bg-muted"
@@ -1067,6 +1134,17 @@ export function RecorderClient({
               <p className="mt-3 text-sm font-medium text-red-700">
                 Microphone access is blocked. Allow microphone access in the
                 browser and retry.
+              </p>
+            ) : null}
+            {inputHealth === "no_input" ? (
+              <p className="mt-3 text-sm font-medium text-amber-700">
+                No microphone input is detected. Check the selected microphone
+                and make sure it is not muted.
+              </p>
+            ) : inputHealth === "clipping" ? (
+              <p className="mt-3 text-sm font-medium text-red-700">
+                Clipping detected. Move the microphone farther away or lower the
+                input gain.
               </p>
             ) : null}
             {audioDeviceSupported ? (
