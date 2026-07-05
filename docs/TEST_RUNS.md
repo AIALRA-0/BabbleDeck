@@ -6,10 +6,22 @@
 - Commands:
   - `pnpm --filter @babbledeck/web test -- audio-storage`
   - `pnpm --filter @babbledeck/web typecheck`
+  - `pnpm format:check`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `pnpm build`
+  - `pnpm db:generate && pnpm deploy:production`
+  - `pnpm audio:preflight:production` (expected exit 1 while production remains local)
 - Results:
   - Updated `resolveAudioStorageConfig()` so `AUDIO_STORAGE_DRIVER=r2` selects S3 SDK `region="auto"` even when the target bucket comes from `AUDIO_STORAGE_BUCKET` instead of `R2_BUCKET`.
   - Added regression coverage for a generic-bucket R2 configuration using `R2_ACCOUNT_ID` plus `AUDIO_STORAGE_ACCESS_KEY_ID` and `AUDIO_STORAGE_SECRET_ACCESS_KEY`.
   - Targeted Vitest passed with `16` files and `54` tests, and web typecheck passed.
+  - Full format, lint, typecheck, test, and build gates passed.
+  - Production deploy for commit `4a0d6ae` passed the deployment wrapper: build, service restart, HTTPS readiness, seed-admin login smoke, production readiness required checks, and anonymous protected-route Playwright smoke.
+  - GitHub Actions run `28747844382` for commit `4a0d6ae` completed successfully.
+  - Production `/api/health` remained `ok` with audio storage `driver="local"`, `offHostReady=false`, and Soniox `configured=true`; strict live Soniox readiness passed with `360ms` accepted probe audio.
+  - `pnpm audio:preflight:production` correctly failed with `targetDriver="local"`, proving the remaining off-host storage gap is missing production R2/S3 credentials and cutover, not the R2 config parser.
 
 ## 2026-07-05 Post-Deploy Soniox Key Verification
 

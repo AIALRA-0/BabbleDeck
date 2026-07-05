@@ -67,6 +67,7 @@
 - Production off-host audio targets can now be checked with `pnpm audio:preflight:production`; the preflight writes, heads, and deletes a temporary object before any raw audio migration is attempted.
 - R2/S3 audio migrations now skip chunks already marked on the current target by default, so repeated batch runs continue through remaining unmigrated rows. `--include-migrated` is available for intentional rewrites.
 - R2 audio storage config now uses S3 SDK `region=auto` whenever `AUDIO_STORAGE_DRIVER=r2` selects the target, even if operators prefer generic `AUDIO_STORAGE_BUCKET` credentials over the `R2_BUCKET` aliases.
+- The R2 generic-bucket region hardening has been deployed to production; production health and strict live Soniox readiness still pass, while `pnpm audio:preflight:production` still fails only because production remains on local audio storage.
 - Production now exposes `/api/health` for non-secret uptime monitoring; readiness checks verify that it reports database and audio storage core health.
 - Production health monitoring is systemd-managed through `aialra-babbledeck-health-monitor.timer`; it checks `/api/health` every five minutes, writes non-secret JSONL records to `/srv/aialra/logs/babbledeck/health-monitor.jsonl`, and writes local alert/recovery events when consecutive failures cross the configured threshold.
 - Production log rotation can be installed with `pnpm logs:install:production`; readiness checks `/etc/logrotate.d/aialra-babbledeck` for BabbleDeck `.log` and `.jsonl` files.
