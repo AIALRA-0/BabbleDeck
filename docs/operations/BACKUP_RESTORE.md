@@ -98,10 +98,17 @@ The timer checks `https://babbledeck.aialra.online/api/health` every five
 minutes. It writes non-secret JSONL records to
 `/srv/aialra/logs/babbledeck/health-monitor.jsonl` and exits nonzero if the
 endpoint, database check, or audio storage core configuration is unhealthy.
+After `BABBLEDECK_HEALTH_ALERT_THRESHOLD` consecutive unhealthy checks
+(default: `3`), it writes a local alert event to
+`/srv/aialra/logs/babbledeck/health-alerts.jsonl` and marks
+`/srv/aialra/logs/babbledeck/health-monitor-state.json` as active. The next
+healthy check clears the active state and writes a recovery event. Strict
+readiness fails while a local health alert is active.
 Inspect the latest records with:
 
 ```bash
 tail -n 20 /srv/aialra/logs/babbledeck/health-monitor.jsonl
+tail -n 20 /srv/aialra/logs/babbledeck/health-alerts.jsonl
 systemctl status aialra-babbledeck-health-monitor.timer
 ```
 

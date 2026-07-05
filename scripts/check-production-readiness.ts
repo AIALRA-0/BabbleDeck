@@ -145,6 +145,29 @@ async function healthEndpointOk(baseUrl: string) {
   }
 }
 
+async function healthAlertStateOk() {
+  const statePath =
+    process.env.BABBLEDECK_HEALTH_ALERT_STATE ??
+    "/srv/aialra/logs/babbledeck/health-monitor-state.json";
+  try {
+    const contents = await fs.readFile(statePath, "utf8");
+    const state = JSON.parse(contents);
+    const alertActive = state?.alertActive === true;
+    const failureStreak = Number(state?.failureStreak ?? 0);
+    return {
+      ok: !alertActive,
+      message: alertActive
+        ? `Production health alert is active after ${failureStreak} consecutive monitor failures.`
+        : "No active production health monitor alert.",
+    };
+  } catch {
+    return {
+      ok: true,
+      message: "No active production health monitor alert state exists.",
+    };
+  }
+}
+
 async function seedAdminMatchesEnv() {
   const email = (
     process.env.SEED_ADMIN_EMAIL ?? "admin@example.invalid"
@@ -621,6 +644,13 @@ async function main() {
     name: "health_endpoint",
     ok: healthEndpoint.ok,
     message: healthEndpoint.message,
+  });
+
+  const healthAlert = await healthAlertStateOk();
+  check(checks, {
+    name: "health_alert_state",
+    ok: healthAlert.ok,
+    message: healthAlert.message,
   });
 
   check(checks, {

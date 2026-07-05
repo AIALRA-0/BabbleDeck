@@ -1,5 +1,18 @@
 # Test Runs
 
+## 2026-07-05 Health Monitor Local Alerts
+
+- Environment: local workspace with temporary log directories and production deployment at `https://babbledeck.aialra.online`.
+- Commands:
+  - `BABBLEDECK_LOG_DIR="$tmpdir" BABBLEDECK_HEALTH_BASE_URL=http://127.0.0.1:9 BABBLEDECK_HEALTH_ALERT_THRESHOLD=2 pnpm health:monitor:production` twice, expecting nonzero exits.
+  - `BABBLEDECK_LOG_DIR="$tmpdir" BABBLEDECK_HEALTH_BASE_URL=https://babbledeck.aialra.online BABBLEDECK_HEALTH_ALERT_THRESHOLD=2 pnpm health:monitor:production`
+  - `pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --strict --check-soniox-live`
+- Results:
+  - The health monitor now tracks consecutive unhealthy checks in `health-monitor-state.json`.
+  - It writes `health_alert_opened` only after the configured failure threshold is crossed, avoiding one-off deployment 502 noise.
+  - It writes `health_alert_recovered` when a later healthy check clears an active alert.
+  - Production readiness now includes `health_alert_state`, which fails while a local health alert is active.
+
 ## 2026-07-05 Audio Storage Preflight
 
 - Environment: local workspace and production secret env at `https://babbledeck.aialra.online`.

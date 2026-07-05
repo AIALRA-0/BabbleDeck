@@ -4,8 +4,11 @@ set -euo pipefail
 BASE_URL="${BABBLEDECK_HEALTH_BASE_URL:-https://babbledeck.aialra.online}"
 LOG_DIR="${BABBLEDECK_LOG_DIR:-/srv/aialra/logs/babbledeck}"
 HEALTH_LOG="${BABBLEDECK_HEALTH_LOG:-$LOG_DIR/health-monitor.jsonl}"
+ALERT_LOG="${BABBLEDECK_HEALTH_ALERT_LOG:-$LOG_DIR/health-alerts.jsonl}"
+ALERT_STATE="${BABBLEDECK_HEALTH_ALERT_STATE:-$LOG_DIR/health-monitor-state.json}"
 LOCK_FILE="${BABBLEDECK_HEALTH_LOCK:-$LOG_DIR/health-monitor.lock}"
 TIMEOUT_SECONDS="${BABBLEDECK_HEALTH_TIMEOUT_SECONDS:-10}"
+ALERT_THRESHOLD="${BABBLEDECK_HEALTH_ALERT_THRESHOLD:-3}"
 
 need_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -54,9 +57,31 @@ if [[ -s "$err_file" ]]; then
   curl_error="$(tr '\n' ' ' <"$err_file" | sed 's/[[:space:]]*$//')"
 fi
 
-export started_at BASE_URL health_url http_status time_total curl_status curl_error body_file
+export started_at BASE_URL health_url http_status time_total curl_status curl_error body_file ALERT_LOG ALERT_STATE ALERT_THRESHOLD
 node <<'NODE' >>"$HEALTH_LOG"
 const fs = require("node:fs");
+
+function readState() {
+  try {
+    const raw = fs.readFileSync(process.env.ALERT_STATE, "utf8");
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+}
+
+function writeState(state) {
+  fs.writeFileSync(process.env.ALERT_STATE, `${JSON.stringify(state)}\n`);
+}
+
+function appendAlert(record) {
+  fs.appendFileSync(process.env.ALERT_LOG, `${JSON.stringify(record)}\n`);
+}
+
+function positiveInteger(value, fallback) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
 
 const readBody = () => {
   try {
@@ -96,17 +121,67 @@ const record = {
   curlStatus: Number(process.env.curl_status || 0),
   error: process.env.curl_error || undefined,
 };
-
-process.stdout.write(`${JSON.stringify(record)}\n`);
-
-if (
+const unhealthy =
   record.curlStatus !== 0 ||
   record.httpStatus < 200 ||
   record.httpStatus >= 300 ||
   !record.ok ||
   !record.databaseOk ||
-  !record.audioStorageOk
-) {
+  !record.audioStorageOk;
+
+const previous = readState();
+const previousFailureStreak = Number(previous.failureStreak ?? 0);
+const threshold = positiveInteger(process.env.ALERT_THRESHOLD, 3);
+const failureStreak = unhealthy ? previousFailureStreak + 1 : 0;
+const alertWasActive = previous.alertActive === true;
+const alertActive = unhealthy && (alertWasActive || failureStreak >= threshold);
+
+if (unhealthy && failureStreak >= threshold && !alertWasActive) {
+  appendAlert({
+    app: "babbledeck",
+    event: "health_alert_opened",
+    checkedAt: record.checkedAt,
+    baseUrl: record.baseUrl,
+    failureStreak,
+    threshold,
+    httpStatus: record.httpStatus,
+    curlStatus: record.curlStatus,
+    healthStatus: record.healthStatus,
+    databaseOk: record.databaseOk,
+    audioStorageOk: record.audioStorageOk,
+    error: record.error,
+  });
+}
+
+if (!unhealthy && alertWasActive) {
+  appendAlert({
+    app: "babbledeck",
+    event: "health_alert_recovered",
+    checkedAt: record.checkedAt,
+    baseUrl: record.baseUrl,
+    previousFailureStreak,
+    threshold,
+    httpStatus: record.httpStatus,
+    healthStatus: record.healthStatus,
+  });
+}
+
+writeState({
+  app: "babbledeck",
+  checkedAt: record.checkedAt,
+  baseUrl: record.baseUrl,
+  alertActive,
+  failureStreak,
+  threshold,
+  lastOk: !unhealthy,
+  lastHttpStatus: record.httpStatus,
+  lastCurlStatus: record.curlStatus,
+  lastHealthStatus: record.healthStatus,
+});
+
+process.stdout.write(`${JSON.stringify(record)}\n`);
+
+if (unhealthy) {
   process.exitCode = 1;
 }
 NODE

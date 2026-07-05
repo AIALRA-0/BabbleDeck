@@ -50,3 +50,4 @@
 - Added request correlation headers, structured request logs, and an app error boundary.
 - Queued Soniox recorder audio sends before close so a fast recorder stop cannot send end-of-audio before the first chunk.
 - Added a production audio storage preflight that writes, heads, and deletes a temporary object before R2/S3 cutover.
+- Added local health alert and recovery events for consecutive production health monitor failures.

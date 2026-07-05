@@ -69,6 +69,10 @@ pnpm health:install:production
 
 The monitor runs every five minutes, checks `/api/health`, and appends
 non-secret JSONL records to `/srv/aialra/logs/babbledeck/health-monitor.jsonl`.
+After three consecutive unhealthy checks, it writes a local alert event to
+`/srv/aialra/logs/babbledeck/health-alerts.jsonl`; a later healthy check writes
+a recovery event. Strict readiness also verifies that no local health alert is
+active.
 
 Install the production metrics snapshot timer after deploying the app:
 
