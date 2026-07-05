@@ -1,5 +1,24 @@
 # Test Runs
 
+## 2026-07-05 Latest Production Soniox Recheck
+
+- Environment: production deployment at `https://babbledeck.aialra.online`, commit `19f77c7`, systemd services `aialra-babbledeck.service` and `aialra-babbledeck-ws.service`, configured `SONIOX_API_KEY`, and local production audio storage.
+- Commands:
+  - `curl -fsS https://babbledeck.aialra.online/api/health | jq -r '{status:.data.status,version:.data.version,audio:.data.checks.audioStorage.driver,offHost:.data.checks.audioStorage.offHostReady,soniox:.data.checks.providers.soniox.configured,livekit:.data.checks.providers.livekit.configured,uptime:.data.uptimeSeconds}'`
+  - `pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --strict --check-soniox-live`
+  - `pnpm security:audit:production`
+  - `pnpm soniox:smoke:production`
+  - `pnpm soniox:ui-smoke:production`
+  - `pnpm livekit:preflight:production`
+- Results:
+  - `/api/health` returned `status="ok"`, audio storage `driver="local"`, `offHostReady=false`, Soniox `configured=true`, and LiveKit `configured=false`.
+  - Strict readiness passed every required check, including live Soniox realtime websocket connectivity with `360ms` accepted probe audio; strict completion still fails only the external `off_host_audio_storage` check because production remains on local audio storage.
+  - Production Soniox recorder WebSocket smoke passed with recorder ready/ack, one uploaded audio chunk, `360ms` provider usage, zero provider errors, and cleanup archiving.
+  - Production Soniox UI smoke passed in Chromium using fake-microphone speech and verified the recorder/viewer live-caption path on the real deployed site.
+  - Production security baseline passed with 10 checks.
+  - Latest GitHub Actions run for commit `19f77c7` completed successfully.
+  - `pnpm livekit:preflight:production` correctly failed without printing secrets because `LIVEKIT_URL`, `LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET` are not configured yet.
+
 ## 2026-07-05 LiveKit Production Configure and Preflight Wrappers
 
 - Environment: local workspace, temporary env files, and official `livekit-server-sdk`.
