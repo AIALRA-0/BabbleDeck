@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-07-06
+
+- Added a production device runtime readiness command for Android, iOS, and desktop wrapper prerequisites against the deployed production PWA, with non-secret strict-mode gating for physical-device follow-up.
+
 ## 2026-07-05
 
 - Added a production audio cutover readiness report command that checks non-secret R2/S3 target inputs, local source audio files, uploaded chunk counts, and current-target migration metadata before off-host cutover.

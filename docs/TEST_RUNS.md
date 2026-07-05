@@ -1766,3 +1766,29 @@
   - `aialra-babbledeck.service`, `aialra-babbledeck-ws.service`, and `aialra-babbledeck-livekit.service` are active with `NRestarts=0`.
 - Screenshots/traces:
   - This slice was production operations tooling only; no browser screenshots were produced.
+
+## 2026-07-06 Device Runtime Readiness
+
+- Environment: production `https://babbledeck.aialra.online`, Linux server workspace, Android SDK/ADB installed, Capacitor Android/iOS projects committed, Tauri desktop package installed, and no device serials or secrets printed.
+- Commands:
+  - `pnpm device:readiness:production`
+  - `pnpm device:readiness:production -- --strict` (expected exit `1` until physical/runtime prerequisites are present)
+  - `pnpm --filter @babbledeck/mobile native:build:android`
+  - `pnpm --filter @babbledeck/desktop native:build`
+  - `pnpm wrappers:check`
+  - `pnpm prettier --check scripts/check-device-runtime-readiness.ts package.json .github/workflows/ci.yml README.md`
+  - CI-style script typecheck including `scripts/check-device-runtime-readiness.ts`
+  - `pnpm --filter @babbledeck/web typecheck`
+  - `pnpm --filter @babbledeck/web lint`
+  - `pnpm build`
+- Results:
+  - Added `pnpm device:readiness:production`, a non-secret runtime readiness report for native wrapper follow-up against the deployed production PWA.
+  - The command checks production reachability, ADB availability, connected physical Android devices without printing serials, Android debug artifact presence, macOS/Xcode/iOS project prerequisites, Tauri CLI presence, desktop release artifact presence, and whether an interactive desktop display session is available.
+  - The current production URL check passes with HTTP `200`.
+  - Android build passed through `native:build:android`; the current readiness blocker is no physical Android device in `adb device` state.
+  - Desktop `native:build` passed and produced the Linux release binary; the current readiness blocker is no interactive desktop display session for a real wrapper microphone check.
+  - iOS remains blocked on this Linux host because `xcodebuild` is unavailable and a macOS/iOS runtime is required.
+  - Strict mode returns nonzero while Android, iOS, and desktop runtime prerequisites are missing, so this command can gate the remaining physical-device validation work.
+  - Local validation passed: changed-file Prettier, script typecheck, wrapper config check, app typecheck, ESLint, and full workspace build.
+- Screenshots/traces:
+  - This slice was native/runtime operations tooling only; no browser screenshots were produced.

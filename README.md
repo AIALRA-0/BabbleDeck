@@ -256,12 +256,16 @@ Native wrapper configuration checks:
 
 ```bash
 pnpm wrappers:check
+pnpm device:readiness:production
 pnpm --filter @babbledeck/mobile check
 pnpm --filter @babbledeck/desktop check
 ```
 
 The mobile and desktop wrapper packages default to the deployed production PWA
 at `https://babbledeck.aialra.online` for live-site-first wrapper testing.
+`device:readiness:production` checks the production URL, Android debug APK,
+connected physical Android devices, Xcode availability for iOS, and an
+interactive desktop display session without printing device serials or secrets.
 
 ## Deployment Notes
 
