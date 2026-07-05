@@ -2,6 +2,7 @@
 
 ## 2026-07-06
 
+- Expanded production deployment JSONL records with non-secret readiness summaries and web/recorder systemd service state, result, start time, and restart counts.
 - Strengthened native/device readiness reporting with Android APK and desktop binary artifact metadata plus an optional Tauri/Xvfb headless launch smoke, and rebuilt the Android debug APK against the production PWA.
 - Revalidated the refreshed production Soniox key against the deployed site with live readiness, recorder smoke, UI fake-microphone smoke, and a long trace; required readiness is green while external storage/device evidence gates remain open.
 - Added a production device runtime evidence command and wired recent Android, iOS, and desktop evidence into strict production readiness as an external completion gate.

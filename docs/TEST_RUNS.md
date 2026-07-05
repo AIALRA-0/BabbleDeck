@@ -1,5 +1,21 @@
 # Test Runs
 
+## 2026-07-06 Production Deploy Log Evidence
+
+- Environment: production deployment at `https://babbledeck.aialra.online`, systemd services `aialra-babbledeck.service` and `aialra-babbledeck-ws.service`, configured production Soniox and LiveKit, and production audio storage still local.
+- Commands:
+  - `pnpm deploy:production`
+  - `systemctl show aialra-babbledeck.service aialra-babbledeck-ws.service aialra-babbledeck-livekit.service --property=Id,ActiveState,SubState,NRestarts,Result,ExecMainStartTimestamp,MainPID --no-pager`
+  - `curl -fsS https://babbledeck.aialra.online/api/health`
+  - `bash -lc 'set -a; . /srv/aialra/config/secrets/babbledeck.env; set +a; pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --check-soniox-live'`
+  - `bash -n scripts/deploy-production.sh`
+- Results:
+  - Production was redeployed from the current `main` commit with the existing guarded deployment wrapper: forced build, systemd web/WS restart, HTTPS readiness, homepage content check, live Soniox production readiness, seed-admin login/logout smoke, and anonymous protected-route Playwright smoke.
+  - Web, recorder WebSocket, and LiveKit services were active/running after deployment with `NRestarts=0`.
+  - Production `/api/health` returned `status="ok"`, audio storage `driver="local"`, `offHostReady=false`, Soniox configured, and LiveKit configured.
+  - Production readiness returned `requiredOk=true`, `externalOk=false`, and `productionReady=false`; the remaining external failures are still missing Android/iOS/desktop runtime evidence and local audio storage.
+  - `scripts/deploy-production.sh` now appends non-secret readiness summary fields and web/recorder service state, result, start time, and restart counts to `/srv/aialra/logs/babbledeck/deployments.jsonl`.
+
 ## 2026-07-06 Native Wrapper Artifact Readiness
 
 - Environment: production deployment at `https://babbledeck.aialra.online`, Linux server with Android SDK/JDK, ADB, Tauri/Linux dependencies, Xvfb, no connected physical Android device, no macOS/Xcode host, and no interactive desktop display session.

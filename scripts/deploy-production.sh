@@ -231,22 +231,65 @@ fi
 deployed_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 web_started="$(systemctl show "$WEB_SERVICE" -P ExecMainStartTimestamp)"
 ws_started="$(systemctl show "$WS_SERVICE" -P ExecMainStartTimestamp)"
-export deployed_at commit branch BASE_URL WEB_SERVICE WS_SERVICE web_started ws_started
+web_active="$(systemctl show "$WEB_SERVICE" -P ActiveState)"
+web_sub="$(systemctl show "$WEB_SERVICE" -P SubState)"
+web_restarts="$(systemctl show "$WEB_SERVICE" -P NRestarts)"
+web_result="$(systemctl show "$WEB_SERVICE" -P Result)"
+ws_active="$(systemctl show "$WS_SERVICE" -P ActiveState)"
+ws_sub="$(systemctl show "$WS_SERVICE" -P SubState)"
+ws_restarts="$(systemctl show "$WS_SERVICE" -P NRestarts)"
+ws_result="$(systemctl show "$WS_SERVICE" -P Result)"
+export deployed_at commit branch BASE_URL WEB_SERVICE WS_SERVICE
+export web_started web_active web_sub web_restarts web_result
+export ws_started ws_active ws_sub ws_restarts ws_result
+export readiness_file readiness_status STRICT_READINESS
 node <<'NODE' >>"$DEPLOY_LOG"
+const fs = require("node:fs");
+
+let readiness = null;
+try {
+  const result = JSON.parse(fs.readFileSync(process.env.readiness_file, "utf8"));
+  readiness = {
+    requiredOk: result.requiredOk === true,
+    externalOk: result.externalOk === true,
+    productionReady: result.productionReady === true,
+    strict: process.env.STRICT_READINESS === "1",
+    status: Number(process.env.readiness_status ?? 0),
+  };
+} catch {
+  readiness = {
+    requiredOk: false,
+    externalOk: false,
+    productionReady: false,
+    strict: process.env.STRICT_READINESS === "1",
+    status: Number(process.env.readiness_status ?? 1),
+    parseError: true,
+  };
+}
+
 const record = {
   app: "babbledeck",
   deployedAt: process.env.deployed_at,
   commit: process.env.commit,
   branch: process.env.branch,
   baseUrl: process.env.BASE_URL,
+  readiness,
   services: {
     web: {
       name: process.env.WEB_SERVICE,
       startedAt: process.env.web_started,
+      activeState: process.env.web_active,
+      subState: process.env.web_sub,
+      result: process.env.web_result,
+      restarts: Number(process.env.web_restarts ?? 0),
     },
     websocket: {
       name: process.env.WS_SERVICE,
       startedAt: process.env.ws_started,
+      activeState: process.env.ws_active,
+      subState: process.env.ws_sub,
+      result: process.env.ws_result,
+      restarts: Number(process.env.ws_restarts ?? 0),
     },
   },
 };
