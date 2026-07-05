@@ -420,22 +420,43 @@ Returns non-secret app settings and provider status.
       "azure": { "configured": false },
       "openai": { "configured": false }
     },
-    "defaultBudgetCapUsd": 1.5
+    "defaultBudgetCapUsd": 1.5,
+    "audioRetentionDays": 30,
+    "glossary": []
   }
 }
 ```
 
 ### PATCH /api/settings
 
-Admin-only.
+Admin-only. Same-origin mutation protections apply for cookie-authenticated
+requests.
+
+Request:
+
+```json
+{
+  "defaultTargetLanguage": "zh",
+  "defaultBudgetCapUsd": 1.5,
+  "audioRetentionDays": 30
+}
+```
 
 ### GET /api/settings/glossary
 
-Returns glossary terms.
+Returns recent glossary terms.
 
 ### POST /api/settings/glossary
 
-Create term.
+Create a glossary term.
+
+### PATCH /api/settings/glossary/:id
+
+Update a glossary term.
+
+### DELETE /api/settings/glossary/:id
+
+Delete a glossary term.
 
 ## 12. LiveKit V2 Token API
 

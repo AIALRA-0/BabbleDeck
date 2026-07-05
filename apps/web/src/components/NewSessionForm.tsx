@@ -16,12 +16,20 @@ type CreateSessionResponse = {
   };
 };
 
-export function NewSessionForm() {
+export function NewSessionForm({
+  initialTargetLanguage,
+  initialProviderName,
+  initialBudgetCapUsd,
+}: {
+  initialTargetLanguage: string;
+  initialProviderName: "mock" | "soniox";
+  initialBudgetCapUsd: number;
+}) {
   const router = useRouter();
   const [title, setTitle] = useState("Live caption session");
-  const [targetLanguage, setTargetLanguage] = useState("zh");
-  const [providerName, setProviderName] = useState("mock");
-  const [budgetCapUsd, setBudgetCapUsd] = useState("1.50");
+  const [targetLanguage, setTargetLanguage] = useState(initialTargetLanguage);
+  const [providerName, setProviderName] = useState(initialProviderName);
+  const [budgetCapUsd, setBudgetCapUsd] = useState(String(initialBudgetCapUsd));
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
 
@@ -102,7 +110,10 @@ export function NewSessionForm() {
             id="providerName"
             className="focus-ring h-11 w-full rounded-md border border-input bg-white px-3 text-sm"
             value={providerName}
-            onChange={(event) => setProviderName(event.target.value)}
+            onChange={(event) => {
+              const value = event.target.value;
+              setProviderName(value === "soniox" ? "soniox" : "mock");
+            }}
           >
             <option value="mock">Mock realtime</option>
             <option value="soniox">Soniox realtime</option>

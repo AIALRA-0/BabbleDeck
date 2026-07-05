@@ -207,11 +207,68 @@ test.describe("BabbleDeck MVP browser flow", () => {
     await expect(
       page.getByRole("heading", { name: /provider and safety status/i }),
     ).toBeVisible();
+    const defaultSessionSection = page.locator("section").filter({
+      has: page.getByRole("heading", { name: "Default session" }),
+    });
+    const defaultTargetLanguage = defaultSessionSection.getByLabel(
+      "Default target language",
+    );
+    const defaultBudgetCap =
+      defaultSessionSection.getByLabel("Default budget cap");
+    await defaultTargetLanguage.selectOption(
+      await defaultTargetLanguage.inputValue(),
+    );
+    await defaultBudgetCap.fill((await defaultBudgetCap.inputValue()) || "1.5");
+    await defaultSessionSection
+      .getByRole("button", { name: /^save$/i })
+      .click();
+    await expect(defaultSessionSection.getByText("Saved.")).toBeVisible();
+
     const retentionInput = page.getByLabel("Raw audio retention");
     await expect(retentionInput).toBeVisible();
     await retentionInput.fill((await retentionInput.inputValue()) || "30");
-    await page.getByRole("button", { name: /^save$/i }).click();
+    await page
+      .locator("form")
+      .filter({ has: retentionInput })
+      .getByRole("button", { name: /^save$/i })
+      .click();
     await expect(page.getByText("Saved.")).toBeVisible();
+
+    const glossarySection = page.locator("section").filter({
+      has: page.getByRole("heading", { name: "Glossary" }),
+    });
+    const glossarySource = `Playwright glossary ${Date.now()}`;
+    await glossarySection.getByLabel("Source term").fill(glossarySource);
+    await glossarySection.getByLabel("Preferred translation").fill("剧场词条");
+    await glossarySection.locator("#newTargetLanguage").fill("zh");
+    await glossarySection.getByRole("button", { name: /^add$/i }).click();
+    await expect(glossarySection.getByText("Glossary term added.")).toBeVisible(
+      { timeout: 12_000 },
+    );
+    const deleteGlossaryButton = glossarySection.getByRole("button", {
+      name: `Delete ${glossarySource}`,
+    });
+    await expect(deleteGlossaryButton).toBeVisible();
+    const glossaryRow = deleteGlossaryButton.locator("xpath=ancestor::form");
+    await glossaryRow.getByLabel("Enabled").uncheck();
+    await glossaryRow.getByRole("button", { name: /^save$/i }).click();
+    await expect(glossarySection.getByText("Glossary term saved.")).toBeVisible(
+      { timeout: 12_000 },
+    );
+    await deleteGlossaryButton.click();
+    await expect(
+      glossarySection.getByText("Glossary term deleted."),
+    ).toBeVisible({ timeout: 12_000 });
+    await expect(deleteGlossaryButton).toHaveCount(0);
+
+    await page.reload();
+    const auditLogSection = page.locator("section").filter({
+      has: page.getByRole("heading", { name: "Audit log" }),
+    });
+    await expect(
+      auditLogSection.getByText("settings.glossary_term_deleted").first(),
+    ).toBeVisible({ timeout: 12_000 });
+
     await page.getByRole("link", { name: /dashboard/i }).click();
     await expect(
       page.getByRole("heading", { name: "Live sessions" }),

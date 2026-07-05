@@ -4,9 +4,11 @@ import {
   requireSameOriginMutation,
   validationError,
 } from "@/server/api";
-import { prisma } from "@/server/db";
 import {
   getAudioRetentionDaysSetting,
+  getDefaultSessionSettings,
+  listGlossaryTerms,
+  setDefaultSessionSettings,
   setAudioRetentionDaysSetting,
 } from "@/server/settings-service";
 import { updateSettingsSchema } from "@/server/schemas";
@@ -14,14 +16,14 @@ import { updateSettingsSchema } from "@/server/schemas";
 export async function GET() {
   const auth = await requireApiUser();
   if ("response" in auth) return auth.response;
-  const audioRetentionDays = await getAudioRetentionDaysSetting();
-  const glossary = await prisma.glossaryTerm.findMany({
-    orderBy: { createdAt: "desc" },
-    take: 25,
-  });
+  const [audioRetentionDays, defaultSession, glossary] = await Promise.all([
+    getAudioRetentionDaysSetting(),
+    getDefaultSessionSettings(),
+    listGlossaryTerms(),
+  ]);
   return ok({
-    defaultTargetLanguage: process.env.SONIOX_DEFAULT_TARGET_LANGUAGE ?? "zh",
-    defaultProvider: process.env.SONIOX_API_KEY ? "soniox" : "mock",
+    defaultTargetLanguage: defaultSession.targetLanguage,
+    defaultProvider: defaultSession.providerName,
     providers: {
       soniox: { configured: Boolean(process.env.SONIOX_API_KEY) },
       livekit: {
@@ -34,17 +36,9 @@ export async function GET() {
       azure: { configured: Boolean(process.env.AZURE_TRANSLATOR_KEY) },
       openai: { configured: Boolean(process.env.OPENAI_API_KEY) },
     },
-    defaultBudgetCapUsd: Number(
-      process.env.DEFAULT_SESSION_BUDGET_CAP_USD ?? 1.5,
-    ),
+    defaultBudgetCapUsd: defaultSession.budgetCapUsd,
     audioRetentionDays,
-    glossary: glossary.map((term) => ({
-      id: term.id,
-      sourceTerm: term.sourceTerm,
-      targetTerm: term.targetTerm,
-      targetLanguage: term.targetLanguage,
-      enabled: term.enabled,
-    })),
+    glossary,
   });
 }
 
@@ -71,7 +65,27 @@ export async function PATCH(request: Request) {
     });
   }
 
+  if (
+    parsed.defaultTargetLanguage !== undefined ||
+    parsed.defaultBudgetCapUsd !== undefined
+  ) {
+    await setDefaultSessionSettings({
+      targetLanguage: parsed.defaultTargetLanguage,
+      budgetCapUsd: parsed.defaultBudgetCapUsd,
+      actorUserId: user.id,
+      userAgent: request.headers.get("user-agent"),
+    });
+  }
+
+  const [audioRetentionDays, defaultSession] = await Promise.all([
+    getAudioRetentionDaysSetting(),
+    getDefaultSessionSettings(),
+  ]);
+
   return ok({
-    audioRetentionDays: await getAudioRetentionDaysSetting(),
+    defaultTargetLanguage: defaultSession.targetLanguage,
+    defaultProvider: defaultSession.providerName,
+    defaultBudgetCapUsd: defaultSession.budgetCapUsd,
+    audioRetentionDays,
   });
 }

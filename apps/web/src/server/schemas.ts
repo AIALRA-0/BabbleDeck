@@ -87,8 +87,25 @@ export const exportSchema = z.object({
 });
 
 export const updateSettingsSchema = z.object({
+  defaultTargetLanguage: z.string().trim().min(2).max(16).optional(),
+  defaultBudgetCapUsd: z.coerce.number().positive().max(100).optional(),
   audioRetentionDays: z.coerce.number().int().min(1).max(3650).optional(),
 });
+
+export const createGlossaryTermSchema = z.object({
+  sourceTerm: z.string().trim().min(1).max(200),
+  targetTerm: z.string().trim().min(1).max(200),
+  sourceLanguage: z.string().trim().max(16).optional().nullable(),
+  targetLanguage: z.string().trim().min(2).max(16).default("zh"),
+  notes: z.string().trim().max(1000).optional().nullable(),
+  enabled: z.boolean().default(true),
+});
+
+export const updateGlossaryTermSchema = createGlossaryTermSchema
+  .partial()
+  .refine((value) => Object.keys(value).length > 0, {
+    message: "At least one glossary field is required.",
+  });
 
 export const updateSessionLegalHoldSchema = z.object({
   rawAudioLegalHold: z.boolean(),

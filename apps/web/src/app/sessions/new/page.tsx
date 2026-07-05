@@ -1,9 +1,11 @@
 import { AppHeader } from "@/components/AppHeader";
 import { NewSessionForm } from "@/components/NewSessionForm";
 import { requireUser } from "@/server/auth";
+import { getDefaultSessionSettings } from "@/server/settings-service";
 
 export default async function NewSessionPage() {
   await requireUser();
+  const defaultSession = await getDefaultSessionSettings();
   return (
     <>
       <AppHeader />
@@ -22,7 +24,11 @@ export default async function NewSessionPage() {
           </p>
         </div>
         <div className="mt-6 rounded-lg border border-border bg-white p-5 shadow-sm">
-          <NewSessionForm />
+          <NewSessionForm
+            initialTargetLanguage={defaultSession.targetLanguage}
+            initialProviderName={defaultSession.providerName}
+            initialBudgetCapUsd={defaultSession.budgetCapUsd}
+          />
         </div>
       </main>
     </>

@@ -1442,3 +1442,24 @@
   - `aialra-babbledeck-backup.timer` is active and scheduled daily.
 - Artifacts:
   - Backup directories include `db.dump`, `db-counts.json`, `audio.tar.gz`, checksum files, `manifest.json`, and the latest verification counts.
+
+## 2026-07-05 Admin Settings Management
+
+- Environment: local workspace with Docker Postgres on `localhost:55432`, Playwright dev servers on `127.0.0.1:3120` and `127.0.0.1:3122`, and secrets loaded from the server env file without printing values.
+- Commands:
+  - `pnpm format:check`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `pnpm build`
+  - Script TypeScript check for recorder, storage, LiveKit, readiness, metrics, Soniox, security, wrapper, seed-admin, and Playwright config scripts.
+  - `pnpm e2e e2e/mvp.spec.ts --project=chromium-desktop --grep "admin creates a live session"`
+  - `pnpm e2e e2e/mvp.spec.ts --project=chromium-mobile --grep "admin creates a live session"`
+- Browser/device:
+  - Playwright Chromium desktop, `1440x960`.
+  - Playwright Chromium mobile, Pixel 7 profile.
+- Results:
+  - Static checks, unit tests, script typecheck, and production build passed.
+  - Desktop and mobile Playwright MVP flows passed with coverage for persisted default session settings, glossary create/update/delete, read-only audit log visibility, session create, recorder flow, viewer captions, and exports.
+- Screenshots/traces:
+  - Local runs passed without failure screenshots.

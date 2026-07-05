@@ -1,12 +1,26 @@
 import { AppHeader } from "@/components/AppHeader";
+import { AuditLogList } from "@/components/AuditLogList";
 import { AudioRetentionSettingsForm } from "@/components/AudioRetentionSettingsForm";
+import { DefaultSessionSettingsForm } from "@/components/DefaultSessionSettingsForm";
+import { GlossarySettingsForm } from "@/components/GlossarySettingsForm";
 import { Badge } from "@/components/ui/badge";
 import { requireUser } from "@/server/auth";
-import { getAudioRetentionDaysSetting } from "@/server/settings-service";
+import {
+  getAudioRetentionDaysSetting,
+  getDefaultSessionSettings,
+  listAuditLogs,
+  listGlossaryTerms,
+} from "@/server/settings-service";
 
 export default async function SettingsPage() {
   await requireUser();
-  const audioRetentionDays = await getAudioRetentionDaysSetting();
+  const [audioRetentionDays, defaultSession, glossaryTerms, auditLogs] =
+    await Promise.all([
+      getAudioRetentionDaysSetting(),
+      getDefaultSessionSettings(),
+      listGlossaryTerms(),
+      listAuditLogs(),
+    ]);
   const providers = [
     ["Soniox", Boolean(process.env.SONIOX_API_KEY)],
     [
@@ -61,9 +75,30 @@ export default async function SettingsPage() {
         </section>
         <section className="mt-6 rounded-lg border border-border bg-white shadow-sm">
           <div className="border-b border-border p-5">
+            <h2 className="font-semibold">Default session</h2>
+          </div>
+          <DefaultSessionSettingsForm
+            initialTargetLanguage={defaultSession.targetLanguage}
+            initialBudgetCapUsd={defaultSession.budgetCapUsd}
+          />
+        </section>
+        <section className="mt-6 rounded-lg border border-border bg-white shadow-sm">
+          <div className="border-b border-border p-5">
             <h2 className="font-semibold">Data retention</h2>
           </div>
           <AudioRetentionSettingsForm initialDays={audioRetentionDays} />
+        </section>
+        <section className="mt-6 rounded-lg border border-border bg-white shadow-sm">
+          <div className="border-b border-border p-5">
+            <h2 className="font-semibold">Glossary</h2>
+          </div>
+          <GlossarySettingsForm initialTerms={glossaryTerms} />
+        </section>
+        <section className="mt-6 rounded-lg border border-border bg-white shadow-sm">
+          <div className="border-b border-border p-5">
+            <h2 className="font-semibold">Audit log</h2>
+          </div>
+          <AuditLogList logs={auditLogs} />
         </section>
       </main>
     </>
