@@ -11,7 +11,7 @@
   - `pnpm build`
 - Results:
   - `/api/health` now includes sanitized non-secret release metadata fields: `release.commit`, `release.branch`, and `release.builtAt`.
-  - `next.config.mjs` captures `BABBLEDECK_RELEASE_*` values at build time, and `pnpm deploy:production` injects the current git commit, branch, and build timestamp before building the standalone server.
+  - `next.config.mjs` captures `BABBLEDECK_RELEASE_*` values at build time, `turbo.json` passes those non-secret variables into build tasks, and `pnpm deploy:production` injects the current git commit, branch, and build timestamp before building the standalone server.
   - `scripts/check-production-readiness.ts` accepts `--expected-release-commit` / `BABBLEDECK_EXPECT_RELEASE_COMMIT`; `pnpm deploy:production` passes the current commit so the deployment smoke fails if `/api/health` reports a different release.
   - Health unit coverage verifies valid release metadata is reported and malformed values are dropped instead of echoed.
   - This lets production health output prove which git commit is actually deployed, instead of relying only on local deployment logs.
