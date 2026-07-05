@@ -414,6 +414,7 @@ export class SonioxRealtimeBridge {
   private readonly state = createSonioxMappingState();
   private keepAliveTimer: ReturnType<typeof setInterval> | null = null;
   private closeTimer: ReturnType<typeof setTimeout> | null = null;
+  private audioSendQueue: Promise<void> = Promise.resolve();
   private messageQueue: Promise<void> = Promise.resolve();
   private degraded = false;
   private ending = false;
@@ -507,7 +508,26 @@ export class SonioxRealtimeBridge {
     return this.connectPromise;
   }
 
-  async sendAudio(body: Buffer) {
+  sendAudio(body: Buffer) {
+    if (this.degraded || this.ending) return this.audioSendQueue;
+    this.audioSendQueue = this.audioSendQueue
+      .then(() => this.sendQueuedAudio(body))
+      .catch(async (error) => {
+        await this.degrade(
+          "SONIOX_AUDIO_SEND_ERROR",
+          "Soniox realtime provider audio send failed. Local audio backup continues.",
+          {
+            message:
+              error instanceof Error
+                ? error.message
+                : "Unknown audio send error.",
+          },
+        ).catch(() => undefined);
+      });
+    return this.audioSendQueue;
+  }
+
+  private async sendQueuedAudio(body: Buffer) {
     if (this.degraded) return;
     if (this.connectPromise) {
       const connected = await this.connectPromise;
@@ -522,14 +542,9 @@ export class SonioxRealtimeBridge {
     this.ending = true;
     this.clearKeepAlive();
 
-    if (this.socket?.readyState === WebSocket.CONNECTING) {
-      this.socket.once("open", () => {
-        this.sendEndOfAudio();
-      });
-      return;
-    }
-
-    this.sendEndOfAudio();
+    void this.audioSendQueue
+      .catch(() => undefined)
+      .then(() => this.sendEndOfAudio());
   }
 
   private async handleMessage(raw: string) {
@@ -580,6 +595,13 @@ export class SonioxRealtimeBridge {
   }
 
   private sendEndOfAudio() {
+    if (this.socket?.readyState === WebSocket.CONNECTING) {
+      this.socket.once("open", () => {
+        this.sendEndOfAudio();
+      });
+      return;
+    }
+
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
       this.clearTimers();
       return;

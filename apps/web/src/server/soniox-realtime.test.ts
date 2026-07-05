@@ -1,9 +1,90 @@
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
+
+type MockSonioxSocket = {
+  readyState: number;
+  sent: unknown[];
+  open: () => void;
+  close: () => void;
+  terminate: () => void;
+  emit: (event: string, ...args: unknown[]) => void;
+  on: (
+    event: string,
+    listener: (...args: unknown[]) => void,
+  ) => MockSonioxSocket;
+  once: (
+    event: string,
+    listener: (...args: unknown[]) => void,
+  ) => MockSonioxSocket;
+};
+
+const sonioxSocketMock = vi.hoisted(() => ({
+  sockets: [] as MockSonioxSocket[],
+}));
+
+vi.mock("ws", () => {
+  class MockWebSocket {
+    static CONNECTING = 0;
+    static OPEN = 1;
+    static CLOSING = 2;
+    static CLOSED = 3;
+
+    readyState = MockWebSocket.CONNECTING;
+    sent: unknown[] = [];
+    private listeners = new Map<string, Set<(...args: unknown[]) => void>>();
+
+    constructor(readonly url: string) {
+      sonioxSocketMock.sockets.push(this as unknown as MockSonioxSocket);
+    }
+
+    on(event: string, listener: (...args: unknown[]) => void) {
+      const listeners = this.listeners.get(event) ?? new Set();
+      listeners.add(listener);
+      this.listeners.set(event, listeners);
+      return this;
+    }
+
+    once(event: string, listener: (...args: unknown[]) => void) {
+      const wrapped = (...args: unknown[]) => {
+        this.listeners.get(event)?.delete(wrapped);
+        listener(...args);
+      };
+      return this.on(event, wrapped);
+    }
+
+    emit(event: string, ...args: unknown[]) {
+      for (const listener of [...(this.listeners.get(event) ?? [])]) {
+        listener(...args);
+      }
+    }
+
+    send(value: unknown) {
+      this.sent.push(value);
+    }
+
+    close() {
+      this.readyState = MockWebSocket.CLOSED;
+      this.emit("close");
+    }
+
+    terminate() {
+      this.close();
+    }
+
+    open() {
+      this.readyState = MockWebSocket.OPEN;
+      this.emit("open");
+    }
+  }
+
+  return { WebSocket: MockWebSocket };
+});
+
 import {
   buildSonioxConfig,
   buildSonioxReadinessProbeAudio,
   checkSonioxRealtimeConnectivity,
   createSonioxMappingState,
+  SonioxRealtimeBridge,
   sonioxResponseToTranscriptEvents,
 } from "@/server/soniox-realtime";
 
@@ -11,6 +92,7 @@ const originalEnv = { ...process.env };
 
 afterEach(() => {
   process.env = { ...originalEnv };
+  sonioxSocketMock.sockets.length = 0;
 });
 
 describe("soniox realtime adapter", () => {
@@ -55,6 +137,36 @@ describe("soniox realtime adapter", () => {
       ok: false,
       message: "SONIOX_API_KEY is missing.",
     });
+  });
+
+  test("sends queued audio before ending when recorder closes while connecting", async () => {
+    process.env.SONIOX_API_KEY = "test-key";
+
+    const bridge = new SonioxRealtimeBridge({
+      sessionId: "session-1",
+      targetLanguage: "zh",
+      sourceLanguageMode: "auto",
+    });
+    const started = bridge.start();
+    const socket = sonioxSocketMock.sockets.at(-1);
+    expect(socket).toBeTruthy();
+
+    const audio = Buffer.from("first audio chunk");
+    const sent = bridge.sendAudio(audio);
+    bridge.close();
+    socket?.open();
+    await started;
+    await sent;
+
+    await vi.waitFor(() => {
+      expect(socket?.sent).toHaveLength(3);
+    });
+    expect(JSON.parse(String(socket?.sent[0]))).toMatchObject({
+      api_key: "test-key",
+      client_reference_id: "session-1",
+    });
+    expect(socket?.sent[1]).toBe(audio);
+    expect(socket?.sent[2]).toBe("");
   });
 
   test("maps original and translation tokens to transcript events", () => {

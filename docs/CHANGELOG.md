@@ -48,3 +48,4 @@
 - Added a production viewer load-smoke script and readiness check.
 - Added a production security baseline audit and readiness check.
 - Added request correlation headers, structured request logs, and an app error boundary.
+- Queued Soniox recorder audio sends before close so a fast recorder stop cannot send end-of-audio before the first chunk.

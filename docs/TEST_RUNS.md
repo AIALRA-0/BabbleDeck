@@ -1,5 +1,22 @@
 # Test Runs
 
+## 2026-07-05 Soniox Recorder Close Race
+
+- Environment: local workspace plus one-off production probe at `https://babbledeck.aialra.online`.
+- Commands:
+  - `pnpm --filter @babbledeck/web test -- --run src/server/soniox-realtime.test.ts`
+  - `pnpm format:check`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/recorder-ws-server.ts scripts/prune-audio-retention.ts scripts/migrate-audio-storage.ts scripts/audit-audio-storage.ts scripts/collect-production-metrics.ts scripts/load-smoke-production.ts scripts/security-baseline-audit.ts scripts/check-production-readiness.ts scripts/sync-seed-admin.ts playwright.config.ts e2e/mvp.spec.ts`
+  - `pnpm build`
+  - One-off production recorder WebSocket smoke using a temporary `soniox` session and generated WAV probe.
+- Results:
+  - The production smoke confirmed the public recorder WebSocket path could create a `soniox` session, upload and acknowledge one audio chunk, and archive the temporary session, but an immediate recorder close exposed a provider-side `No audio received` error.
+  - Fixed the shutdown race by queueing Soniox audio sends and delaying the provider end-of-audio frame until queued audio has been sent.
+  - Added a regression test that opens the Soniox bridge, queues the first audio chunk, closes while the provider socket is still connecting, and verifies the provider send order is config, audio, then end.
+  - Local validation passed with 53 unit tests, format, lint, app typecheck, script typecheck, and production build.
+
 ## 2026-07-05 Request Correlation and Error Boundary
 
 - Environment: local workspace and production deployment at `https://babbledeck.aialra.online`.

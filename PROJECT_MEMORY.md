@@ -47,6 +47,7 @@
 - GitHub Actions CI now runs format, Prisma validation/generation/migration, lint, app typecheck, unit tests, script typecheck, build, and repository secret scanning; the E2E workflow uses a non-production fallback test password when `SEED_ADMIN_PASSWORD` is not configured.
 - Session history now supports audited transcript segment corrections for original and translated text; history display and transcript exports use the corrected values.
 - Production readiness can now run an opt-in live Soniox websocket probe with generated WAV silence through `scripts/check-production-readiness.ts --check-soniox-live`; the current production `SONIOX_API_KEY` passed without printing the key.
+- Soniox recorder shutdown now waits for queued audio sends before sending the provider end-of-audio frame; regression coverage locks the fast recorder-close order as config, audio, then end.
 - Login throttling now enforces both per-IP and per-IP/email attempt windows, with `LOGIN_IP_RATE_LIMIT_PER_MINUTE` documented in `.env.example`.
 - Client IP parsing now prefers Nginx-managed `X-Real-IP` and otherwise uses the proxy-appended `X-Forwarded-For` address, protecting rate limits and audit IP hashes from spoofed leading XFF values.
 - Cookie-authenticated admin mutation endpoints now enforce same-origin `Origin`/Fetch Metadata checks; recorder-token writes remain available for no-cookie recorder links.
