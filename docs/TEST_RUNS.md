@@ -1,5 +1,32 @@
 # Test Runs
 
+## 2026-07-05 Production Metrics Snapshot Timer
+
+- Environment: local workspace and production deployment at `https://babbledeck.aialra.online`.
+- Commands:
+  - `bash -n scripts/collect-production-metrics.sh scripts/install-production-metrics-monitor.sh scripts/monitor-production-health.sh scripts/install-production-health-monitor.sh`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/collect-production-metrics.ts scripts/check-production-readiness.ts`
+  - `pnpm metrics:collect:production`
+  - `pnpm metrics:install:production`
+  - `systemctl status aialra-babbledeck-metrics.timer --no-pager`
+  - `tail -n 3 /srv/aialra/logs/babbledeck/metrics.jsonl`
+  - `pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --strict --check-soniox-live`
+  - `pnpm format:check`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/recorder-ws-server.ts scripts/prune-audio-retention.ts scripts/migrate-audio-storage.ts scripts/audit-audio-storage.ts scripts/collect-production-metrics.ts scripts/check-production-readiness.ts scripts/sync-seed-admin.ts playwright.config.ts e2e/mvp.spec.ts`
+  - `pnpm build`
+  - `git diff --check`
+- Results:
+  - Added `scripts/collect-production-metrics.ts` and `pnpm metrics:collect:production` for non-secret JSONL metrics snapshots from production database state.
+  - Added `pnpm metrics:install:production`; the installer creates `aialra-babbledeck-metrics.service` and `aialra-babbledeck-metrics.timer` using the existing server systemd pattern.
+  - Metrics records include active sessions, recorder and viewer connections, provider errors, first-token latency, audio upload failures, auth failures, estimated provider cost, uploaded audio totals, and export counts.
+  - A production collection wrote a JSONL record with `sessions.total=2`, `sessions.active=2`, `connections.recorderActive=1`, `provider.errorsLastWindow=0`, `audio.uploadFailuresLastWindow=0`, and `auth.failuresLastWindow=0`.
+  - `aialra-babbledeck-metrics.timer` is active and scheduled every five minutes; the install run immediately appended a second metrics JSONL record.
+  - Strict production readiness now passes the required `aialra-babbledeck-metrics.timer` and `recent_metrics_snapshot` checks; strict completion still waits on off-host audio storage.
+  - Format, lint, app typecheck, full unit tests, script/E2E typecheck, production build, and whitespace diff check passed.
+
 ## 2026-07-05 Production Backup Verification Timer
 
 - Environment: local workspace and production backup root `/srv/aialra/backups/babbledeck`.

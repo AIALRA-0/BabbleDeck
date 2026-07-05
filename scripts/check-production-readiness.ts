@@ -333,6 +333,61 @@ async function recentBackupVerificationOk() {
   return false;
 }
 
+async function recentMetricsSnapshotOk() {
+  const metricsLog =
+    process.env.BABBLEDECK_METRICS_LOG ??
+    "/srv/aialra/logs/babbledeck/metrics.jsonl";
+  const maxAgeMinutes = Number(
+    process.env.BABBLEDECK_METRICS_MAX_AGE_MINUTES ?? 15,
+  );
+  const maxAgeMs =
+    Number.isFinite(maxAgeMinutes) && maxAgeMinutes > 0
+      ? maxAgeMinutes * 60 * 1000
+      : 15 * 60 * 1000;
+  try {
+    const stat = await fs.stat(metricsLog);
+    if (Date.now() - stat.mtimeMs > maxAgeMs) {
+      return {
+        ok: false,
+        message: `Production metrics snapshot is older than ${Math.round(maxAgeMs / 60000)} minutes.`,
+      };
+    }
+
+    const contents = await fs.readFile(metricsLog, "utf8");
+    const latest = contents
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .at(-1);
+    if (!latest) {
+      return {
+        ok: false,
+        message: "Production metrics log exists but has no JSONL records.",
+      };
+    }
+
+    const record = JSON.parse(latest);
+    const collectedAtMs = Date.parse(record.collectedAt);
+    const freshCollectedAt =
+      Number.isFinite(collectedAtMs) && Date.now() - collectedAtMs <= maxAgeMs;
+    return {
+      ok:
+        record.app === "babbledeck" &&
+        Number(record.windowSeconds) > 0 &&
+        freshCollectedAt,
+      message:
+        record.app === "babbledeck" && freshCollectedAt
+          ? "A recent production metrics JSONL snapshot exists."
+          : "Latest production metrics JSONL snapshot is missing required fields or is stale.",
+    };
+  } catch {
+    return {
+      ok: false,
+      message: "Production metrics JSONL snapshot could not be checked.",
+    };
+  }
+}
+
 async function logrotateConfigOk() {
   const configPath =
     process.env.BABBLEDECK_LOGROTATE_CONFIG ??
@@ -406,6 +461,7 @@ async function main() {
     "aialra-babbledeck-backup-verify.timer",
     "aialra-babbledeck-audio-retention.timer",
     "aialra-babbledeck-health-monitor.timer",
+    "aialra-babbledeck-metrics.timer",
   ]) {
     const active = await serviceActive(service);
     check(checks, {
@@ -451,6 +507,13 @@ async function main() {
     name: "recent_backup_verification",
     ok: await recentBackupVerificationOk(),
     message: "A recent production backup restore verification exists.",
+  });
+
+  const metricsSnapshot = await recentMetricsSnapshotOk();
+  check(checks, {
+    name: "recent_metrics_snapshot",
+    ok: metricsSnapshot.ok,
+    message: metricsSnapshot.message,
   });
 
   check(checks, {

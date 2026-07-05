@@ -68,6 +68,7 @@
 - Production health monitoring is systemd-managed through `aialra-babbledeck-health-monitor.timer`; it checks `/api/health` every five minutes and writes non-secret JSONL records to `/srv/aialra/logs/babbledeck/health-monitor.jsonl`.
 - Production log rotation can be installed with `pnpm logs:install:production`; readiness checks `/etc/logrotate.d/aialra-babbledeck` for BabbleDeck `.log` and `.jsonl` files.
 - Production latest-backup restore verification can be installed with `pnpm backup:verify:install:production`; readiness checks that `aialra-babbledeck-backup-verify.timer` is active and that a recent verification marker exists.
+- Production metrics snapshots can be installed with `pnpm metrics:install:production`; readiness checks that `aialra-babbledeck-metrics.timer` is active and that a recent non-secret JSONL metrics record exists.
 
 ## Next Recommended Tasks
 

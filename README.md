@@ -70,6 +70,17 @@ pnpm health:install:production
 The monitor runs every five minutes, checks `/api/health`, and appends
 non-secret JSONL records to `/srv/aialra/logs/babbledeck/health-monitor.jsonl`.
 
+Install the production metrics snapshot timer after deploying the app:
+
+```bash
+pnpm metrics:install:production
+```
+
+The timer runs every five minutes and appends non-secret JSONL records to
+`/srv/aialra/logs/babbledeck/metrics.jsonl` for active sessions, recorder and
+viewer connections, provider errors, first-token latency, upload failures, auth
+failures, and estimated provider cost.
+
 Install log rotation for the app, WebSocket, backup, health monitor, deploy,
 and Nginx logs:
 
@@ -131,6 +142,7 @@ The current production instance follows the server's existing systemd + Nginx pa
 - Production backup verification timer: `aialra-babbledeck-backup-verify.timer`
 - Production raw audio retention timer: `aialra-babbledeck-audio-retention.timer`
 - Production health monitor timer: `aialra-babbledeck-health-monitor.timer`
+- Production metrics timer: `aialra-babbledeck-metrics.timer`
 - Production logrotate config: `/etc/logrotate.d/aialra-babbledeck`
 - Backup root: `/srv/aialra/backups/babbledeck`
 - Raw audio retention days are configurable at `/settings`; per-session raw audio legal hold is available from session history.

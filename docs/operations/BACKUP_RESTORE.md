@@ -14,6 +14,8 @@ Production backups follow the server's systemd-managed project pattern.
 - Raw audio retention timer: `aialra-babbledeck-audio-retention.timer`
 - Health monitor service: `aialra-babbledeck-health-monitor.service`
 - Health monitor timer: `aialra-babbledeck-health-monitor.timer`
+- Metrics service: `aialra-babbledeck-metrics.service`
+- Metrics timer: `aialra-babbledeck-metrics.timer`
 - Logrotate config: `/etc/logrotate.d/aialra-babbledeck`
 - Recorder WebSocket service: `aialra-babbledeck-ws.service`
 
@@ -101,6 +103,28 @@ Inspect the latest records with:
 ```bash
 tail -n 20 /srv/aialra/logs/babbledeck/health-monitor.jsonl
 systemctl status aialra-babbledeck-health-monitor.timer
+```
+
+## Metrics Snapshots
+
+Install or refresh the production metrics timer with:
+
+```bash
+pnpm metrics:install:production
+```
+
+The timer writes non-secret JSONL snapshots every five minutes to
+`/srv/aialra/logs/babbledeck/metrics.jsonl`. Each record includes active
+sessions, recorder and viewer connections, provider errors, first-token
+latency, audio upload failures, auth failures, estimated provider cost, uploaded
+audio totals, and export counts. Strict readiness requires the timer to be
+active and a recent metrics record to exist.
+
+Inspect the latest records with:
+
+```bash
+tail -n 20 /srv/aialra/logs/babbledeck/metrics.jsonl
+systemctl status aialra-babbledeck-metrics.timer
 ```
 
 ## Log Rotation
