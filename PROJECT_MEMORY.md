@@ -55,6 +55,7 @@
 - Recorder control requests and transcript event submissions now have configurable per-minute rate limits; production E2E confirms start/stop and mock event flows still pass.
 - Session history now exposes SRT alongside Markdown, TXT, JSON, and VTT; production desktop/mobile Playwright verifies all five download formats contain corrected transcript text.
 - Recorder microphone denied recovery guidance is now covered by production Playwright using a real Chromium recorder context without automatic microphone permission grants.
+- Viewer pages now surface provider-error events as a visible provider issue banner; production Playwright injects a recorder-token provider_error event and verifies the live viewer update.
 
 ## Next Recommended Tasks
 

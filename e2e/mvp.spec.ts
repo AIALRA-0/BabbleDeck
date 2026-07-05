@@ -405,6 +405,91 @@ test.describe("BabbleDeck MVP browser flow", () => {
     }
   });
 
+  test("viewer shows provider error events without blocking local backup", async ({
+    browser,
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "chromium-desktop",
+      "Provider error UI coverage runs once on desktop.",
+    );
+
+    const title = `Playwright session provider error ${Date.now()}`;
+    const providerErrorText =
+      "Realtime provider test error. Local backup continues.";
+
+    await page.goto("/");
+    await page.getByRole("link", { name: /open portal/i }).click();
+    await signIn(page);
+    await expect(
+      page.getByRole("heading", { name: "Live sessions" }),
+    ).toBeVisible();
+
+    await page
+      .getByRole("link", { name: /new live session/i })
+      .first()
+      .click();
+    await page.getByLabel("Title").fill(title);
+    await page.getByLabel("Target language").selectOption("zh");
+    await page.getByLabel("Provider").selectOption("mock");
+    await page.getByRole("button", { name: /create session/i }).click();
+    await expect(page.getByRole("heading", { name: title })).toBeVisible();
+    const recorderUrl = page.url();
+    const sessionId = new URL(recorderUrl).pathname.split("/")[2];
+    const recorderToken = new URL(recorderUrl).searchParams.get("recorder");
+    if (!recorderToken) throw new Error("Recorder token missing from URL.");
+    const viewerUrl = await page
+      .locator("aside p")
+      .filter({ hasText: "/s/" })
+      .textContent();
+    expect(viewerUrl).toContain("/s/");
+
+    const viewerContext = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+    });
+    const viewer = await viewerContext.newPage();
+    await viewer.goto(viewerUrl ?? "");
+    await expect(
+      viewer.getByRole("heading", { name: "Live captions" }),
+    ).toBeVisible();
+    await expect(viewer.getByText("SSE live")).toBeVisible({
+      timeout: 25_000,
+    });
+
+    const response = await page.evaluate(
+      async ({ sessionId, recorderToken, providerErrorText }) => {
+        return fetch(`/api/sessions/${sessionId}/events`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-BabbleDeck-Recorder-Token": recorderToken,
+          },
+          body: JSON.stringify({
+            events: [
+              {
+                type: "provider_error",
+                text: providerErrorText,
+                isFinal: true,
+              },
+            ],
+          }),
+        }).then(async (result) => ({
+          ok: result.ok,
+          body: await result.text(),
+        }));
+      },
+      { sessionId, recorderToken, providerErrorText },
+    );
+    expect(response.ok, response.body).toBe(true);
+
+    await expect(viewer.getByText("Provider issue")).toBeVisible({
+      timeout: 12_000,
+    });
+    await expect(viewer.getByText(providerErrorText)).toBeVisible();
+
+    await viewerContext.close();
+  });
+
   test("budget cap marks provider degraded while audio backup continues", async ({
     page,
   }) => {

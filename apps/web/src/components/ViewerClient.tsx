@@ -135,6 +135,11 @@ export function ViewerClient({
         ),
     [events],
   );
+  const providerError = useMemo(
+    () =>
+      [...events].reverse().find((event) => event.type === "provider_error"),
+    [events],
+  );
   const latest = segments[segments.length - 1] ?? null;
   const translation =
     latest?.translationText ?? partial?.text ?? "Waiting for captions...";
@@ -166,6 +171,16 @@ export function ViewerClient({
             <SessionStatusBadge status={session.status} />
           </div>
         </header>
+
+        {providerError ? (
+          <div className="mt-4 rounded-md border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+            <p className="font-semibold">Provider issue</p>
+            <p className="mt-1 text-amber-100/80">
+              {providerError.text ??
+                "Realtime captions are delayed. Local backup continues."}
+            </p>
+          </div>
+        ) : null}
 
         <section className="flex flex-1 flex-col justify-center py-8">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/45">

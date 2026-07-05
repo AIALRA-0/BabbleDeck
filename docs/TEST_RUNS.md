@@ -1,5 +1,32 @@
 # Test Runs
 
+## 2026-07-05 Provider Error Viewer UI
+
+- Environment: local workspace, production deployment at `https://babbledeck.aialra.online`, production secret env loaded without printing secrets.
+- Commands:
+  - `pnpm prettier --write apps/web/src/components/ViewerClient.tsx e2e/mvp.spec.ts`
+  - `pnpm --filter @babbledeck/web typecheck`
+  - `pnpm build`
+  - `systemctl restart aialra-babbledeck.service aialra-babbledeck-ws.service`
+  - `curl -fsSI https://babbledeck.aialra.online/`
+  - `E2E_BASE_URL=https://babbledeck.aialra.online E2E_ADMIN_EMAIL="$SEED_ADMIN_EMAIL" E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD" pnpm e2e e2e/mvp.spec.ts --project=chromium-desktop --grep "provider error events"`
+  - `pnpm format:check`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/recorder-ws-server.ts scripts/prune-audio-retention.ts scripts/migrate-audio-storage.ts scripts/audit-audio-storage.ts scripts/check-production-readiness.ts scripts/sync-seed-admin.ts playwright.config.ts e2e/mvp.spec.ts`
+  - `E2E_BASE_URL=https://babbledeck.aialra.online E2E_ADMIN_EMAIL="$SEED_ADMIN_EMAIL" E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD" pnpm e2e e2e/mvp.spec.ts --grep "admin creates a live session"`
+  - `pnpm tsx scripts/check-production-readiness.ts --strict`
+- Results:
+  - Viewer pages now show a `Provider issue` banner when a live `provider_error` event arrives.
+  - Added a desktop-only Playwright scenario that creates a session, opens the public viewer, injects a recorder-token `provider_error` event through the production API, and verifies the viewer updates over SSE.
+  - Format, lint, app typecheck, full unit tests, script/E2E typecheck, and production build passed.
+  - Unit tests remained at `14` files and `44` tests.
+  - Production services restarted successfully and returned `HTTP/2 200` with expected security headers.
+  - Production Playwright desktop and mobile MVP flows still passed after the viewer UI change.
+  - Production smoke cleanup removed 3 temporary Playwright sessions and 6 local audio objects.
+  - Strict production readiness still fails only because `AUDIO_STORAGE_DRIVER=local`; all required checks pass.
+
 ## 2026-07-05 Microphone Denied Browser Coverage
 
 - Environment: local workspace, production deployment at `https://babbledeck.aialra.online`, production secret env loaded without printing secrets.
