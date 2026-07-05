@@ -1711,3 +1711,32 @@
   - `externalOk=false` and `productionReady=false` still only because `off_host_audio_storage` reports local audio storage.
 - Screenshots/traces:
   - This slice used direct production recorder WebSocket smoke and database assertions; no browser failure screenshots were produced.
+
+## 2026-07-05 Recorder Track URLs
+
+- Environment: local workspace with Docker Postgres on `localhost:55432`, Playwright dev server on `127.0.0.1:3160`, production `https://babbledeck.aialra.online`, and secrets loaded from the server env file without printing values.
+- Commands:
+  - `pnpm prettier --check apps/web/src/server/transcript-writer.ts apps/web/src/components/RecorderClient.tsx apps/web/src/app/sessions/[id]/record/page.tsx e2e/mvp.spec.ts`
+  - `pnpm --filter @babbledeck/web typecheck`
+  - `pnpm --filter @babbledeck/web lint`
+  - `pnpm --filter @babbledeck/web build`
+  - Local `pnpm e2e e2e/mvp.spec.ts --project=chromium-desktop --grep "recorder track URLs"` with `E2E_BASE_URL=http://127.0.0.1:3160`.
+  - `pnpm deploy:production`
+  - Production `pnpm e2e e2e/mvp.spec.ts --project=chromium-desktop --grep "recorder track URLs"`
+  - `pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --check-soniox-live`
+- Browser/device:
+  - Playwright Chromium desktop, `1040x840` recorder contexts plus the default desktop admin page.
+- Results:
+  - Recorder pages now accept validated `trackId` and `speakerLabel` query parameters and surface the active recorder label in the page header.
+  - The recorder aside now provides copy/open controls for Main recorder, Speaker A, and Speaker B no-cookie recorder URLs while preserving the session share token and recorder token.
+  - Mock recorder events and LiveKit publisher metadata now carry the active recorder track identity, so parallel recorder pages can write independent timelines.
+  - Local E2E initially exposed a real race in `appendTranscriptEvents`: concurrent recorder requests could compute the same next `sequenceNo` and hit the `transcript_events(sessionId, sequenceNo)` unique constraint.
+  - The writer now wraps transcript append work in a PostgreSQL transaction and takes a per-session advisory transaction lock before reading the latest sequence number, serializing concurrent appends for the same live session.
+  - Local validation passed: changed-file Prettier, app typecheck, ESLint, production build, and the dedicated recorder-track Playwright flow.
+  - Production deploy passed for commit `0430ce3`; required readiness, seed-admin login smoke, and anonymous protected-route Playwright smoke passed.
+  - Production recorder-track Playwright passed against `https://babbledeck.aialra.online`, verifying Speaker A and Speaker B recorder URLs can record simultaneously and export JSON with independent `speaker-a`/`speaker-b` segment `index=0` entries.
+  - Production readiness reports `requiredOk=true`; Soniox key configuration, direct Soniox realtime websocket probe, recent Soniox smoke/UI smoke/trace evidence, LiveKit credentials, HTTPS, health, backups, metrics, security baseline, and systemd service checks are passing.
+  - `externalOk=false` and `productionReady=false` still only because `off_host_audio_storage` reports `AUDIO_STORAGE_DRIVER=local`; R2/S3 cutover remains the outstanding infrastructure blocker.
+  - `aialra-babbledeck.service` and `aialra-babbledeck-ws.service` are active with `NRestarts=0`.
+- Screenshots/traces:
+  - The passing local and production recorder-track runs produced no final failure screenshots. The interrupted local retry before the `$executeRaw` fix left a diagnostic Playwright artifact only.
