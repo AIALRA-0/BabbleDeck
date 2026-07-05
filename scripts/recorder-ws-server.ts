@@ -19,6 +19,7 @@ import { SonioxRealtimeBridge } from "../apps/web/src/server/soniox-realtime";
 
 const AUTH_COOKIE = "babbledeck_session";
 const DEFAULT_PORT = 11971;
+const TRACK_ID_PATTERN = /^[A-Za-z0-9._:-]+$/;
 
 type AuthenticatedUser = {
   id: string;
@@ -33,6 +34,8 @@ type RecorderContext = {
   providerName: "MOCK" | "SONIOX";
   targetLanguage: string;
   sourceLanguageMode: string;
+  trackId?: string;
+  speakerLabel?: string;
   actorUserId: string | null;
   authVia: "admin" | "recorder_token";
 };
@@ -86,6 +89,25 @@ function parseUrl(request: http.IncomingMessage) {
   return new URL(request.url ?? "/", `http://${host}`);
 }
 
+function parseTrackMetadata(url: URL) {
+  const rawTrackId = (url.searchParams.get("trackId") ?? "main").trim();
+  if (
+    rawTrackId.length < 1 ||
+    rawTrackId.length > 120 ||
+    !TRACK_ID_PATTERN.test(rawTrackId)
+  ) {
+    return null;
+  }
+
+  const rawSpeakerLabel = url.searchParams.get("speakerLabel")?.trim();
+  if (rawSpeakerLabel != null && rawSpeakerLabel.length > 120) return null;
+
+  return {
+    trackId: rawTrackId === "main" ? undefined : rawTrackId,
+    speakerLabel: rawSpeakerLabel || undefined,
+  };
+}
+
 function parseAudioMessage(raw: WebSocket.RawData) {
   const value = JSON.parse(raw.toString()) as {
     type?: string;
@@ -134,6 +156,8 @@ async function handleRecorderConnection(
           actorUserId: context.actorUserId,
           targetLanguage: context.targetLanguage,
           sourceLanguageMode: context.sourceLanguageMode,
+          trackId: context.trackId,
+          speakerLabel: context.speakerLabel,
         })
       : null;
   void soniox?.start();
@@ -202,6 +226,8 @@ async function buildContext(request: http.IncomingMessage) {
   if (url.pathname !== "/ws/recorder") return null;
   const sessionId = url.searchParams.get("sessionId");
   if (!sessionId) return null;
+  const trackMetadata = parseTrackMetadata(url);
+  if (!trackMetadata) return null;
   const user = await authenticate(request);
   const recorderToken =
     url.searchParams.get("recorder") ?? url.searchParams.get("recorderToken");
@@ -228,6 +254,8 @@ async function buildContext(request: http.IncomingMessage) {
       status: "connected",
       clientInfo: {
         authVia,
+        trackId: trackMetadata.trackId ?? "main",
+        speakerLabel: trackMetadata.speakerLabel ?? null,
         userAgent: request.headers["user-agent"] ?? null,
         remoteAddress: request.socket.remoteAddress ?? null,
         forwardedFor: request.headers["x-forwarded-for"] ?? null,
@@ -243,6 +271,8 @@ async function buildContext(request: http.IncomingMessage) {
     providerName,
     targetLanguage: session.targetLanguage,
     sourceLanguageMode: session.sourceLanguageMode,
+    trackId: trackMetadata.trackId,
+    speakerLabel: trackMetadata.speakerLabel,
     actorUserId: user && ownerSession ? user.id : null,
     authVia,
   };

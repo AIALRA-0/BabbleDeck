@@ -35,6 +35,8 @@ export type SonioxResponse = {
 export type SonioxMappedEvent = {
   type: string;
   text: string;
+  trackId?: string;
+  speakerLabel?: string;
   language?: string;
   targetLanguage?: string;
   isFinal: boolean;
@@ -322,6 +324,8 @@ export function sonioxResponseToTranscriptEvents(input: {
   response: SonioxResponse;
   targetLanguage: string;
   state: SonioxMappingState;
+  trackId?: string;
+  speakerLabel?: string;
 }) {
   const tokens = input.response.tokens ?? [];
   const originalTokens = tokens.filter(
@@ -363,7 +367,13 @@ export function sonioxResponseToTranscriptEvents(input: {
     segmentIndex:
       originalSegmentIndex ?? input.state.activeOriginalSegmentIndex,
   });
-  if (original) events.push(original);
+  if (original) {
+    events.push({
+      ...original,
+      trackId: input.trackId,
+      speakerLabel: input.speakerLabel,
+    });
+  }
 
   const translation = mappedEvent({
     type: translationIsFinal ? "final_translation" : "partial_translation",
@@ -372,7 +382,13 @@ export function sonioxResponseToTranscriptEvents(input: {
     segmentIndex:
       translationSegmentIndex ?? input.state.activeOriginalSegmentIndex,
   });
-  if (translation) events.push(translation);
+  if (translation) {
+    events.push({
+      ...translation,
+      trackId: input.trackId,
+      speakerLabel: input.speakerLabel,
+    });
+  }
 
   if (originalIsFinal && originalSegmentIndex != null) {
     input.state.originalFinal = true;
@@ -425,6 +441,8 @@ export class SonioxRealtimeBridge {
       actorUserId?: string | null;
       targetLanguage: string;
       sourceLanguageMode?: string;
+      trackId?: string;
+      speakerLabel?: string;
     },
   ) {}
 
@@ -585,6 +603,8 @@ export class SonioxRealtimeBridge {
       response,
       targetLanguage: this.input.targetLanguage,
       state: this.state,
+      trackId: this.input.trackId,
+      speakerLabel: this.input.speakerLabel,
     });
     if (!events.length) return;
     await appendTranscriptEvents({

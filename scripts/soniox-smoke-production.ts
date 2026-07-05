@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import fs from "node:fs/promises";
 import { WebSocket } from "ws";
 import { prisma } from "../apps/web/src/server/db";
 import { buildSonioxReadinessProbeAudio } from "../apps/web/src/server/soniox-realtime";
@@ -23,6 +24,12 @@ type RecorderWsResult = {
   ack: boolean;
 };
 
+type ProbeAudio = {
+  body: Buffer;
+  durationMs: number;
+  mimeType: string;
+};
+
 function argValue(name: string) {
   const prefix = `${name}=`;
   const match = process.argv.find((arg) => arg.startsWith(prefix));
@@ -33,6 +40,12 @@ function positiveInteger(value: string | undefined, fallback: number) {
   if (!value) return fallback;
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function nonNegativeInteger(value: string | undefined, fallback: number) {
+  if (!value) return fallback;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -110,25 +123,49 @@ function recorderWsUrl(input: {
   baseUrl: URL;
   sessionId: string;
   recorderToken: string;
+  trackId?: string;
+  speakerLabel?: string;
 }) {
   const url = new URL("/ws/recorder", input.baseUrl);
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
   url.searchParams.set("sessionId", input.sessionId);
   url.searchParams.set("recorder", input.recorderToken);
+  if (input.trackId) url.searchParams.set("trackId", input.trackId);
+  if (input.speakerLabel) {
+    url.searchParams.set("speakerLabel", input.speakerLabel);
+  }
   return url;
+}
+
+async function probeAudio(input: {
+  audioFile?: string;
+  durationMs: number;
+}): Promise<ProbeAudio> {
+  if (input.audioFile) {
+    return {
+      body: await fs.readFile(input.audioFile),
+      durationMs: input.durationMs,
+      mimeType: input.audioFile.endsWith(".wav") ? "audio/wav" : "audio/webm",
+    };
+  }
+
+  return {
+    body: buildSonioxReadinessProbeAudio(input.durationMs),
+    durationMs: input.durationMs,
+    mimeType: "audio/wav",
+  };
 }
 
 function uploadProbeOverRecorderWs(input: {
   wsUrl: URL;
   sessionId: string;
-  durationMs: number;
+  audio: ProbeAudio;
   timeoutMs: number;
 }) {
-  const audio = buildSonioxReadinessProbeAudio(input.durationMs);
   const requestId = crypto.randomUUID();
   const checksumSha256 = crypto
     .createHash("sha256")
-    .update(audio)
+    .update(input.audio.body)
     .digest("hex");
 
   return withTimeout(
@@ -175,10 +212,10 @@ function uploadProbeOverRecorderWs(input: {
               sessionId: input.sessionId,
               chunkIndex: 0,
               startedAt: new Date().toISOString(),
-              durationMs: input.durationMs,
-              mimeType: "audio/wav",
+              durationMs: input.audio.durationMs,
+              mimeType: input.audio.mimeType,
               checksumSha256,
-              dataBase64: audio.toString("base64"),
+              dataBase64: input.audio.body.toString("base64"),
             }),
           );
         }
@@ -249,6 +286,23 @@ async function main() {
     500,
     30_000,
   );
+  const audioFile =
+    argValue("--audio-file") ?? process.env.BABBLEDECK_SONIOX_SMOKE_AUDIO_FILE;
+  const trackId =
+    argValue("--track-id") ?? process.env.BABBLEDECK_SONIOX_SMOKE_TRACK_ID;
+  const speakerLabel =
+    argValue("--speaker-label") ??
+    process.env.BABBLEDECK_SONIOX_SMOKE_SPEAKER_LABEL;
+  const minTrackEvents = nonNegativeInteger(
+    argValue("--min-track-events") ??
+      process.env.BABBLEDECK_SONIOX_SMOKE_MIN_TRACK_EVENTS,
+    0,
+  );
+  const minTrackSegments = nonNegativeInteger(
+    argValue("--min-track-segments") ??
+      process.env.BABBLEDECK_SONIOX_SMOKE_MIN_TRACK_SEGMENTS,
+    0,
+  );
   const adminEmail = (
     process.env.BABBLEDECK_SONIOX_SMOKE_ADMIN_EMAIL ??
     process.env.SEED_ADMIN_EMAIL ??
@@ -300,6 +354,10 @@ async function main() {
     if (!sessionId || !recorderToken) {
       throw new Error("Session creation did not return Soniox smoke tokens.");
     }
+    const audio = await probeAudio({
+      audioFile,
+      durationMs: probeDurationMs,
+    });
 
     await apiJson(new URL(`/api/sessions/${sessionId}/start`, baseUrl), {
       method: "POST",
@@ -309,9 +367,15 @@ async function main() {
     });
 
     const recorderWs = await uploadProbeOverRecorderWs({
-      wsUrl: recorderWsUrl({ baseUrl, sessionId, recorderToken }),
+      wsUrl: recorderWsUrl({
+        baseUrl,
+        sessionId,
+        recorderToken,
+        trackId,
+        speakerLabel,
+      }),
       sessionId,
-      durationMs: probeDurationMs,
+      audio,
       timeoutMs,
     });
 
@@ -327,26 +391,44 @@ async function main() {
       { expectOk: false },
     ).catch(() => null);
 
-    const [providerErrors, providerUsage, audioChunks, session] =
-      await Promise.all([
-        prisma.transcriptEvent.count({
-          where: { sessionId, eventType: "PROVIDER_ERROR" },
-        }),
-        prisma.providerUsage.findMany({
-          where: { sessionId },
-          select: {
-            providerName: true,
-            usageType: true,
-            audioMs: true,
-            estimatedCostUsd: true,
-          },
-        }),
-        prisma.audioChunk.count({ where: { sessionId } }),
-        prisma.liveSession.findUnique({
-          where: { id: sessionId },
-          select: { status: true, providerName: true },
-        }),
-      ]);
+    const [
+      providerErrors,
+      providerUsage,
+      audioChunks,
+      session,
+      trackEvents,
+      trackSegments,
+      recorderConnection,
+    ] = await Promise.all([
+      prisma.transcriptEvent.count({
+        where: { sessionId, eventType: "PROVIDER_ERROR" },
+      }),
+      prisma.providerUsage.findMany({
+        where: { sessionId },
+        select: {
+          providerName: true,
+          usageType: true,
+          audioMs: true,
+          estimatedCostUsd: true,
+        },
+      }),
+      prisma.audioChunk.count({ where: { sessionId } }),
+      prisma.liveSession.findUnique({
+        where: { id: sessionId },
+        select: { status: true, providerName: true },
+      }),
+      trackId
+        ? prisma.transcriptEvent.count({ where: { sessionId, trackId } })
+        : Promise.resolve(0),
+      trackId
+        ? prisma.transcriptSegment.count({ where: { sessionId, trackId } })
+        : Promise.resolve(0),
+      prisma.recorderConnection.findFirst({
+        where: { sessionId },
+        orderBy: { startedAt: "desc" },
+        select: { clientInfo: true },
+      }),
+    ]);
     const archived = await archiveSmokeSession(sessionId);
     await apiJson(
       new URL("/api/auth/logout", baseUrl),
@@ -377,7 +459,9 @@ async function main() {
       recorderWs.ack &&
       audioChunks === 1 &&
       providerErrors === 0 &&
-      usageAudioMs >= probeDurationMs;
+      usageAudioMs >= probeDurationMs &&
+      (!trackId || trackEvents >= minTrackEvents) &&
+      (!trackId || trackSegments >= minTrackSegments);
     const record = {
       app: "babbledeck",
       checkedAt: startedAt.toISOString(),
@@ -387,6 +471,20 @@ async function main() {
       sessionId,
       archived,
       probeDurationMs,
+      audioFile: audioFile ? { provided: true } : { provided: false },
+      track: trackId
+        ? {
+            trackId,
+            speakerLabel: speakerLabel ?? null,
+            transcriptEvents: trackEvents,
+            transcriptSegments: trackSegments,
+            thresholds: {
+              minTrackEvents,
+              minTrackSegments,
+            },
+            recorderConnection: recorderConnection?.clientInfo ?? null,
+          }
+        : null,
       recorderWs,
       audioChunks,
       providerErrors,

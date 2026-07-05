@@ -220,6 +220,45 @@ describe("soniox realtime adapter", () => {
     expect(state.segmentIndex).toBe(1);
   });
 
+  test("attaches track metadata to mapped transcript events", () => {
+    const state = createSonioxMappingState();
+    const events = sonioxResponseToTranscriptEvents({
+      targetLanguage: "zh",
+      state,
+      trackId: "speaker-a",
+      speakerLabel: "Speaker A",
+      response: {
+        tokens: [
+          {
+            text: "Track specific speech.",
+            is_final: true,
+            language: "en",
+            translation_status: "original",
+          },
+          {
+            text: "轨道字幕。",
+            is_final: true,
+            source_language: "en",
+            translation_status: "translation",
+          },
+        ],
+      },
+    });
+
+    expect(events).toEqual([
+      expect.objectContaining({
+        type: "final_transcript",
+        trackId: "speaker-a",
+        speakerLabel: "Speaker A",
+      }),
+      expect.objectContaining({
+        type: "final_translation",
+        trackId: "speaker-a",
+        speakerLabel: "Speaker A",
+      }),
+    ]);
+  });
+
   test("moves later original tokens to a new segment while translation is delayed", () => {
     const state = createSonioxMappingState();
 
