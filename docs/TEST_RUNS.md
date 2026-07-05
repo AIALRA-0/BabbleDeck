@@ -1,5 +1,35 @@
 # Test Runs
 
+## 2026-07-05 Native Wrapper Scaffold
+
+- Environment: local workspace with production deployment at `https://babbledeck.aialra.online`.
+- Commands:
+  - `pnpm wrappers:check`
+  - `pnpm --filter @babbledeck/mobile typecheck`
+  - `pnpm --filter @babbledeck/mobile check`
+  - `pnpm --filter @babbledeck/desktop check`
+  - `pnpm --filter @babbledeck/mobile exec cap doctor`
+  - `pnpm --filter @babbledeck/desktop native:info`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/verify-wrapper-configs.ts`
+- Results:
+  - Added `apps/mobile` as a Capacitor scaffold that defaults to the deployed production PWA.
+  - Added `apps/desktop` as a Tauri 2 scaffold that defaults to the deployed production PWA.
+  - Added wrapper config verification for HTTPS production URLs and no default Tauri remote capabilities.
+  - Capacitor Doctor reports the installed Capacitor dependencies are current.
+  - Tauri CLI reads the app config and production URLs, but this server lacks `webkit2gtk-4.1` and `rsvg2`, so actual desktop GUI launch still needs a native desktop toolchain host.
+
+## 2026-07-05 Service Restart Readiness Gate
+
+- Environment: local workspace and production deployment at `https://babbledeck.aialra.online`.
+- Commands:
+  - `systemctl show aialra-babbledeck.service aialra-babbledeck-ws.service --property=ActiveState,SubState,NRestarts,ExecMainStartTimestamp,ExecMainPID --no-pager`
+  - `pnpm security:audit:production`
+  - `for i in $(seq 1 25); do curl -fsS -o /dev/null https://babbledeck.aialra.online/api/health || exit 1; done`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/check-production-readiness.ts`
+- Results:
+  - Observed one production web service `SIGSEGV` followed by systemd auto-restart while running security-baseline checks; the rerun passed and health probes did not reproduce the crash.
+  - Added required readiness checks for `NRestarts=0` on `aialra-babbledeck.service` and `aialra-babbledeck-ws.service`, so future unexpected auto-restarts are not hidden by active/running state.
+
 ## 2026-07-05 Production Soniox Recorder Smoke
 
 - Environment: local workspace and production deployment at `https://babbledeck.aialra.online`.

@@ -24,6 +24,7 @@
     "soniox:smoke:production": "scripts/soniox-smoke-production.sh",
     "security:audit:production": "scripts/security-baseline-production.sh",
     "logs:install:production": "scripts/install-production-logrotate.sh",
+    "wrappers:check": "tsx scripts/verify-wrapper-configs.ts",
     "db:validate": "DATABASE_URL=${DATABASE_URL:-postgresql://babbledeck:babbledeck@localhost:55432/babbledeck_dev} prisma validate --schema db/schema.prisma",
     "db:generate": "DATABASE_URL=${DATABASE_URL:-postgresql://babbledeck:babbledeck@localhost:55432/babbledeck_dev} prisma generate --schema db/schema.prisma",
     "db:migrate": "DATABASE_URL=${DATABASE_URL:-postgresql://babbledeck:babbledeck@localhost:55432/babbledeck_dev} prisma migrate deploy --schema db/schema.prisma",

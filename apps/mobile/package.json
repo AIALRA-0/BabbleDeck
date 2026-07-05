@@ -1,0 +1,25 @@
+{
+  "name": "@babbledeck/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "check": "tsx ../../scripts/verify-wrapper-configs.ts --mobile",
+    "build": "pnpm check",
+    "lint": "pnpm check",
+    "typecheck": "tsc --noEmit",
+    "test": "pnpm check",
+    "native:sync": "cap sync",
+    "native:run:android": "cap run android",
+    "native:run:ios": "cap run ios"
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.4.1"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/cli": "^8.4.1",
+    "@capacitor/ios": "^8.4.1",
+    "tsx": "latest",
+    "typescript": "5"
+  }
+}

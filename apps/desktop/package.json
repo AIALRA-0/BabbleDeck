@@ -1,0 +1,22 @@
+{
+  "name": "@babbledeck/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "check": "tsx ../../scripts/verify-wrapper-configs.ts --desktop",
+    "build": "pnpm check",
+    "lint": "pnpm check",
+    "typecheck": "pnpm check",
+    "test": "pnpm check",
+    "native:dev": "tauri dev",
+    "native:build": "tauri build",
+    "native:info": "tauri info"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.11.1"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.4",
+    "tsx": "latest"
+  }
+}

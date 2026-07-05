@@ -13,6 +13,8 @@ Production: https://babbledeck.aialra.online
 - Browser microphone permission flow, volume meter, IndexedDB local backup with recorder-side reconnect/retry controls, binary audio chunk upload to local/S3-compatible object storage, SSE viewer stream with polling fallback, and deterministic mock transcript provider.
 - Recorder WebSocket transport streams audio chunks to server-side provider adapters; Soniox realtime activates when `SONIOX_API_KEY` is configured.
 - Playwright desktop/mobile E2E for the full MVP flow.
+- Capacitor and Tauri wrapper scaffolds that load the deployed production PWA
+  for native-shell testing.
 
 ## Development
 
@@ -165,6 +167,17 @@ Synchronize the bootstrap admin with `SEED_ADMIN_EMAIL` and
 set -a; . /srv/aialra/config/secrets/babbledeck.env; set +a
 pnpm tsx scripts/sync-seed-admin.ts
 ```
+
+Native wrapper configuration checks:
+
+```bash
+pnpm wrappers:check
+pnpm --filter @babbledeck/mobile check
+pnpm --filter @babbledeck/desktop check
+```
+
+The mobile and desktop wrapper packages default to the deployed production PWA
+at `https://babbledeck.aialra.online` for live-site-first wrapper testing.
 
 ## Deployment Notes
 

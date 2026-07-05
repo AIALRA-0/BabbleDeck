@@ -52,3 +52,5 @@
 - Added a production audio storage preflight that writes, heads, and deletes a temporary object before R2/S3 cutover.
 - Added local health alert and recovery events for consecutive production health monitor failures.
 - Added a production Soniox recorder WebSocket smoke and readiness check.
+- Added Capacitor and Tauri wrapper scaffolds that load the deployed production PWA and verify secure wrapper config.
+- Added production readiness checks for unexpected systemd auto-restarts on the web and recorder WebSocket services.

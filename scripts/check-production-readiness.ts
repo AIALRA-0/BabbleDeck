@@ -43,12 +43,32 @@ function check(
   });
 }
 
-async function serviceActive(name: string) {
+async function serviceState(name: string) {
   try {
-    const { stdout } = await execFileAsync("systemctl", ["is-active", name]);
-    return stdout.trim() === "active";
+    const { stdout } = await execFileAsync("systemctl", [
+      "show",
+      name,
+      "--property=ActiveState,NRestarts",
+      "--no-pager",
+    ]);
+    const fields = Object.fromEntries(
+      stdout
+        .trim()
+        .split(/\r?\n/)
+        .map((line) => {
+          const index = line.indexOf("=");
+          return index > 0
+            ? [line.slice(0, index), line.slice(index + 1)]
+            : [line, ""];
+        }),
+    );
+    const nRestarts = Number(fields.NRestarts ?? 0);
+    return {
+      active: fields.ActiveState === "active",
+      nRestarts: Number.isFinite(nRestarts) ? nRestarts : null,
+    };
   } catch {
-    return false;
+    return { active: false, nRestarts: null };
   }
 }
 
@@ -674,21 +694,36 @@ async function main() {
     });
   }
 
-  for (const service of [
+  const coreServices = [
     "aialra-babbledeck.service",
     "aialra-babbledeck-ws.service",
+  ];
+  for (const service of [
+    ...coreServices,
     "aialra-babbledeck-backup.timer",
     "aialra-babbledeck-backup-verify.timer",
     "aialra-babbledeck-audio-retention.timer",
     "aialra-babbledeck-health-monitor.timer",
     "aialra-babbledeck-metrics.timer",
   ]) {
-    const active = await serviceActive(service);
+    const state = await serviceState(service);
     check(checks, {
       name: service,
-      ok: active,
-      message: active ? `${service} is active.` : `${service} is not active.`,
+      ok: state.active,
+      message: state.active
+        ? `${service} is active.`
+        : `${service} is not active.`,
     });
+    if (coreServices.includes(service)) {
+      check(checks, {
+        name: `${service}_restart_count`,
+        ok: state.nRestarts === 0,
+        message:
+          state.nRestarts === 0
+            ? `${service} has not auto-restarted since the current service start.`
+            : `${service} has auto-restarted ${state.nRestarts ?? "an unknown number of"} time(s); inspect service logs before release.`,
+      });
+    }
   }
 
   check(checks, {

@@ -264,11 +264,25 @@ Acceptance:
 
 - Mobile app dev wrapper runs.
 
+Progress:
+
+- Scaffolded `apps/mobile` with Capacitor config that defaults to the deployed
+  production PWA for live-site-first wrapper testing.
+- Added `pnpm --filter @babbledeck/mobile check` and root `pnpm wrappers:check`
+  verification.
+
 ### BDK-0902 Tauri wrapper
 
 Acceptance:
 
 - Desktop app dev wrapper runs.
+
+Progress:
+
+- Scaffolded `apps/desktop` with Tauri 2 config that defaults to the deployed
+  production PWA for live-site-first wrapper testing.
+- Added `pnpm --filter @babbledeck/desktop check` and root `pnpm wrappers:check`
+  verification.
 
 ## Epic 10: LiveKit V2
 

@@ -75,9 +75,12 @@
 - Production Soniox recorder WebSocket smoke can be run with `pnpm soniox:smoke:production`; readiness checks for a recent passing non-secret JSONL smoke record covering session create/start, public recorder WS audio upload, provider usage, and no provider errors.
 - Production security baseline can be run with `pnpm security:audit:production`; readiness checks for a recent passing non-secret JSONL audit covering repo hygiene, env placeholders, live security headers, unauthenticated admin API protection, CSRF rejection, and non-secret health output.
 - Production web responses now carry `x-request-id` and `x-correlation-id`; production request middleware writes structured JSON request logs, and the App Router has a client error boundary that emits structured `ui.error_boundary` logs.
+- Native wrapper scaffolds exist in `apps/mobile` (Capacitor) and `apps/desktop` (Tauri), both defaulting to the deployed production PWA for live-site-first wrapper testing; `pnpm wrappers:check` verifies HTTPS production URLs and no default Tauri remote capabilities. Capacitor Doctor passes on this server, while Tauri native launch still needs a host with `webkit2gtk-4.1` and `rsvg2`.
+- Production readiness checks `NRestarts=0` for the web and recorder WebSocket systemd services, after a one-off web service `SIGSEGV` during security-baseline probing showed that active/running alone can mask an auto-restart.
 
 ## Next Recommended Tasks
 
 1. Configure production R2/S3 credentials, run `pnpm audio:preflight:production`, run `pnpm audio:cutover:production`, rerun with `BABBLEDECK_AUDIO_CUTOVER_APPLY=1`, and pass strict readiness.
-2. Run one manual live microphone check from a physical browser/device for final hardware confidence.
-3. Collect longer real Soniox multilingual traces and compare them against persisted segments for continued alignment confidence.
+2. Run Capacitor on a physical Android/iOS toolchain and Tauri on a desktop toolchain against `https://babbledeck.aialra.online`.
+3. Run one manual live microphone check from a physical browser/device for final hardware confidence.
+4. Collect longer real Soniox multilingual traces and compare them against persisted segments for continued alignment confidence.
