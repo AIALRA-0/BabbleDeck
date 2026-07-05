@@ -131,13 +131,16 @@ Production raw-audio storage cutovers should use the guarded wrapper after the
 R2/S3 target variables are present in the production env file:
 
 ```bash
+pnpm audio:preflight:production
 pnpm audio:cutover:production
 BABBLEDECK_AUDIO_CUTOVER_APPLY=1 pnpm audio:cutover:production
 ```
 
-The first command only validates the local source objects. The apply run
-migrates batches to the configured off-host target, audits object presence and
-metadata, then runs a strict production deploy smoke.
+The preflight creates, heads, and deletes a temporary object on the configured
+off-host target. The first cutover command then validates the local source
+objects. The apply run migrates batches to the configured off-host target,
+audits object presence and metadata, then runs a strict production deploy
+smoke.
 
 Synchronize the bootstrap admin with `SEED_ADMIN_EMAIL` and
 `SEED_ADMIN_PASSWORD` after credential changes:
@@ -178,6 +181,7 @@ To migrate existing raw audio from the local object root to R2/S3-compatible sto
 For Cloudflare R2, `R2_ACCOUNT_ID` is enough to derive `https://ACCOUNT_ID.r2.cloudflarestorage.com`; set `R2_ENDPOINT` only when overriding that endpoint.
 
 ```bash
+pnpm tsx scripts/preflight-audio-storage.ts --require-off-host
 pnpm tsx scripts/audit-audio-storage.ts --all --limit=500
 pnpm tsx scripts/migrate-audio-storage.ts --dry-run --limit=500
 pnpm tsx scripts/migrate-audio-storage.ts --limit=500

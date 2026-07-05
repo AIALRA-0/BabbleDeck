@@ -1,5 +1,18 @@
 # Test Runs
 
+## 2026-07-05 Audio Storage Preflight
+
+- Environment: local workspace and production secret env at `https://babbledeck.aialra.online`.
+- Commands:
+  - `AUDIO_STORAGE_DRIVER=local AUDIO_STORAGE_DIR=$(mktemp -d) pnpm tsx scripts/preflight-audio-storage.ts`
+  - `pnpm audio:preflight:production` (expected exit 1 while production target remains local)
+  - `bash -n scripts/preflight-audio-storage-production.sh scripts/cutover-audio-storage.sh`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/preflight-audio-storage.ts`
+- Results:
+  - Added `scripts/preflight-audio-storage.ts` to create, head, and delete a temporary object against the configured audio storage target without touching production audio rows.
+  - Added `pnpm audio:preflight:production`, which loads the production secret env, requires an off-host target, writes a non-secret JSONL result, and fails cleanly while production still uses local audio storage.
+  - Wired the preflight into `pnpm audio:cutover:production` before migration dry-run or apply steps, so bucket/endpoint/credential/delete permission problems are caught before raw audio migration.
+
 ## 2026-07-05 Soniox Recorder Close Race
 
 - Environment: local workspace plus one-off production probe at `https://babbledeck.aialra.online`.

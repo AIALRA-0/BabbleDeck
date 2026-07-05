@@ -115,6 +115,8 @@ fi
 status_line "source directory: $SOURCE_AUDIO_STORAGE_DIR"
 status_line "target driver: ${driver,,}"
 status_line "batch size: $BATCH_SIZE"
+status_line "preflighting target object storage"
+pnpm tsx scripts/preflight-audio-storage.ts --require-off-host
 
 dry_run_file="$(mktemp)"
 apply_file=""

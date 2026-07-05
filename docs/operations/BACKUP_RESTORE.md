@@ -255,14 +255,17 @@ and records migration metadata on each chunk row.
 For production, prefer the guarded cutover wrapper:
 
 ```bash
+pnpm audio:preflight:production
 pnpm audio:cutover:production
 BABBLEDECK_AUDIO_CUTOVER_APPLY=1 pnpm audio:cutover:production
 ```
 
-The default run only validates the current source objects. The apply run
-migrates batches to the configured R2/S3 target, audits that uploaded chunks are
-present and marked on the current target, and then runs `pnpm
-deploy:production` in strict readiness mode.
+The preflight creates, heads, and deletes a temporary object on the configured
+off-host target without touching production audio rows. The default cutover run
+validates the current source objects. The apply run migrates batches to the
+configured R2/S3 target, audits that uploaded chunks are present and marked on
+the current target, and then runs `pnpm deploy:production` in strict readiness
+mode.
 
 Dry run:
 
@@ -274,6 +277,7 @@ SOURCE_AUDIO_STORAGE_DIR=/srv/aialra/storage/babbledeck \
 Audit the currently configured storage target before and after a migration:
 
 ```bash
+pnpm tsx scripts/preflight-audio-storage.ts --require-off-host
 pnpm tsx scripts/audit-audio-storage.ts --all --limit=500
 pnpm tsx scripts/audit-audio-storage.ts --all --limit=500 --require-current-target
 ```

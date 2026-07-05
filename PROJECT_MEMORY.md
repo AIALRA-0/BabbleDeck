@@ -64,6 +64,7 @@
 - Production services were restarted after the R2 endpoint derivation build; HTTPS headers, strict readiness required checks, anonymous protected-route smoke, and seed-admin login/logout smoke passed on `https://babbledeck.aialra.online`.
 - Routine production deploys can now use `pnpm deploy:production`, which locks, force-builds, restarts systemd web/WS services, checks HTTPS/readiness/login, runs anonymous protected-route Playwright smoke, and appends a non-secret deployment record.
 - Production raw-audio cutovers can now use `pnpm audio:cutover:production`; it defaults to dry-run source validation, requires `BABBLEDECK_AUDIO_CUTOVER_APPLY=1` before writing objects, migrates batches to the configured off-host target, audits target metadata, and runs strict production deploy smoke.
+- Production off-host audio targets can now be checked with `pnpm audio:preflight:production`; the preflight writes, heads, and deletes a temporary object before any raw audio migration is attempted.
 - R2/S3 audio migrations now skip chunks already marked on the current target by default, so repeated batch runs continue through remaining unmigrated rows. `--include-migrated` is available for intentional rewrites.
 - Production now exposes `/api/health` for non-secret uptime monitoring; readiness checks verify that it reports database and audio storage core health.
 - Production health monitoring is systemd-managed through `aialra-babbledeck-health-monitor.timer`; it checks `/api/health` every five minutes and writes non-secret JSONL records to `/srv/aialra/logs/babbledeck/health-monitor.jsonl`.
@@ -76,6 +77,6 @@
 
 ## Next Recommended Tasks
 
-1. Configure production R2/S3 credentials, run `pnpm audio:cutover:production`, rerun with `BABBLEDECK_AUDIO_CUTOVER_APPLY=1`, and pass strict readiness.
+1. Configure production R2/S3 credentials, run `pnpm audio:preflight:production`, run `pnpm audio:cutover:production`, rerun with `BABBLEDECK_AUDIO_CUTOVER_APPLY=1`, and pass strict readiness.
 2. Run one manual live microphone check from a physical browser/device for final hardware confidence.
 3. Collect longer real Soniox multilingual traces and compare them against persisted segments for continued alignment confidence.
