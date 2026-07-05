@@ -1,5 +1,30 @@
 # Test Runs
 
+## 2026-07-05 Production Log Rotation
+
+- Environment: local workspace and production server log directory `/srv/aialra/logs/babbledeck`.
+- Commands:
+  - `bash -n scripts/install-production-logrotate.sh scripts/monitor-production-health.sh scripts/install-production-health-monitor.sh`
+  - `BABBLEDECK_LOGROTATE_CONFIG="$tmpdir/aialra-babbledeck" BABBLEDECK_LOG_DIR="$tmpdir" pnpm logs:install:production`
+  - `logrotate -d "$tmpdir/aialra-babbledeck"`
+  - `pnpm logs:install:production`
+  - `logrotate -d /etc/logrotate.d/aialra-babbledeck`
+  - `pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --strict --check-soniox-live`
+  - `pnpm format:check`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/recorder-ws-server.ts scripts/prune-audio-retention.ts scripts/migrate-audio-storage.ts scripts/audit-audio-storage.ts scripts/check-production-readiness.ts scripts/sync-seed-admin.ts playwright.config.ts e2e/mvp.spec.ts`
+  - `pnpm build`
+- Results:
+  - Added `pnpm logs:install:production` to install `/etc/logrotate.d/aialra-babbledeck`.
+  - The config rotates BabbleDeck `.log` and `.jsonl` files with `copytruncate`, compression, and 14 retained rotations by default.
+  - `scripts/check-production-readiness.ts` now requires the BabbleDeck logrotate config to be present.
+  - A temporary logrotate install and dry-run matched only `.log` and `.jsonl` files, leaving lock files out of rotation.
+  - The production logrotate config was installed and debug-validated; it covers service, WebSocket, backup, audio retention, health monitor, deployment JSONL, health JSONL, and Nginx logs under `/srv/aialra/logs/babbledeck`.
+  - Strict production readiness now passes the required `logrotate_config` check; strict completion still waits on off-host audio storage.
+  - Format, lint, app typecheck, full unit tests, script/E2E typecheck, and production build passed.
+
 ## 2026-07-05 Production Health Monitor Timer
 
 - Environment: local workspace and production deployment at `https://babbledeck.aialra.online`.

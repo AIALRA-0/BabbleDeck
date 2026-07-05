@@ -42,3 +42,4 @@
 - Added a guarded production raw-audio cutover wrapper and made R2/S3 migrations skip chunks already marked on the current target.
 - Added a non-secret production health endpoint and wired it into readiness checks.
 - Added a systemd production health monitor timer that records non-secret `/api/health` checks.
+- Added production logrotate installation for BabbleDeck `.log` and `.jsonl` files.

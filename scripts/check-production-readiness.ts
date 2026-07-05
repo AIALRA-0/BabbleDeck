@@ -298,6 +298,22 @@ async function latestBackupOk() {
   }
 }
 
+async function logrotateConfigOk() {
+  const configPath =
+    process.env.BABBLEDECK_LOGROTATE_CONFIG ??
+    "/etc/logrotate.d/aialra-babbledeck";
+  try {
+    const contents = await fs.readFile(configPath, "utf8");
+    return (
+      contents.includes("/srv/aialra/logs/babbledeck/*.log") &&
+      contents.includes("/srv/aialra/logs/babbledeck/*.jsonl") &&
+      contents.includes("copytruncate")
+    );
+  } catch {
+    return false;
+  }
+}
+
 async function main() {
   const strict = boolFlag("--strict");
   const checkSonioxLive =
@@ -393,6 +409,12 @@ async function main() {
     name: "latest_backup_present",
     ok: await latestBackupOk(),
     message: "At least one production backup directory exists.",
+  });
+
+  check(checks, {
+    name: "logrotate_config",
+    ok: await logrotateConfigOk(),
+    message: "Production logrotate config is installed for BabbleDeck logs.",
   });
 
   const remoteStorage = offHostAudioStorageStatus();

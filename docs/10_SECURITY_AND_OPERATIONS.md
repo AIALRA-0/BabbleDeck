@@ -275,6 +275,8 @@ Minimum metrics:
 - `aialra-babbledeck-health-monitor.timer` checks `/api/health` every five
   minutes and writes non-secret JSONL status records under
   `/srv/aialra/logs/babbledeck/health-monitor.jsonl`.
+- `/etc/logrotate.d/aialra-babbledeck` rotates BabbleDeck `.log` and `.jsonl`
+  files so append-style service logs do not grow without bound.
 
 Minimum logs:
 

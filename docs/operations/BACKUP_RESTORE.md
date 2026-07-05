@@ -12,6 +12,7 @@ Production backups follow the server's systemd-managed project pattern.
 - Raw audio retention timer: `aialra-babbledeck-audio-retention.timer`
 - Health monitor service: `aialra-babbledeck-health-monitor.service`
 - Health monitor timer: `aialra-babbledeck-health-monitor.timer`
+- Logrotate config: `/etc/logrotate.d/aialra-babbledeck`
 - Recorder WebSocket service: `aialra-babbledeck-ws.service`
 
 Each backup directory contains:
@@ -99,6 +100,19 @@ Inspect the latest records with:
 tail -n 20 /srv/aialra/logs/babbledeck/health-monitor.jsonl
 systemctl status aialra-babbledeck-health-monitor.timer
 ```
+
+## Log Rotation
+
+Install or refresh production log rotation with:
+
+```bash
+pnpm logs:install:production
+```
+
+The config rotates `/srv/aialra/logs/babbledeck/*.log` and
+`/srv/aialra/logs/babbledeck/*.jsonl`, keeps 14 rotations by default,
+compresses old files, and uses `copytruncate` so systemd append logs continue
+without restarting services.
 
 ## Verify Latest Backup
 
