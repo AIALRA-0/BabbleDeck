@@ -1,5 +1,18 @@
 # Test Runs
 
+## 2026-07-05 Production Soniox Recorder Smoke
+
+- Environment: local workspace and production deployment at `https://babbledeck.aialra.online`.
+- Commands:
+  - `bash -n scripts/soniox-smoke-production.sh`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/soniox-smoke-production.ts scripts/check-production-readiness.ts`
+  - `pnpm soniox:smoke:production`
+  - `pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --strict --check-soniox-live`
+- Results:
+  - Added `scripts/soniox-smoke-production.ts` and `pnpm soniox:smoke:production` for repeatable production Soniox recorder coverage.
+  - The smoke signs in with the production seed admin, creates a temporary Soniox session, starts it with the scoped recorder token, uploads a generated WAV probe through `/ws/recorder`, verifies recorder acknowledgement, provider usage, one stored audio chunk, and zero provider errors, then stops and archives the session.
+  - Strict readiness now requires a recent passing non-secret Soniox smoke JSONL marker.
+
 ## 2026-07-05 Health Monitor Local Alerts
 
 - Environment: local workspace with temporary log directories and production deployment at `https://babbledeck.aialra.online`.

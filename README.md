@@ -96,6 +96,18 @@ viewer SSE streams, injects a transcript through the recorder-token API,
 confirms every viewer receives it, then archives the smoke session and writes a
 non-secret record to `/srv/aialra/logs/babbledeck/load-smoke.jsonl`.
 
+Run the production Soniox recorder smoke after Soniox credential changes:
+
+```bash
+pnpm soniox:smoke:production
+```
+
+The smoke creates a temporary Soniox session on the real domain, uploads a
+generated WAV probe through the public recorder WebSocket, verifies the recorder
+acknowledgement, provider usage, and zero provider errors, then archives the
+session and writes a non-secret record to
+`/srv/aialra/logs/babbledeck/soniox-smoke.jsonl`.
+
 Run the production security baseline audit after security-sensitive changes:
 
 ```bash

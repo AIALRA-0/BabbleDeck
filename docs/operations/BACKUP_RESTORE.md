@@ -157,6 +157,30 @@ BABBLEDECK_LOAD_SMOKE_VIEWERS=25 pnpm load:smoke:production
 BABBLEDECK_LOAD_SMOKE_TIMEOUT_SECONDS=90 pnpm load:smoke:production
 ```
 
+## Soniox Recorder Smoke
+
+Run the production Soniox recorder WebSocket smoke after Soniox credential
+changes or before release checks:
+
+```bash
+pnpm soniox:smoke:production
+```
+
+The smoke uses the seed admin secret from the production env file, creates a
+temporary Soniox-backed session on the real domain, starts it with the scoped
+recorder token, uploads a generated WAV probe through `/ws/recorder`, verifies
+the recorder acknowledgement, stored audio chunk, provider usage, and absence of
+provider errors, stops and archives the smoke session, and writes a non-secret
+JSONL record to `/srv/aialra/logs/babbledeck/soniox-smoke.jsonl`. Strict
+readiness requires a recent passing Soniox recorder smoke record.
+
+Useful overrides:
+
+```bash
+BABBLEDECK_SONIOX_SMOKE_PROBE_MS=1000 pnpm soniox:smoke:production
+BABBLEDECK_SONIOX_SMOKE_TIMEOUT_SECONDS=60 pnpm soniox:smoke:production
+```
+
 ## Security Baseline Audit
 
 Run the production security baseline audit after security-sensitive changes:

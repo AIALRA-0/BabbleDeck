@@ -46,7 +46,7 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
-      - run: pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/recorder-ws-server.ts scripts/prune-audio-retention.ts scripts/migrate-audio-storage.ts scripts/audit-audio-storage.ts scripts/preflight-audio-storage.ts scripts/collect-production-metrics.ts scripts/load-smoke-production.ts scripts/security-baseline-audit.ts scripts/check-production-readiness.ts scripts/sync-seed-admin.ts playwright.config.ts
+      - run: pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/recorder-ws-server.ts scripts/prune-audio-retention.ts scripts/migrate-audio-storage.ts scripts/audit-audio-storage.ts scripts/preflight-audio-storage.ts scripts/collect-production-metrics.ts scripts/load-smoke-production.ts scripts/soniox-smoke-production.ts scripts/security-baseline-audit.ts scripts/check-production-readiness.ts scripts/sync-seed-admin.ts playwright.config.ts
       - run: pnpm build
       - name: Secret scan
         run: |

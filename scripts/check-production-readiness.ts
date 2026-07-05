@@ -473,6 +473,77 @@ async function recentLoadSmokeOk() {
   }
 }
 
+async function recentSonioxSmokeOk() {
+  const sonioxSmokeLog =
+    process.env.BABBLEDECK_SONIOX_SMOKE_LOG ??
+    "/srv/aialra/logs/babbledeck/soniox-smoke.jsonl";
+  const maxAgeHours = Number(
+    process.env.BABBLEDECK_SONIOX_SMOKE_MAX_AGE_HOURS ?? 168,
+  );
+  const maxAgeMs =
+    Number.isFinite(maxAgeHours) && maxAgeHours > 0
+      ? maxAgeHours * 60 * 60 * 1000
+      : 168 * 60 * 60 * 1000;
+  try {
+    const stat = await fs.stat(sonioxSmokeLog);
+    if (Date.now() - stat.mtimeMs > maxAgeMs) {
+      return {
+        ok: false,
+        message: `Production Soniox recorder smoke is older than ${Math.round(maxAgeMs / 3600000)} hours.`,
+      };
+    }
+
+    const contents = await fs.readFile(sonioxSmokeLog, "utf8");
+    const latest = contents
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .at(-1);
+    if (!latest) {
+      return {
+        ok: false,
+        message: "Production Soniox smoke log exists but has no JSONL records.",
+      };
+    }
+
+    const record = JSON.parse(latest);
+    const finishedAtMs = Date.parse(record.finishedAt);
+    const freshFinishedAt =
+      Number.isFinite(finishedAtMs) && Date.now() - finishedAtMs <= maxAgeMs;
+    const probeDurationMs = Number(record.probeDurationMs ?? 0);
+    const usageAudioMs = Array.isArray(record.providerUsage)
+      ? record.providerUsage.reduce(
+          (sum: number, item: { audioMs?: number | null }) =>
+            sum + Number(item?.audioMs ?? 0),
+          0,
+        )
+      : 0;
+    return {
+      ok:
+        record.app === "babbledeck" &&
+        record.ok === true &&
+        record.recorderWs?.ready === true &&
+        record.recorderWs?.ack === true &&
+        Number(record.audioChunks) === 1 &&
+        Number(record.providerErrors) === 0 &&
+        usageAudioMs >= probeDurationMs &&
+        freshFinishedAt,
+      message:
+        record.app === "babbledeck" &&
+        record.ok === true &&
+        Number(record.providerErrors) === 0 &&
+        freshFinishedAt
+          ? `Recent production Soniox recorder smoke passed with ${usageAudioMs}ms provider usage.`
+          : "Latest production Soniox smoke JSONL record is missing required fields, failed, or is stale.",
+    };
+  } catch {
+    return {
+      ok: false,
+      message: "Production Soniox smoke JSONL record could not be checked.",
+    };
+  }
+}
+
 async function recentSecurityBaselineOk() {
   const securityLog =
     process.env.BABBLEDECK_SECURITY_BASELINE_LOG ??
@@ -677,6 +748,13 @@ async function main() {
     name: "recent_load_smoke",
     ok: loadSmoke.ok,
     message: loadSmoke.message,
+  });
+
+  const sonioxSmoke = await recentSonioxSmokeOk();
+  check(checks, {
+    name: "recent_soniox_smoke",
+    ok: sonioxSmoke.ok,
+    message: sonioxSmoke.message,
   });
 
   const securityBaseline = await recentSecurityBaselineOk();
