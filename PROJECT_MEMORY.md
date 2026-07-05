@@ -60,6 +60,7 @@
 - Viewer network resilience now has production Playwright coverage: the test aborts the SSE stream, verifies the UI enters `Polling`, injects transcript events through the recorder API, and confirms the viewer still receives captions.
 - Protected admin surfaces now have production Playwright coverage: anonymous browser visits to `/dashboard`, `/sessions/new`, and `/settings` redirect to login, and anonymous admin API calls return `UNAUTHENTICATED`.
 - R2 audio storage configuration now derives the standard Cloudflare endpoint from `R2_ACCOUNT_ID`; `R2_ENDPOINT` is only needed for overrides.
+- Production services were restarted after the R2 endpoint derivation build; HTTPS headers, strict readiness required checks, anonymous protected-route smoke, and seed-admin login/logout smoke passed on `https://babbledeck.aialra.online`.
 
 ## Next Recommended Tasks
 

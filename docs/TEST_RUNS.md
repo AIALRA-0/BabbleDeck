@@ -1,5 +1,27 @@
 # Test Runs
 
+## 2026-07-05 Production Deploy Smoke for R2 Endpoint Build
+
+- Environment: production deployment at `https://babbledeck.aialra.online`, production secret env loaded without printing secrets, systemd services `aialra-babbledeck.service` and `aialra-babbledeck-ws.service`.
+- Commands:
+  - `pnpm build --force`
+  - `systemctl restart aialra-babbledeck.service aialra-babbledeck-ws.service`
+  - `systemctl is-active aialra-babbledeck.service aialra-babbledeck-ws.service`
+  - `curl -fsSI https://babbledeck.aialra.online/`
+  - `curl -fsS https://babbledeck.aialra.online/ | rg -n "BabbleDeck|Live multilingual captions|Open portal"`
+  - `pnpm tsx scripts/check-production-readiness.ts --strict --check-soniox-live`
+  - `E2E_BASE_URL=https://babbledeck.aialra.online E2E_ADMIN_EMAIL="$SEED_ADMIN_EMAIL" E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD" pnpm e2e e2e/mvp.spec.ts --project=chromium-desktop --grep "anonymous users"`
+  - Login API smoke against `/api/auth/login`, `/api/auth/me`, and `/api/auth/logout` using the seed admin from the production secret env.
+- Results:
+  - Forced production build completed and copied standalone static assets.
+  - Web and recorder WebSocket services restarted successfully and were active with start timestamp `2026-07-05 03:20:07 CEST`.
+  - HTTPS returned `HTTP/2 200` with HSTS, CSP, COOP, frame, nosniff, referrer, and permissions-policy headers.
+  - The homepage HTML contained `BabbleDeck`, `Live multilingual captions`, and `Open portal`.
+  - Strict readiness required checks passed, including live Soniox connectivity with `360ms` accepted probe audio.
+  - Anonymous protected-route Playwright smoke passed against the live domain without creating data.
+  - Seed-admin login, `/api/auth/me`, and logout returned `200` and `ok: true`.
+  - Strict production readiness still fails only because `AUDIO_STORAGE_DRIVER=local`; production still needs real R2/S3 credentials and audio chunk migration.
+
 ## 2026-07-05 R2 Endpoint Derivation
 
 - Environment: local workspace, production deployment at `https://babbledeck.aialra.online`, production secret env loaded without printing secrets.
