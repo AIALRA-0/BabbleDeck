@@ -252,6 +252,13 @@ export function SessionHistoryClient({
           </Button>
           <Button
             variant="secondary"
+            onClick={() => void exportFormat("srt")}
+            disabled={Boolean(pending)}
+          >
+            <Subtitles className="h-4 w-4" /> SRT
+          </Button>
+          <Button
+            variant="secondary"
             onClick={() => void exportFormat("vtt")}
             disabled={Boolean(pending)}
           >

@@ -1,5 +1,31 @@
 # Test Runs
 
+## 2026-07-05 Multi-Format Export Browser Coverage
+
+- Environment: local workspace, production deployment at `https://babbledeck.aialra.online`, production secret env loaded without printing secrets.
+- Commands:
+  - `pnpm prettier --write e2e/mvp.spec.ts apps/web/src/components/SessionHistoryClient.tsx apps/web/src/lib/export.test.ts`
+  - `pnpm --filter @babbledeck/web test -- --run src/lib/export.test.ts`
+  - `pnpm format:check`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/recorder-ws-server.ts scripts/prune-audio-retention.ts scripts/migrate-audio-storage.ts scripts/audit-audio-storage.ts scripts/check-production-readiness.ts scripts/sync-seed-admin.ts playwright.config.ts`
+  - `pnpm build`
+  - `systemctl restart aialra-babbledeck.service aialra-babbledeck-ws.service`
+  - `curl -fsSI https://babbledeck.aialra.online/`
+  - `E2E_BASE_URL=https://babbledeck.aialra.online E2E_ADMIN_EMAIL="$SEED_ADMIN_EMAIL" E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD" pnpm e2e e2e/mvp.spec.ts --grep "admin creates a live session"`
+  - `pnpm tsx scripts/check-production-readiness.ts --strict`
+- Results:
+  - Session history now exposes an `SRT` export button in addition to Markdown, TXT, JSON, and VTT.
+  - The core Playwright MVP flow now downloads all five formats and verifies corrected original/translation text in each export.
+  - Format, lint, app typecheck, script typecheck, full unit tests, and production build passed.
+  - Unit tests passed with `14` files and `44` tests, including TXT, JSON, SRT, and VTT export rendering coverage.
+  - Production services restarted successfully; an immediate post-restart HTTPS probe briefly returned `502`, then `HTTP/2 200` with expected security headers after startup settled.
+  - Production Playwright desktop and mobile MVP flows both passed against the live domain with multi-format export verification.
+  - Production smoke cleanup removed 2 temporary Playwright sessions and 6 local audio objects.
+  - Strict production readiness still fails only because `AUDIO_STORAGE_DRIVER=local`; all required checks pass.
+
 ## 2026-07-05 Recorder Control and Event Rate Limits
 
 - Environment: local workspace, production deployment at `https://babbledeck.aialra.online`, production secret env loaded without printing secrets.

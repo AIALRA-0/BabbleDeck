@@ -119,6 +119,22 @@ async function seedPendingBackupChunk(
   }, input);
 }
 
+async function downloadExport(
+  page: Page,
+  input: { name: RegExp; extension: string },
+) {
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: input.name }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(
+    new RegExp(`\\.${input.extension}$`),
+  );
+  const downloadPath = await download.path();
+  if (!downloadPath)
+    throw new Error(`${input.extension} download path missing.`);
+  return fs.readFile(downloadPath, "utf8");
+}
+
 test.describe("BabbleDeck MVP browser flow", () => {
   test.skip(
     !adminPassword,
@@ -280,15 +296,52 @@ test.describe("BabbleDeck MVP browser flow", () => {
     ).toContainText(/0:0[1-9]|0:[1-9][0-9]|[1-9][0-9]*:/);
     await expect(page.getByText(correctedTranslation)).toBeVisible();
 
-    const downloadPromise = page.waitForEvent("download");
-    await page.getByRole("button", { name: /markdown/i }).click();
-    const download = await downloadPromise;
-    expect(download.suggestedFilename()).toMatch(/\.markdown$/);
-    const downloadPath = await download.path();
-    if (!downloadPath) throw new Error("Markdown download path missing.");
-    const exportContent = await fs.readFile(downloadPath, "utf8");
-    expect(exportContent).toContain(correctedOriginal);
-    expect(exportContent).toContain(correctedTranslation);
+    const markdownContent = await downloadExport(page, {
+      name: /markdown/i,
+      extension: "markdown",
+    });
+    expect(markdownContent).toContain(correctedOriginal);
+    expect(markdownContent).toContain(correctedTranslation);
+
+    const txtContent = await downloadExport(page, {
+      name: /^txt$/i,
+      extension: "txt",
+    });
+    expect(txtContent).toContain(correctedOriginal);
+    expect(txtContent).toContain(correctedTranslation);
+
+    const jsonContent = await downloadExport(page, {
+      name: /^json$/i,
+      extension: "json",
+    });
+    const exportJson = JSON.parse(jsonContent) as {
+      title: string;
+      segments: Array<{ originalText: string; translationText: string | null }>;
+    };
+    expect(exportJson.title).toBe(title);
+    expect(
+      exportJson.segments.some(
+        (segment) =>
+          segment.originalText === correctedOriginal &&
+          segment.translationText === correctedTranslation,
+      ),
+    ).toBe(true);
+
+    const srtContent = await downloadExport(page, {
+      name: /^srt$/i,
+      extension: "srt",
+    });
+    expect(srtContent).toContain("00:00:");
+    expect(srtContent).toContain(correctedOriginal);
+    expect(srtContent).toContain(correctedTranslation);
+
+    const vttContent = await downloadExport(page, {
+      name: /^vtt$/i,
+      extension: "vtt",
+    });
+    expect(vttContent).toMatch(/^WEBVTT/);
+    expect(vttContent).toContain(correctedOriginal);
+    expect(vttContent).toContain(correctedTranslation);
 
     await recorderContext.close();
     await viewerContext.close();
