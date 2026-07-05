@@ -1461,5 +1461,13 @@
 - Results:
   - Static checks, unit tests, script typecheck, and production build passed.
   - Desktop and mobile Playwright MVP flows passed with coverage for persisted default session settings, glossary create/update/delete, read-only audit log visibility, session create, recorder flow, viewer captions, and exports.
+  - Production deploy passed for commit `f84f818` through `pnpm db:generate && pnpm deploy:production`; required readiness, seed-admin login smoke, and anonymous protected-route Playwright smoke passed.
+  - Production desktop and mobile Playwright MVP flows passed against `https://babbledeck.aialra.online`.
+  - Production LiveKit preflight passed. The first LiveKit UI smoke attempt hit `Room audio: Unavailable`, then an immediate rerun passed and wrote a fresh passing readiness marker.
+  - Production Soniox recorder WebSocket smoke and Soniox UI smoke passed with real configured credentials.
+  - Strict production readiness with live Soniox passed every required check and still failed only the external `off_host_audio_storage` check because production uses local audio storage.
+  - Production health reported `audioDriver=local`, `offHostReady=false`, `soniox=true`, and `livekit=true`; web, recorder WebSocket, and LiveKit services were active with `NRestarts=0`.
+  - Production cleanup found no remaining `Playwright glossary` terms and archived `20` recent smoke sessions with test-title prefixes, leaving no recent unarchived smoke sessions.
 - Screenshots/traces:
   - Local runs passed without failure screenshots.
+  - Production reruns passed without final failure screenshots; the transient LiveKit failure screenshot remains in local Playwright artifacts for diagnosis.
