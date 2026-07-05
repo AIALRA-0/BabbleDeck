@@ -1,5 +1,27 @@
 # Test Runs
 
+## 2026-07-05 Protected Admin Route Coverage
+
+- Environment: local workspace, production deployment at `https://babbledeck.aialra.online`, production secret env loaded without printing secrets.
+- Commands:
+  - `pnpm prettier --write e2e/mvp.spec.ts`
+  - `E2E_BASE_URL=https://babbledeck.aialra.online E2E_ADMIN_EMAIL="$SEED_ADMIN_EMAIL" E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD" pnpm e2e e2e/mvp.spec.ts --project=chromium-desktop --grep "anonymous users"`
+  - `pnpm format:check`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/recorder-ws-server.ts scripts/prune-audio-retention.ts scripts/migrate-audio-storage.ts scripts/audit-audio-storage.ts scripts/check-production-readiness.ts scripts/sync-seed-admin.ts playwright.config.ts e2e/mvp.spec.ts`
+  - `pnpm build`
+  - `pnpm tsx scripts/check-production-readiness.ts --strict --check-soniox-live`
+- Results:
+  - Added a desktop-only Playwright scenario that verifies anonymous browser visits to `/dashboard`, `/sessions/new`, and `/settings` redirect to login.
+  - The same scenario verifies anonymous calls to `/api/auth/me`, `/api/settings`, `GET /api/sessions`, and `POST /api/sessions` return `UNAUTHENTICATED`.
+  - Production Playwright protected-route smoke passed against the live domain.
+  - Format, lint, app typecheck, full unit tests, script/E2E typecheck, and production build passed.
+  - Unit tests remained at `14` files and `44` tests.
+  - The live Soniox readiness probe passed with `360ms` of accepted probe audio.
+  - Strict production readiness still fails only because `AUDIO_STORAGE_DRIVER=local`; all required checks, including `SONIOX_API_KEY` and `soniox_realtime_connectivity`, pass.
+
 ## 2026-07-05 Viewer Polling Fallback Coverage
 
 - Environment: local workspace, production deployment at `https://babbledeck.aialra.online`, production secret env loaded without printing secrets.

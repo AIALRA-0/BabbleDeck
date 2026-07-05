@@ -1,5 +1,11 @@
 import fs from "node:fs/promises";
-import { chromium, expect, test, type Page } from "@playwright/test";
+import {
+  chromium,
+  expect,
+  test,
+  type APIResponse,
+  type Page,
+} from "@playwright/test";
 
 const adminEmail = process.env.E2E_ADMIN_EMAIL ?? "admin@example.invalid";
 const adminPassword = process.env.E2E_ADMIN_PASSWORD;
@@ -135,11 +141,49 @@ async function downloadExport(
   return fs.readFile(downloadPath, "utf8");
 }
 
+async function expectUnauthenticated(response: APIResponse) {
+  expect(response.status()).toBe(401);
+  await expect(response.json()).resolves.toMatchObject({
+    ok: false,
+    error: expect.objectContaining({ code: "UNAUTHENTICATED" }),
+  });
+}
+
 test.describe("BabbleDeck MVP browser flow", () => {
   test.skip(
     !adminPassword,
     "E2E_ADMIN_PASSWORD must be set for browser login.",
   );
+
+  test("anonymous users cannot access admin surfaces", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "chromium-desktop",
+      "Protected route coverage runs once on desktop.",
+    );
+
+    for (const path of ["/dashboard", "/sessions/new", "/settings"]) {
+      await page.goto(path);
+      await expect(page).toHaveURL(/\/login$/);
+      await expect(
+        page.getByRole("heading", { name: /sign in to babbledeck/i }),
+      ).toBeVisible();
+    }
+
+    await expectUnauthenticated(await page.request.get("/api/auth/me"));
+    await expectUnauthenticated(await page.request.get("/api/settings"));
+    await expectUnauthenticated(await page.request.get("/api/sessions"));
+    await expectUnauthenticated(
+      await page.request.post("/api/sessions", {
+        data: {
+          title: "Anonymous denied session",
+          targetLanguage: "zh",
+          providerName: "mock",
+        },
+      }),
+    );
+  });
 
   test("admin creates a live session, viewer receives captions, and export downloads", async ({
     browser,

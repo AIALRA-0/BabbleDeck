@@ -36,3 +36,4 @@
 - Added viewer provider-error UI and real-browser coverage for provider error events.
 - Expanded the production core browser flow so the mobile project exercises the recorder page at a phone viewport.
 - Added real-browser coverage for viewer SSE failure fallback to polling.
+- Added real-browser/API coverage that anonymous users are redirected or denied on protected admin surfaces.
