@@ -8,6 +8,11 @@ const nextConfig = {
   reactStrictMode: true,
   output: "standalone",
   poweredByHeader: false,
+  env: {
+    BABBLEDECK_RELEASE_COMMIT: process.env.BABBLEDECK_RELEASE_COMMIT ?? "",
+    BABBLEDECK_RELEASE_BRANCH: process.env.BABBLEDECK_RELEASE_BRANCH ?? "",
+    BABBLEDECK_RELEASE_BUILT_AT: process.env.BABBLEDECK_RELEASE_BUILT_AT ?? "",
+  },
   turbopack: {
     root: resolve(__dirname, "../.."),
   },

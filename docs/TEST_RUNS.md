@@ -1,5 +1,21 @@
 # Test Runs
 
+## 2026-07-06 Production Health Release Metadata
+
+- Environment: local workspace plus production deployment target `https://babbledeck.aialra.online`, existing systemd/Nginx deployment wrapper, and production audio storage still local.
+- Commands:
+  - `pnpm --filter @babbledeck/web test -- --run src/server/health.test.ts`
+  - `bash -n scripts/deploy-production.sh`
+  - `pnpm --filter @babbledeck/web typecheck`
+  - `pnpm --filter @babbledeck/web lint`
+  - `pnpm build`
+- Results:
+  - `/api/health` now includes sanitized non-secret release metadata fields: `release.commit`, `release.branch`, and `release.builtAt`.
+  - `next.config.mjs` captures `BABBLEDECK_RELEASE_*` values at build time, and `pnpm deploy:production` injects the current git commit, branch, and build timestamp before building the standalone server.
+  - `scripts/check-production-readiness.ts` accepts `--expected-release-commit` / `BABBLEDECK_EXPECT_RELEASE_COMMIT`; `pnpm deploy:production` passes the current commit so the deployment smoke fails if `/api/health` reports a different release.
+  - Health unit coverage verifies valid release metadata is reported and malformed values are dropped instead of echoed.
+  - This lets production health output prove which git commit is actually deployed, instead of relying only on local deployment logs.
+
 ## 2026-07-06 Production Deploy Log Evidence
 
 - Environment: production deployment at `https://babbledeck.aialra.online`, systemd services `aialra-babbledeck.service` and `aialra-babbledeck-ws.service`, configured production Soniox and LiveKit, and production audio storage still local.

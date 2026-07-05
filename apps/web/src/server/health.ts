@@ -10,6 +10,11 @@ export type HealthStatus = {
   service: "babbledeck";
   status: "ok" | "degraded";
   version: string;
+  release: {
+    commit: string | null;
+    branch: string | null;
+    builtAt: string | null;
+  };
   generatedAt: string;
   uptimeSeconds: number;
   checks: {
@@ -87,6 +92,29 @@ function audioStorageHealth() {
   }
 }
 
+function releaseValue(value: string | undefined, pattern: RegExp) {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  return pattern.test(trimmed) ? trimmed : null;
+}
+
+function releaseInfo() {
+  return {
+    commit: releaseValue(
+      process.env.BABBLEDECK_RELEASE_COMMIT,
+      /^[0-9a-f]{7,40}$/i,
+    ),
+    branch: releaseValue(
+      process.env.BABBLEDECK_RELEASE_BRANCH,
+      /^[A-Za-z0-9._/-]{1,120}$/,
+    ),
+    builtAt: releaseValue(
+      process.env.BABBLEDECK_RELEASE_BUILT_AT,
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/,
+    ),
+  };
+}
+
 export async function getHealthStatus(options?: {
   databaseCheck?: () => Promise<boolean>;
   now?: Date;
@@ -106,6 +134,7 @@ export async function getHealthStatus(options?: {
     service: "babbledeck",
     status: ok ? "ok" : "degraded",
     version: appPackage.version,
+    release: releaseInfo(),
     generatedAt: generatedAt.toISOString(),
     uptimeSeconds: Math.max(0, Math.floor((Date.now() - startedAt) / 1000)),
     checks: {

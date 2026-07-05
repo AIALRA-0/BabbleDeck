@@ -100,7 +100,10 @@ status_line "deploying commit $commit from $branch to $BASE_URL"
 
 if [[ "$SKIP_BUILD" != "1" ]]; then
   status_line "building standalone output"
-  pnpm build --force
+  BABBLEDECK_RELEASE_COMMIT="$commit" \
+    BABBLEDECK_RELEASE_BRANCH="$branch" \
+    BABBLEDECK_RELEASE_BUILT_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    pnpm build --force
 fi
 
 status_line "restarting $WEB_SERVICE and $WS_SERVICE"
@@ -126,7 +129,11 @@ status_line "running production readiness"
 readiness_file="$(mktemp)"
 readiness_err="$(mktemp)"
 tmp_files+=("$readiness_file" "$readiness_err")
-readiness_args=(scripts/check-production-readiness.ts "--base-url=$BASE_URL")
+readiness_args=(
+  scripts/check-production-readiness.ts
+  "--base-url=$BASE_URL"
+  "--expected-release-commit=$commit"
+)
 if [[ "$CHECK_SONIOX_LIVE" == "1" ]]; then
   readiness_args+=(--check-soniox-live)
 fi

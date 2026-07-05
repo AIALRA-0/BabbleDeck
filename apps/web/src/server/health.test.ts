@@ -25,6 +25,11 @@ describe("health status", () => {
       service: "babbledeck",
       status: "ok",
       generatedAt: "2026-07-05T00:00:00.000Z",
+      release: {
+        commit: null,
+        branch: null,
+        builtAt: null,
+      },
       checks: {
         database: { ok: true },
         audioStorage: {
@@ -40,6 +45,44 @@ describe("health status", () => {
     });
     expect(JSON.stringify(health)).not.toContain("test-key");
     expect(JSON.stringify(health)).not.toContain("livekit-secret");
+  });
+
+  test("reports sanitized non-secret release metadata", async () => {
+    process.env.AUDIO_STORAGE_DRIVER = "local";
+    process.env.BABBLEDECK_RELEASE_COMMIT = "0e4e2ddf0183";
+    process.env.BABBLEDECK_RELEASE_BRANCH = "main";
+    process.env.BABBLEDECK_RELEASE_BUILT_AT = "2026-07-05T23:01:02Z";
+
+    await expect(
+      getHealthStatus({
+        databaseCheck: async () => true,
+      }),
+    ).resolves.toMatchObject({
+      release: {
+        commit: "0e4e2ddf0183",
+        branch: "main",
+        builtAt: "2026-07-05T23:01:02Z",
+      },
+    });
+  });
+
+  test("drops malformed release metadata", async () => {
+    process.env.AUDIO_STORAGE_DRIVER = "local";
+    process.env.BABBLEDECK_RELEASE_COMMIT = "not a commit";
+    process.env.BABBLEDECK_RELEASE_BRANCH = "main;cat secret";
+    process.env.BABBLEDECK_RELEASE_BUILT_AT = "yesterday";
+
+    await expect(
+      getHealthStatus({
+        databaseCheck: async () => true,
+      }),
+    ).resolves.toMatchObject({
+      release: {
+        commit: null,
+        branch: null,
+        builtAt: null,
+      },
+    });
   });
 
   test("marks off-host storage ready only when target credentials are present", async () => {

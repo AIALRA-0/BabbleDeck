@@ -142,7 +142,7 @@ async function staticAssetOk(baseUrl: string) {
   }
 }
 
-async function healthEndpointOk(baseUrl: string) {
+async function healthEndpointOk(baseUrl: string, expectedCommit?: string) {
   try {
     const response = await fetch(new URL("/api/health", baseUrl), {
       headers: { Accept: "application/json" },
@@ -150,12 +150,22 @@ async function healthEndpointOk(baseUrl: string) {
     const body = await response.json();
     const databaseOk = body?.data?.checks?.database?.ok === true;
     const storageOk = body?.data?.checks?.audioStorage?.ok === true;
+    const releaseCommit =
+      typeof body?.data?.release?.commit === "string"
+        ? body.data.release.commit
+        : null;
+    const releaseOk =
+      !expectedCommit || releaseCommit === expectedCommit.trim();
+    const coreOk = response.ok && body?.ok === true && databaseOk && storageOk;
     return {
-      ok: response.ok && body?.ok === true && databaseOk && storageOk,
-      message:
-        response.ok && body?.ok === true && databaseOk && storageOk
-          ? "Production health endpoint reports core service readiness."
-          : "Production health endpoint did not report core service readiness.",
+      ok: coreOk && releaseOk,
+      message: coreOk
+        ? releaseOk
+          ? expectedCommit
+            ? `Production health endpoint reports core service readiness for release ${expectedCommit}.`
+            : "Production health endpoint reports core service readiness."
+          : `Production health endpoint release commit ${releaseCommit ?? "unknown"} does not match expected ${expectedCommit}.`
+        : "Production health endpoint did not report core service readiness.",
     };
   } catch {
     return {
@@ -976,6 +986,9 @@ async function main() {
     process.env.PRODUCTION_BASE_URL ??
     process.env.NEXT_PUBLIC_APP_URL ??
     "https://babbledeck.aialra.online";
+  const expectedReleaseCommit =
+    argValue("--expected-release-commit") ??
+    process.env.BABBLEDECK_EXPECT_RELEASE_COMMIT;
   const checks: ReadinessCheck[] = [];
 
   check(checks, {
@@ -1077,7 +1090,7 @@ async function main() {
     message: "Standalone static assets are served with the expected MIME type.",
   });
 
-  const healthEndpoint = await healthEndpointOk(baseUrl);
+  const healthEndpoint = await healthEndpointOk(baseUrl, expectedReleaseCommit);
   check(checks, {
     name: "health_endpoint",
     ok: healthEndpoint.ok,
