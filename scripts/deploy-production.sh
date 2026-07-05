@@ -21,6 +21,8 @@ RELEASE_ROOT="${BABBLEDECK_RELEASE_ROOT:-/srv/aialra/releases/babbledeck}"
 RELEASE_CURRENT_LINK="${BABBLEDECK_RELEASE_CURRENT_LINK:-$RELEASE_ROOT/current}"
 WEB_SERVICE_DROPIN_DIR="${BABBLEDECK_WEB_SERVICE_DROPIN_DIR:-/etc/systemd/system/$WEB_SERVICE.d}"
 WEB_SERVICE_RELEASE_DROPIN="${BABBLEDECK_WEB_SERVICE_RELEASE_DROPIN:-$WEB_SERVICE_DROPIN_DIR/release.conf}"
+RELEASE_PRUNE="${BABBLEDECK_RELEASE_PRUNE:-1}"
+RELEASES_KEEP="${BABBLEDECK_RELEASES_KEEP:-5}"
 
 tmp_files=()
 cleanup() {
@@ -92,6 +94,91 @@ ExecStart=
 ExecStart=/usr/bin/node server.js
 UNIT
   systemctl daemon-reload
+}
+
+prune_release_dirs() {
+  prune_summary_file="$(mktemp)"
+  tmp_files+=("$prune_summary_file")
+
+  if [[ "$USE_RELEASE_DIR" != "1" || "$RELEASE_PRUNE" != "1" ]]; then
+    node - <<'NODE' >"$prune_summary_file"
+process.stdout.write(
+  `${JSON.stringify({
+    enabled: false,
+    pruned: [],
+  })}\n`,
+);
+NODE
+    return
+  fi
+
+  RELEASES_DIR="$RELEASE_ROOT/releases" \
+    RELEASE_CURRENT_LINK="$RELEASE_CURRENT_LINK" \
+    RELEASES_KEEP="$RELEASES_KEEP" \
+    node <<'NODE' >"$prune_summary_file"
+const fs = require("node:fs");
+const path = require("node:path");
+
+const releasesDir = process.env.RELEASES_DIR;
+const currentLink = process.env.RELEASE_CURRENT_LINK;
+const parsedKeep = Number.parseInt(process.env.RELEASES_KEEP ?? "5", 10);
+const keep = Number.isFinite(parsedKeep) && parsedKeep > 0 ? parsedKeep : 5;
+
+function realpathOrNull(target) {
+  try {
+    return fs.realpathSync(target);
+  } catch {
+    return null;
+  }
+}
+
+const summary = {
+  enabled: true,
+  keep,
+  releasesDir,
+  current: realpathOrNull(currentLink),
+  pruned: [],
+};
+
+if (!releasesDir || !fs.existsSync(releasesDir)) {
+  process.stdout.write(`${JSON.stringify(summary)}\n`);
+  process.exit(0);
+}
+
+const entries = fs
+  .readdirSync(releasesDir, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => {
+    const releasePath = path.join(releasesDir, entry.name);
+    const stat = fs.statSync(releasePath);
+    return {
+      name: entry.name,
+      path: releasePath,
+      mtimeMs: stat.mtimeMs,
+    };
+  })
+  .sort((left, right) => {
+    const byTime = right.mtimeMs - left.mtimeMs;
+    return byTime === 0 ? right.name.localeCompare(left.name) : byTime;
+  });
+
+const protectedPaths = new Set(
+  entries.slice(0, keep).map((entry) => realpathOrNull(entry.path) ?? entry.path),
+);
+if (summary.current) protectedPaths.add(summary.current);
+
+for (const entry of entries) {
+  const resolved = realpathOrNull(entry.path) ?? entry.path;
+  if (protectedPaths.has(resolved)) continue;
+  fs.rmSync(entry.path, { recursive: true, force: true });
+  summary.pruned.push({
+    name: entry.name,
+    path: entry.path,
+  });
+}
+
+process.stdout.write(`${JSON.stringify(summary)}\n`);
+NODE
 }
 
 need_command curl
@@ -285,6 +372,9 @@ if [[ "$SKIP_E2E" != "1" ]]; then
     pnpm e2e e2e/mvp.spec.ts --project=chromium-desktop --grep "anonymous users"
 fi
 
+status_line "pruning old immutable web releases"
+prune_release_dirs
+
 deployed_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 web_started="$(systemctl show "$WEB_SERVICE" -P ExecMainStartTimestamp)"
 ws_started="$(systemctl show "$WS_SERVICE" -P ExecMainStartTimestamp)"
@@ -301,6 +391,7 @@ export web_started web_active web_sub web_restarts web_result
 export ws_started ws_active ws_sub ws_restarts ws_result
 export readiness_file readiness_status STRICT_READINESS
 export USE_RELEASE_DIR release_path RELEASE_CURRENT_LINK
+export prune_summary_file
 node <<'NODE' >>"$DEPLOY_LOG"
 const fs = require("node:fs");
 
@@ -325,6 +416,17 @@ try {
   };
 }
 
+let prune = null;
+try {
+  prune = JSON.parse(fs.readFileSync(process.env.prune_summary_file, "utf8"));
+} catch {
+  prune = {
+    enabled: false,
+    parseError: true,
+    pruned: [],
+  };
+}
+
 const record = {
   app: "babbledeck",
   deployedAt: process.env.deployed_at,
@@ -341,6 +443,7 @@ const record = {
       process.env.USE_RELEASE_DIR === "1"
         ? process.env.RELEASE_CURRENT_LINK
         : null,
+    prune,
   },
   readiness,
   services: {

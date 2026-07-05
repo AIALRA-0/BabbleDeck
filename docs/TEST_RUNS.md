@@ -1,5 +1,25 @@
 # Test Runs
 
+## 2026-07-06 Immutable Release Retention
+
+- Environment: production workspace with immutable web release directories enabled, `/srv/aialra/releases/babbledeck` containing three releases, and server root filesystem at roughly 98% usage before any new cleanup automation.
+- Commands:
+  - `du -h -d 2 /srv/aialra/releases/babbledeck`
+  - `find /srv/aialra/releases/babbledeck/releases -mindepth 1 -maxdepth 1 -type d -printf '%TY-%Tm-%Td %TH:%TM %p\\n'`
+  - `df -h / /srv /tmp`
+  - `bash -n scripts/deploy-production.sh`
+  - Isolated prune smoke using a temporary release root with four fake releases, `keep=2`, and `current` deliberately pointing at the oldest release.
+  - `pnpm --filter @babbledeck/mobile native:build:android`
+  - `pnpm device:readiness:production -- --check-desktop-headless`
+- Results:
+  - Added `BABBLEDECK_RELEASE_PRUNE` and `BABBLEDECK_RELEASES_KEEP` to `pnpm deploy:production`; pruning defaults on and keeps the newest five immutable releases while always protecting the active `current` symlink target.
+  - Deployment JSONL release records now include a non-secret `release.prune` summary with prune enablement, keep count, release directory, current target, and pruned release names/paths.
+  - The isolated prune smoke kept the two newest releases plus the oldest current target and pruned only the unprotected older release.
+  - `bash -n scripts/deploy-production.sh` passed.
+  - Android debug APK was rebuilt successfully after the deploy/build cycle had removed it; device readiness again reports `debugApkExists=true` with sha256 `857955bcd635774ee5af6adafb2c1f6b84e79a528d09ad5ec19773ad4109b0f8`.
+  - Device readiness still cannot produce full runtime evidence on this host: no physical Android device is connected, Linux lacks macOS/Xcode for iOS, and no interactive desktop display session is available, though the Tauri release binary still passes the Xvfb headless launch smoke.
+  - Android emulator installation was not attempted because the server has no `/dev/kvm` and only about `4.5G` free root disk space.
+
 ## 2026-07-06 Production Soniox API Key Verification
 
 - Environment: production deployment at `https://babbledeck.aialra.online`, `SONIOX_API_KEY` present in the production secrets env, immutable web release directories enabled, and production audio storage still local.
