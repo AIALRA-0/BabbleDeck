@@ -57,6 +57,7 @@
 - Recorder microphone denied recovery guidance is now covered by production Playwright using a real Chromium recorder context without automatic microphone permission grants.
 - Viewer pages now surface provider-error events as a visible provider issue banner; production Playwright injects a recorder-token provider_error event and verifies the live viewer update.
 - The production core Playwright flow now opens the recorder page at a phone viewport for the mobile project, covering mobile recorder controls, backup retry, microphone grant, recording, and stop/history navigation.
+- Viewer network resilience now has production Playwright coverage: the test aborts the SSE stream, verifies the UI enters `Polling`, injects transcript events through the recorder API, and confirms the viewer still receives captions.
 
 ## Next Recommended Tasks
 

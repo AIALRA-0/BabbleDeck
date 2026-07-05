@@ -1,5 +1,28 @@
 # Test Runs
 
+## 2026-07-05 Viewer Polling Fallback Coverage
+
+- Environment: local workspace, production deployment at `https://babbledeck.aialra.online`, production secret env loaded without printing secrets.
+- Commands:
+  - `pnpm prettier --write e2e/mvp.spec.ts`
+  - `E2E_BASE_URL=https://babbledeck.aialra.online E2E_ADMIN_EMAIL="$SEED_ADMIN_EMAIL" E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD" pnpm e2e e2e/mvp.spec.ts --project=chromium-desktop --grep "SSE stream is unavailable"`
+  - `pnpm format:check`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/recorder-ws-server.ts scripts/prune-audio-retention.ts scripts/migrate-audio-storage.ts scripts/audit-audio-storage.ts scripts/check-production-readiness.ts scripts/sync-seed-admin.ts playwright.config.ts e2e/mvp.spec.ts`
+  - `pnpm build`
+  - `E2E_BASE_URL=https://babbledeck.aialra.online E2E_ADMIN_EMAIL="$SEED_ADMIN_EMAIL" E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD" pnpm e2e e2e/mvp.spec.ts --grep "admin creates a live session"`
+  - `pnpm tsx scripts/check-production-readiness.ts --strict`
+- Results:
+  - Added a desktop-only Playwright scenario that opens a public viewer while aborting the SSE stream request, verifies the viewer switches to `Polling`, injects final transcript/translation events through the recorder-token API, and confirms the viewer still receives captions.
+  - Production Playwright polling-fallback smoke passed against the live domain.
+  - Production Playwright desktop and mobile MVP flows still passed after the new fallback scenario was added.
+  - Format, lint, app typecheck, full unit tests, script/E2E typecheck, and production build passed.
+  - Unit tests remained at `14` files and `44` tests.
+  - Production smoke cleanup removed 3 temporary Playwright sessions and 7 local audio objects across the fallback and core-flow runs.
+  - Strict production readiness still fails only because `AUDIO_STORAGE_DRIVER=local`; all required checks pass.
+
 ## 2026-07-05 Mobile Recorder Viewport Coverage
 
 - Environment: local workspace, production deployment at `https://babbledeck.aialra.online`, production secret env loaded without printing secrets.

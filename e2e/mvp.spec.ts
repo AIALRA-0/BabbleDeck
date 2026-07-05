@@ -493,6 +493,109 @@ test.describe("BabbleDeck MVP browser flow", () => {
     await viewerContext.close();
   });
 
+  test("viewer falls back to polling when the SSE stream is unavailable", async ({
+    browser,
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "chromium-desktop",
+      "Viewer polling fallback coverage runs once on desktop.",
+    );
+
+    const title = `Playwright session polling fallback ${Date.now()}`;
+    const originalText = "Polling fallback original.";
+    const translationText = "轮询降级字幕。";
+
+    await page.goto("/");
+    await page.getByRole("link", { name: /open portal/i }).click();
+    await signIn(page);
+    await expect(
+      page.getByRole("heading", { name: "Live sessions" }),
+    ).toBeVisible();
+
+    await page
+      .getByRole("link", { name: /new live session/i })
+      .first()
+      .click();
+    await page.getByLabel("Title").fill(title);
+    await page.getByLabel("Target language").selectOption("zh");
+    await page.getByLabel("Provider").selectOption("mock");
+    await page.getByRole("button", { name: /create session/i }).click();
+    await expect(page.getByRole("heading", { name: title })).toBeVisible();
+    const recorderUrl = page.url();
+    const sessionId = new URL(recorderUrl).pathname.split("/")[2];
+    const recorderToken = new URL(recorderUrl).searchParams.get("recorder");
+    if (!recorderToken) throw new Error("Recorder token missing from URL.");
+    const viewerUrl = await page
+      .locator("aside p")
+      .filter({ hasText: "/s/" })
+      .textContent();
+    expect(viewerUrl).toContain("/s/");
+
+    const viewerContext = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+    });
+    await viewerContext.route("**/api/viewer/session/**/stream**", (route) =>
+      route.abort("failed"),
+    );
+    const viewer = await viewerContext.newPage();
+    await viewer.goto(viewerUrl ?? "");
+    await expect(
+      viewer.getByRole("heading", { name: "Live captions" }),
+    ).toBeVisible();
+    await expect(viewer.getByText("Polling")).toBeVisible({
+      timeout: 12_000,
+    });
+
+    const response = await page.evaluate(
+      async ({ sessionId, recorderToken, originalText, translationText }) => {
+        return fetch(`/api/sessions/${sessionId}/events`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-BabbleDeck-Recorder-Token": recorderToken,
+          },
+          body: JSON.stringify({
+            events: [
+              {
+                type: "final_transcript",
+                text: originalText,
+                language: "en",
+                targetLanguage: "zh",
+                isFinal: true,
+                segmentIndex: 0,
+                startMs: 0,
+                endMs: 1200,
+              },
+              {
+                type: "final_translation",
+                text: translationText,
+                language: "en",
+                targetLanguage: "zh",
+                isFinal: true,
+                segmentIndex: 0,
+                startMs: 0,
+                endMs: 1200,
+              },
+            ],
+          }),
+        }).then(async (result) => ({
+          ok: result.ok,
+          body: await result.text(),
+        }));
+      },
+      { sessionId, recorderToken, originalText, translationText },
+    );
+    expect(response.ok, response.body).toBe(true);
+
+    await expect(viewer.getByText(translationText)).toBeVisible({
+      timeout: 12_000,
+    });
+    await expect(viewer.getByText(originalText)).toBeVisible();
+
+    await viewerContext.close();
+  });
+
   test("budget cap marks provider degraded while audio backup continues", async ({
     page,
   }) => {

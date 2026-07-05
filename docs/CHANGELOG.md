@@ -35,3 +35,4 @@
 - Added real-browser recorder coverage for blocked microphone access and recovery guidance.
 - Added viewer provider-error UI and real-browser coverage for provider error events.
 - Expanded the production core browser flow so the mobile project exercises the recorder page at a phone viewport.
+- Added real-browser coverage for viewer SSE failure fallback to polling.
