@@ -1002,6 +1002,81 @@ test.describe("BabbleDeck MVP browser flow", () => {
     await viewerContext.close();
   });
 
+  test("viewer and recorder show network reconnect states", async ({
+    browser,
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "chromium-desktop",
+      "Network interruption coverage runs once on desktop.",
+    );
+
+    const title = `Playwright session network recovery ${Date.now()}`;
+
+    await page.goto("/");
+    await page.getByRole("link", { name: /open portal/i }).click();
+    await signIn(page);
+    await expect(
+      page.getByRole("heading", { name: "Live sessions" }),
+    ).toBeVisible();
+
+    await page
+      .getByRole("link", { name: /new live session/i })
+      .first()
+      .click();
+    await page.getByLabel("Title").fill(title);
+    await page.getByLabel("Target language").selectOption("zh");
+    await page.getByLabel("Provider").selectOption("mock");
+    await page.getByRole("button", { name: /create session/i }).click();
+    await expect(page.getByRole("heading", { name: title })).toBeVisible();
+
+    const viewerUrl = await page
+      .locator("aside p")
+      .filter({ hasText: "/s/" })
+      .textContent();
+    expect(viewerUrl).toContain("/s/");
+
+    const viewerContext = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+    });
+
+    try {
+      const viewer = await viewerContext.newPage();
+      await viewer.goto(viewerUrl ?? "");
+      await expect(
+        viewer.getByRole("heading", { name: "Live captions" }),
+      ).toBeVisible();
+      await expect(viewer.getByText("SSE live")).toBeVisible({
+        timeout: 12_000,
+      });
+
+      await viewerContext.setOffline(true);
+      await expect(viewer.getByText("Offline", { exact: true })).toBeVisible({
+        timeout: 5_000,
+      });
+      await expect(viewer.getByText(/captions will reconnect/i)).toBeVisible();
+
+      await viewerContext.setOffline(false);
+      await expect(viewer.getByText(/SSE live|Polling/)).toBeVisible({
+        timeout: 12_000,
+      });
+
+      await page.context().setOffline(true);
+      await expect(
+        page.getByText(/local backup will stay on this device/i),
+      ).toBeVisible({ timeout: 5_000 });
+
+      await page.context().setOffline(false);
+      await expect(
+        page.getByText(/local backup will stay on this device/i),
+      ).toHaveCount(0, { timeout: 5_000 });
+    } finally {
+      await page.context().setOffline(false);
+      await viewerContext.setOffline(false);
+      await viewerContext.close();
+    }
+  });
+
   test("budget cap marks provider degraded while audio backup continues", async ({
     page,
   }) => {

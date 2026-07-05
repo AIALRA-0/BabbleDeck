@@ -83,7 +83,7 @@ export function ViewerClient({
   const [segments, setSegments] = useState(initialSegments);
   const [events, setEvents] = useState<ViewerEvent[]>([]);
   const [connectionMode, setConnectionMode] = useState<
-    "connecting" | "sse" | "polling" | "reconnecting"
+    "connecting" | "sse" | "polling" | "reconnecting" | "offline"
   >("connecting");
   const [liveKitStatus, setLiveKitStatus] =
     useState<ViewerLiveKitStatus>("checking");
@@ -99,6 +99,26 @@ export function ViewerClient({
   const liveKitRoomRef = useRef<LiveKitRoom | null>(null);
   const audioSinkRef = useRef<HTMLDivElement | null>(null);
   const liveKitRunRef = useRef(0);
+
+  useEffect(() => {
+    function syncNetworkState() {
+      if (navigator.onLine) {
+        setConnectionMode((current) =>
+          current === "offline" ? "reconnecting" : current,
+        );
+      } else {
+        setConnectionMode("offline");
+      }
+    }
+
+    syncNetworkState();
+    window.addEventListener("online", syncNetworkState);
+    window.addEventListener("offline", syncNetworkState);
+    return () => {
+      window.removeEventListener("online", syncNetworkState);
+      window.removeEventListener("offline", syncNetworkState);
+    };
+  }, []);
 
   async function playAttachedRoomAudio() {
     const elements = Array.from(
@@ -272,10 +292,12 @@ export function ViewerClient({
         if (!response.ok) throw new Error("Viewer poll failed.");
         const payload = await response.json();
         if (!payload.ok || cancelled) return;
-        setConnectionMode("polling");
+        if (navigator.onLine) setConnectionMode("polling");
         applyPayload(payload.data as ViewerPayload);
       } catch {
-        if (!cancelled) setConnectionMode("reconnecting");
+        if (!cancelled) {
+          setConnectionMode(navigator.onLine ? "reconnecting" : "offline");
+        }
       }
     }
 
@@ -292,20 +314,22 @@ export function ViewerClient({
         `/api/viewer/session/${shareToken}/stream?after=${lastSequenceRef.current}`,
       );
       eventSource.onopen = () => {
-        if (!cancelled) setConnectionMode("sse");
+        if (!cancelled && navigator.onLine) setConnectionMode("sse");
       };
       eventSource.addEventListener("snapshot", (event) => {
-        setConnectionMode("sse");
+        if (navigator.onLine) setConnectionMode("sse");
         applyPayload(JSON.parse(event.data) as ViewerPayload);
       });
       eventSource.addEventListener("stream.error", () => {
-        if (!cancelled) setConnectionMode("reconnecting");
+        if (!cancelled) {
+          setConnectionMode(navigator.onLine ? "reconnecting" : "offline");
+        }
       });
       eventSource.onerror = () => {
         eventSource?.close();
         eventSource = null;
         if (!cancelled && interval == null) {
-          setConnectionMode("reconnecting");
+          setConnectionMode(navigator.onLine ? "reconnecting" : "offline");
           interval = startPolling();
         }
       };
@@ -449,13 +473,27 @@ export function ViewerClient({
                 ? "SSE live"
                 : connectionMode === "polling"
                   ? "Polling"
-                  : connectionMode === "connecting"
-                    ? "Connecting"
-                    : "Reconnecting"}
+                  : connectionMode === "offline"
+                    ? "Offline"
+                    : connectionMode === "connecting"
+                      ? "Connecting"
+                      : "Reconnecting"}
             </span>
             <SessionStatusBadge status={session.status} />
           </div>
         </header>
+
+        {connectionMode === "offline" ? (
+          <div
+            className={cn(
+              "mt-4 rounded-md border px-4 py-3 text-sm",
+              panelClass,
+            )}
+          >
+            Network offline. Captions will reconnect when the connection
+            returns.
+          </div>
+        ) : null}
 
         {providerError ? (
           <div className="mt-4 rounded-md border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">

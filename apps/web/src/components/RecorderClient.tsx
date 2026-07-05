@@ -210,6 +210,7 @@ export function RecorderClient({
       ? "Budget cap reached. Local backup continues."
       : null,
   );
+  const [networkOffline, setNetworkOffline] = useState(false);
   const [latestOriginal, setLatestOriginal] = useState("Waiting for speech...");
   const [latestTranslation, setLatestTranslation] =
     useState("字幕会在这里显示。");
@@ -316,6 +317,20 @@ export function RecorderClient({
   useEffect(() => {
     recordingRef.current = recording;
   }, [recording]);
+
+  useEffect(() => {
+    function syncNetworkState() {
+      setNetworkOffline(!navigator.onLine);
+    }
+
+    syncNetworkState();
+    window.addEventListener("online", syncNetworkState);
+    window.addEventListener("offline", syncNetworkState);
+    return () => {
+      window.removeEventListener("online", syncNetworkState);
+      window.removeEventListener("offline", syncNetworkState);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -1122,6 +1137,13 @@ export function RecorderClient({
         </div>
 
         <div className="mt-6 space-y-6">
+          {networkOffline ? (
+            <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+              Network offline. Local backup will stay on this device while
+              uploads reconnect.
+            </div>
+          ) : null}
+
           <div>
             <div className="mb-2 flex items-center justify-between">
               <p className="text-sm font-semibold">Microphone level</p>
