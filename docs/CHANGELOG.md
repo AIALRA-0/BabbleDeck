@@ -40,3 +40,4 @@
 - Allowed Cloudflare R2 audio storage to derive the standard endpoint from `R2_ACCOUNT_ID`.
 - Added a systemd-aware production deployment wrapper with readiness, login, and Playwright smoke checks.
 - Added a guarded production raw-audio cutover wrapper and made R2/S3 migrations skip chunks already marked on the current target.
+- Added a non-secret production health endpoint and wired it into readiness checks.

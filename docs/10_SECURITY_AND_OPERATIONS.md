@@ -269,6 +269,9 @@ Minimum metrics:
 - Audio chunk upload failures.
 - Auth failures.
 - Estimated provider cost.
+- `/api/health` exposes non-secret core readiness status for external uptime
+  monitors, including database connectivity, audio storage configuration,
+  process uptime, and provider configuration booleans.
 
 Minimum logs:
 

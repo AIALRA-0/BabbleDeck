@@ -56,6 +56,11 @@ pnpm tsx scripts/check-production-readiness.ts --strict
 pnpm tsx scripts/check-production-readiness.ts --check-soniox-live
 ```
 
+Production exposes a non-secret health endpoint for monitoring at
+`/api/health`. It checks database connectivity, audio storage configuration,
+process uptime, and provider configuration booleans without returning secret
+values.
+
 Production deploys should use the systemd-aware wrapper:
 
 ```bash

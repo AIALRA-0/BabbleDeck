@@ -122,6 +122,29 @@ async function staticAssetOk(baseUrl: string) {
   }
 }
 
+async function healthEndpointOk(baseUrl: string) {
+  try {
+    const response = await fetch(new URL("/api/health", baseUrl), {
+      headers: { Accept: "application/json" },
+    });
+    const body = await response.json();
+    const databaseOk = body?.data?.checks?.database?.ok === true;
+    const storageOk = body?.data?.checks?.audioStorage?.ok === true;
+    return {
+      ok: response.ok && body?.ok === true && databaseOk && storageOk,
+      message:
+        response.ok && body?.ok === true && databaseOk && storageOk
+          ? "Production health endpoint reports core service readiness."
+          : "Production health endpoint did not report core service readiness.",
+    };
+  } catch {
+    return {
+      ok: false,
+      message: "Production health endpoint could not be checked.",
+    };
+  }
+}
+
 async function seedAdminMatchesEnv() {
   const email = (
     process.env.SEED_ADMIN_EMAIL ?? "admin@example.invalid"
@@ -356,6 +379,13 @@ async function main() {
     name: "standalone_static_assets",
     ok: await staticAssetOk(baseUrl),
     message: "Standalone static assets are served with the expected MIME type.",
+  });
+
+  const healthEndpoint = await healthEndpointOk(baseUrl);
+  check(checks, {
+    name: "health_endpoint",
+    ok: healthEndpoint.ok,
+    message: healthEndpoint.message,
   });
 
   check(checks, {

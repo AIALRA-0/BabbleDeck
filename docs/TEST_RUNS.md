@@ -1,5 +1,30 @@
 # Test Runs
 
+## 2026-07-05 Production Health Endpoint
+
+- Environment: local workspace first, then production deployment at `https://babbledeck.aialra.online` after deployment.
+- Commands:
+  - `pnpm --filter @babbledeck/web test -- --run src/server/health.test.ts`
+  - `pnpm format:check`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/recorder-ws-server.ts scripts/prune-audio-retention.ts scripts/migrate-audio-storage.ts scripts/audit-audio-storage.ts scripts/check-production-readiness.ts scripts/sync-seed-admin.ts playwright.config.ts e2e/mvp.spec.ts`
+  - `pnpm build`
+  - `pnpm deploy:production`
+  - `curl -fsS https://babbledeck.aialra.online/api/health`
+  - `pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --strict --check-soniox-live`
+- Results:
+  - Added `/api/health` as a non-secret monitoring endpoint.
+  - The endpoint reports service name, version, generated timestamp, uptime, database connectivity, audio storage driver/core config health, off-host storage readiness, and Soniox configured status without returning secret values.
+  - `scripts/check-production-readiness.ts` now verifies that the live production health endpoint reports core database and audio storage health.
+  - Local format, lint, app typecheck, full unit tests, script/E2E typecheck, and production build passed.
+  - Unit tests now cover `15` files and `48` tests, including non-secret health status coverage.
+  - Production deploy wrapper force-built the standalone app, restarted `aialra-babbledeck.service` and `aialra-babbledeck-ws.service` at `2026-07-05 03:54:06 CEST`, confirmed readiness `requiredOk=true`, confirmed seed-admin login/logout, and passed the anonymous protected-route Playwright smoke.
+  - Live `/api/health` returned `ok=true`, service `babbledeck`, status `ok`, version `0.1.0`, database `ok=true`, audio storage `{ ok: true, driver: "local", offHostReady: false }`, and Soniox configured `true`.
+  - Strict production readiness passed all required checks, including `health_endpoint` and live Soniox connectivity with `360ms` accepted probe audio.
+  - Strict production completion still waits on off-host R2/S3-compatible audio storage because production currently has `AUDIO_STORAGE_DRIVER=local`.
+
 ## 2026-07-05 Audio Storage Cutover Guard
 
 - Environment: local workspace, production secret env inspected without printing secrets, production audio driver still local.
