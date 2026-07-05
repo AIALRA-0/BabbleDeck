@@ -1,5 +1,26 @@
 # Test Runs
 
+## 2026-07-05 Post-Deploy Soniox Key Verification
+
+- Environment: production deployment at `https://babbledeck.aialra.online`, commit `d49c8b6`, systemd services `aialra-babbledeck.service` and `aialra-babbledeck-ws.service`, configured `SONIOX_API_KEY`, and local production audio storage.
+- Commands:
+  - `curl -fsS https://babbledeck.aialra.online/api/health | jq .`
+  - `pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --strict --check-soniox-live`
+  - `pnpm health:monitor:production`
+  - `pnpm soniox:smoke:production`
+  - `pnpm soniox:ui-smoke:production`
+  - `pnpm --filter @babbledeck/mobile native:check:ios`
+  - `pnpm --filter @babbledeck/mobile native:build:android`
+- Results:
+  - `/api/health` returned `ok=true`, database `ok=true`, audio storage `driver="local"`, `offHostReady=false`, and Soniox `configured=true`.
+  - Strict readiness passed all required checks, including live Soniox realtime websocket connectivity with `360ms` accepted probe audio, and failed only the external `off_host_audio_storage` check because production still uses local audio storage.
+  - Production Soniox recorder WebSocket smoke passed with one audio chunk, recorder ready/ack, `360ms` provider usage, zero provider errors, and cleanup archiving.
+  - Production Soniox UI smoke passed in Chromium with fake microphone speech and verified live captions on the recorder/viewer flow.
+  - The latest GitHub Actions run for `d49c8b6` completed successfully.
+  - Web and recorder WebSocket services remained active with `NRestarts=0`.
+  - iOS Capacitor metadata validation and Android debug APK assembly both passed after the production deploy.
+  - Production completion still waits on real R2/S3-compatible audio credentials and physical device runtime checks.
+
 ## 2026-07-05 Capacitor Android Build
 
 - Environment: production-first mobile wrapper pointing at `https://babbledeck.aialra.online`, Ubuntu 24.04 server, OpenJDK 21, Android SDK command-line tools, Android platform 36, build-tools 36.0.0, and platform-tools 37.0.0.
