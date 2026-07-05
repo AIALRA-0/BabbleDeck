@@ -58,3 +58,4 @@
 - Added a production Soniox UI smoke that generates fake-microphone speech, runs the real deployed recorder/viewer flow in Chromium, writes a non-secret JSONL marker, and is checked by production readiness.
 - Added the Capacitor Android platform project and Android wrapper build scripts, installed the server Android SDK/JDK toolchain, and validated Android Gradle project resolution plus debug APK assembly.
 - Added the Capacitor iOS platform project with Swift Package Manager integration, split mobile sync scripts by platform, and verified Android/iOS native microphone permission declarations.
+- Hardened R2 audio storage config so `AUDIO_STORAGE_DRIVER=r2` uses the required `auto` S3 SDK region even when operators use the generic `AUDIO_STORAGE_BUCKET` variable.

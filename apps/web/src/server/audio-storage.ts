@@ -118,6 +118,11 @@ export function resolveAudioStorageConfig(): AudioStorageConfig {
     Boolean(process.env.AUDIO_STORAGE_BUCKET) ||
     Boolean(process.env.R2_BUCKET) ||
     Boolean(process.env.S3_BUCKET);
+  const isR2Target =
+    driverSetting === "r2" ||
+    Boolean(process.env.R2_BUCKET) ||
+    Boolean(process.env.R2_ACCOUNT_ID) ||
+    Boolean(process.env.R2_ENDPOINT);
   const driver =
     driverSetting && S3_DRIVERS.has(driverSetting)
       ? "s3"
@@ -154,7 +159,7 @@ export function resolveAudioStorageConfig(): AudioStorageConfig {
     region:
       process.env.AUDIO_STORAGE_REGION ??
       process.env.AWS_REGION ??
-      (process.env.R2_BUCKET ? "auto" : "us-east-1"),
+      (isR2Target ? "auto" : "us-east-1"),
     accessKeyId:
       process.env.AUDIO_STORAGE_ACCESS_KEY_ID ??
       process.env.R2_ACCESS_KEY_ID ??

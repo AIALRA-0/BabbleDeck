@@ -1,5 +1,16 @@
 # Test Runs
 
+## 2026-07-05 R2 Generic Bucket Region Hardening
+
+- Environment: local workspace, TypeScript unit tests, and production R2/S3 cutover configuration code.
+- Commands:
+  - `pnpm --filter @babbledeck/web test -- audio-storage`
+  - `pnpm --filter @babbledeck/web typecheck`
+- Results:
+  - Updated `resolveAudioStorageConfig()` so `AUDIO_STORAGE_DRIVER=r2` selects S3 SDK `region="auto"` even when the target bucket comes from `AUDIO_STORAGE_BUCKET` instead of `R2_BUCKET`.
+  - Added regression coverage for a generic-bucket R2 configuration using `R2_ACCOUNT_ID` plus `AUDIO_STORAGE_ACCESS_KEY_ID` and `AUDIO_STORAGE_SECRET_ACCESS_KEY`.
+  - Targeted Vitest passed with `16` files and `54` tests, and web typecheck passed.
+
 ## 2026-07-05 Post-Deploy Soniox Key Verification
 
 - Environment: production deployment at `https://babbledeck.aialra.online`, commit `d49c8b6`, systemd services `aialra-babbledeck.service` and `aialra-babbledeck-ws.service`, configured `SONIOX_API_KEY`, and local production audio storage.

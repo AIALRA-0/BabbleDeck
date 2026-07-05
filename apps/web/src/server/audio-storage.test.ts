@@ -131,4 +131,22 @@ describe("audio storage", () => {
       forcePathStyle: true,
     });
   });
+
+  test("uses the R2 auto region when generic bucket variables select the R2 driver", () => {
+    process.env.AUDIO_STORAGE_DRIVER = "r2";
+    process.env.AUDIO_STORAGE_BUCKET = "babbledeck-prod";
+    process.env.R2_ACCOUNT_ID = "account-123";
+    process.env.AUDIO_STORAGE_ACCESS_KEY_ID = "access-key";
+    process.env.AUDIO_STORAGE_SECRET_ACCESS_KEY = "secret-key";
+
+    expect(resolveAudioStorageConfig()).toMatchObject({
+      driver: "s3",
+      bucket: "babbledeck-prod",
+      endpoint: "https://account-123.r2.cloudflarestorage.com",
+      region: "auto",
+      accessKeyId: "access-key",
+      secretAccessKey: "secret-key",
+      forcePathStyle: true,
+    });
+  });
 });
