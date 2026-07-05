@@ -298,6 +298,41 @@ async function latestBackupOk() {
   }
 }
 
+async function recentBackupVerificationOk() {
+  const backupRoot =
+    process.env.BABBLEDECK_BACKUP_ROOT ?? "/srv/aialra/backups/babbledeck";
+  const maxAgeHours = Number(
+    process.env.BABBLEDECK_BACKUP_VERIFY_MAX_AGE_HOURS ?? 48,
+  );
+  const maxAgeMs =
+    Number.isFinite(maxAgeHours) && maxAgeHours > 0
+      ? maxAgeHours * 60 * 60 * 1000
+      : 48 * 60 * 60 * 1000;
+  try {
+    const entries = await fs.readdir(backupRoot, { withFileTypes: true });
+    const now = Date.now();
+    for (const entry of entries) {
+      if (!entry.isDirectory() || !/^20\d{6}T\d{6}Z$/.test(entry.name)) {
+        continue;
+      }
+      const markerPath = path.join(
+        backupRoot,
+        entry.name,
+        "verify-counts.last.json",
+      );
+      try {
+        const stat = await fs.stat(markerPath);
+        if (now - stat.mtimeMs <= maxAgeMs) return true;
+      } catch {
+        // Keep scanning older backups.
+      }
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
 async function logrotateConfigOk() {
   const configPath =
     process.env.BABBLEDECK_LOGROTATE_CONFIG ??
@@ -368,6 +403,7 @@ async function main() {
     "aialra-babbledeck.service",
     "aialra-babbledeck-ws.service",
     "aialra-babbledeck-backup.timer",
+    "aialra-babbledeck-backup-verify.timer",
     "aialra-babbledeck-audio-retention.timer",
     "aialra-babbledeck-health-monitor.timer",
   ]) {
@@ -409,6 +445,12 @@ async function main() {
     name: "latest_backup_present",
     ok: await latestBackupOk(),
     message: "At least one production backup directory exists.",
+  });
+
+  check(checks, {
+    name: "recent_backup_verification",
+    ok: await recentBackupVerificationOk(),
+    message: "A recent production backup restore verification exists.",
   });
 
   check(checks, {

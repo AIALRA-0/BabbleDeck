@@ -77,6 +77,12 @@ and Nginx logs:
 pnpm logs:install:production
 ```
 
+Install daily restore verification for the latest production backup:
+
+```bash
+pnpm backup:verify:install:production
+```
+
 Production deploys should use the systemd-aware wrapper:
 
 ```bash
@@ -122,6 +128,7 @@ The current production instance follows the server's existing systemd + Nginx pa
 - Production database: `babbledeck_prod`
 - Production audio storage: local object root from `AUDIO_STORAGE_DIR` until R2/S3 credentials are configured.
 - Production backup timer: `aialra-babbledeck-backup.timer`
+- Production backup verification timer: `aialra-babbledeck-backup-verify.timer`
 - Production raw audio retention timer: `aialra-babbledeck-audio-retention.timer`
 - Production health monitor timer: `aialra-babbledeck-health-monitor.timer`
 - Production logrotate config: `/etc/logrotate.d/aialra-babbledeck`

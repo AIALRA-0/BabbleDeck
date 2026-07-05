@@ -181,6 +181,9 @@ sessions/{sessionId}/exports/transcript-{timestamp}.md
 - Test restore before production launch.
 - Current production uses `aialra-babbledeck-backup.timer` for daily Postgres custom dumps plus local audio object archives under `/srv/aialra/backups/babbledeck`.
 - `scripts/verify-backup.sh latest` restores into a temporary database and temporary audio directory to prove backup integrity without touching production data.
+- `aialra-babbledeck-backup-verify.timer` runs daily latest-backup restore
+  verification and writes non-secret JSONL records to
+  `/srv/aialra/logs/babbledeck/backup-verify.jsonl`.
 
 ### Object storage
 

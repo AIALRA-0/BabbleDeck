@@ -43,3 +43,4 @@
 - Added a non-secret production health endpoint and wired it into readiness checks.
 - Added a systemd production health monitor timer that records non-secret `/api/health` checks.
 - Added production logrotate installation for BabbleDeck `.log` and `.jsonl` files.
+- Added a systemd latest-backup restore verification timer and readiness check.

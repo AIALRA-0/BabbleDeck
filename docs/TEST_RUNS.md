@@ -1,5 +1,30 @@
 # Test Runs
 
+## 2026-07-05 Production Backup Verification Timer
+
+- Environment: local workspace and production backup root `/srv/aialra/backups/babbledeck`.
+- Commands:
+  - `bash -n scripts/verify-latest-backup-production.sh scripts/install-production-backup-verify.sh scripts/verify-backup.sh scripts/restore-backup.sh`
+  - `pnpm backup:verify:production`
+  - `pnpm backup:verify:install:production`
+  - `systemctl status aialra-babbledeck-backup-verify.timer --no-pager`
+  - `pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --strict --check-soniox-live`
+  - `pnpm format:check`
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/recorder-ws-server.ts scripts/prune-audio-retention.ts scripts/migrate-audio-storage.ts scripts/audit-audio-storage.ts scripts/check-production-readiness.ts scripts/sync-seed-admin.ts playwright.config.ts e2e/mvp.spec.ts`
+  - `pnpm build`
+- Results:
+  - Added `pnpm backup:verify:production` to run latest-backup restore verification with a lock and non-secret JSONL record.
+  - Added `pnpm backup:verify:install:production` to install `aialra-babbledeck-backup-verify.service` and `aialra-babbledeck-backup-verify.timer` using the existing server systemd pattern.
+  - `scripts/check-production-readiness.ts` now requires the backup verification timer to be active and a recent restore verification marker to exist.
+  - Latest backup `/srv/aialra/backups/babbledeck/20260705T011837Z` restored successfully into temporary database `babbledeck_restore_verify_20260705021914_4131192`; the wrapper reported `verifiedAudioFiles=79`.
+  - The latest backup now contains `verify-counts.last.json` with restored counts for users, live sessions, audio chunks, provider usage, and transcript events.
+  - `aialra-babbledeck-backup-verify.timer` is active and scheduled for the next daily backup verification window.
+  - Strict production readiness now passes the required `aialra-babbledeck-backup-verify.timer` and `recent_backup_verification` checks; strict completion still waits on off-host audio storage.
+  - Format, lint, app typecheck, full unit tests, script/E2E typecheck, and production build passed.
+
 ## 2026-07-05 Production Log Rotation
 
 - Environment: local workspace and production server log directory `/srv/aialra/logs/babbledeck`.

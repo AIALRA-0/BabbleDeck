@@ -8,6 +8,8 @@ Production backups follow the server's systemd-managed project pattern.
 - Logs: `/srv/aialra/logs/babbledeck/backup.log`
 - Service: `aialra-babbledeck-backup.service`
 - Timer: `aialra-babbledeck-backup.timer`
+- Backup verification service: `aialra-babbledeck-backup-verify.service`
+- Backup verification timer: `aialra-babbledeck-backup-verify.timer`
 - Raw audio retention service: `aialra-babbledeck-audio-retention.service`
 - Raw audio retention timer: `aialra-babbledeck-audio-retention.timer`
 - Health monitor service: `aialra-babbledeck-health-monitor.service`
@@ -122,6 +124,19 @@ drops the temporary database.
 ```bash
 scripts/verify-backup.sh latest
 ```
+
+Install or refresh daily latest-backup restore verification with:
+
+```bash
+pnpm backup:verify:install:production
+```
+
+The timer runs after the daily backup window, restores the latest backup into a
+temporary database and temporary audio directory, writes
+`verify-counts.last.json` into the verified backup directory, and appends a
+non-secret JSONL record to `/srv/aialra/logs/babbledeck/backup-verify.jsonl`.
+Strict readiness requires the verification timer to be active and at least one
+recent verification marker to exist.
 
 ## Restore
 

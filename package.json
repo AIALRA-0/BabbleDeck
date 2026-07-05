@@ -13,6 +13,8 @@
     "e2e:headed": "env -u NO_COLOR playwright test --headed",
     "deploy:production": "scripts/deploy-production.sh",
     "audio:cutover:production": "scripts/cutover-audio-storage.sh",
+    "backup:verify:production": "scripts/verify-latest-backup-production.sh",
+    "backup:verify:install:production": "scripts/install-production-backup-verify.sh",
     "health:monitor:production": "scripts/monitor-production-health.sh",
     "health:install:production": "scripts/install-production-health-monitor.sh",
     "logs:install:production": "scripts/install-production-logrotate.sh",
