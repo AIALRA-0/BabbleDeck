@@ -2,6 +2,7 @@
 
 ## 2026-07-05
 
+- Added a production audio cutover readiness report command that checks non-secret R2/S3 target inputs, local source audio files, uploaded chunk counts, and current-target migration metadata before off-host cutover.
 - Added recorder-track URLs for Main recorder, Speaker A, and Speaker B, and serialized per-session transcript appends so parallel recorder pages cannot collide on transcript event sequence numbers.
 - Propagated Soniox recorder WebSocket track metadata into provider-generated transcript events, and extended the production Soniox smoke to assert persisted track events and segments from a real audio file.
 - Added transcript track timelines with per-track segment indexes, speaker labels, export metadata, and production Playwright coverage for independent Speaker A/B captions.

@@ -310,13 +310,17 @@ and records migration metadata on each chunk row.
 For production, prefer the guarded cutover wrapper:
 
 ```bash
+pnpm audio:readiness:production
 pnpm audio:configure:production
 pnpm audio:preflight:production
 pnpm audio:cutover:production
 BABBLEDECK_AUDIO_CUTOVER_APPLY=1 pnpm audio:cutover:production
 ```
 
-The configure step patches the production env file from R2/S3 variables in the
+The readiness step loads the production env without printing secrets, reports
+which accepted R2/S3 variable groups are missing, counts source files, and
+checks how many uploaded audio chunks are marked on the current target. The
+configure step patches the production env file from R2/S3 variables in the
 current shell, runs the off-host preflight against a temporary env copy, and
 only installs the patched env after that preflight passes. It writes a
 timestamped backup and appends a non-secret JSONL record. The preflight creates,

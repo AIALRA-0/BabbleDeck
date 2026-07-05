@@ -1740,3 +1740,29 @@
   - `aialra-babbledeck.service` and `aialra-babbledeck-ws.service` are active with `NRestarts=0`.
 - Screenshots/traces:
   - The passing local and production recorder-track runs produced no final failure screenshots. The interrupted local retry before the `$executeRaw` fix left a diagnostic Playwright artifact only.
+
+## 2026-07-05 Audio Cutover Readiness Report
+
+- Environment: production `https://babbledeck.aialra.online`, production secret env loaded without printing secrets, production audio source directory `/srv/aialra/storage/babbledeck`, and production Postgres database `babbledeck_prod`.
+- Commands:
+  - Server secret variable-name scan for `CLOUDFLARE`, `CF_`, `WRANGLER`, `R2_`, `S3_`, `AWS_`, and `AUDIO_STORAGE_*` target variables.
+  - `pnpm audio:readiness:production`
+  - `pnpm audio:readiness:production -- --strict` (expected exit `1` while the off-host target is not configured)
+  - `bash -n scripts/check-audio-cutover-readiness-production.sh`
+  - `pnpm prettier --check scripts/check-audio-cutover-readiness.ts package.json .github/workflows/ci.yml README.md docs/operations/BACKUP_RESTORE.md`
+  - CI-style script typecheck including `scripts/check-audio-cutover-readiness.ts`.
+  - `pnpm --filter @babbledeck/web typecheck`
+  - `pnpm --filter @babbledeck/web lint`
+  - `pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --check-soniox-live`
+- Results:
+  - Added `pnpm audio:readiness:production`, a non-secret production cutover report that loads the production env, checks accepted R2/S3 variable groups, counts source audio files, counts uploaded audio chunks, and reports how many uploaded chunks are marked on the current off-host target.
+  - The current production report shows `cutoverReady=false`, source directory exists with `507` files, database has `381` uploaded chunks totaling `5637981` bytes, and `381` chunks are not marked on a current off-host target.
+  - The report confirms the remaining target gaps are `AUDIO_STORAGE_DRIVER=r2|s3`, bucket, access key, and secret key variable groups. No Cloudflare/R2/S3/AWS credentials were found in inspected server secret files, and `wrangler` is not authenticated.
+  - Strict mode returns nonzero while those requirements are missing, so the command can be used as a release/cutover gate.
+  - README and backup/restore operations docs now start the guarded cutover flow with `pnpm audio:readiness:production`.
+  - Local validation passed: changed-file Prettier, shell syntax check, script typecheck, app typecheck, and ESLint.
+  - Production readiness still reports `requiredOk=true`; Soniox live websocket probe, LiveKit, HTTPS, health, backup, metrics, security, and systemd checks pass.
+  - `externalOk=false` and `productionReady=false` still only because `off_host_audio_storage` reports `AUDIO_STORAGE_DRIVER=local`.
+  - `aialra-babbledeck.service`, `aialra-babbledeck-ws.service`, and `aialra-babbledeck-livekit.service` are active with `NRestarts=0`.
+- Screenshots/traces:
+  - This slice was production operations tooling only; no browser screenshots were produced.

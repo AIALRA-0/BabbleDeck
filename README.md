@@ -177,19 +177,23 @@ Production raw-audio storage cutovers should use the guarded wrapper after the
 R2/S3 target variables are present in the production env file:
 
 ```bash
+pnpm audio:readiness:production
 pnpm audio:configure:production
 pnpm audio:preflight:production
 pnpm audio:cutover:production
 BABBLEDECK_AUDIO_CUTOVER_APPLY=1 pnpm audio:cutover:production
 ```
 
-The configure step patches the production env file from the R2/S3 variables in
-the current shell, runs the off-host preflight against a temporary env copy, and
-only then installs the patched env with a timestamped backup. The preflight
-creates, heads, and deletes a temporary object on the configured off-host
-target. The first cutover command then validates the local source objects. The
-apply run migrates batches to the configured off-host target, audits object
-presence and metadata, then runs a strict production deploy smoke.
+The readiness step loads the production env without printing secrets, reports
+which accepted R2/S3 variable groups are missing, and counts uploaded audio
+chunks that still need current-target metadata. The configure step patches the
+production env file from the R2/S3 variables in the current shell, runs the
+off-host preflight against a temporary env copy, and only then installs the
+patched env with a timestamped backup. The preflight creates, heads, and
+deletes a temporary object on the configured off-host target. The first cutover
+command then validates the local source objects. The apply run migrates batches
+to the configured off-host target, audits object presence and metadata, then
+runs a strict production deploy smoke.
 
 Production LiveKit V2 room audio can be self-hosted on the existing production
 server. The installer follows the current systemd + Nginx project pattern,
@@ -290,6 +294,7 @@ To migrate existing raw audio from the local object root to R2/S3-compatible sto
 For Cloudflare R2, `R2_ACCOUNT_ID` is enough to derive `https://ACCOUNT_ID.r2.cloudflarestorage.com`; set `R2_ENDPOINT` only when overriding that endpoint.
 
 ```bash
+pnpm audio:readiness:production
 pnpm tsx scripts/preflight-audio-storage.ts --require-off-host
 pnpm tsx scripts/audit-audio-storage.ts --all --limit=500
 pnpm tsx scripts/migrate-audio-storage.ts --dry-run --limit=500

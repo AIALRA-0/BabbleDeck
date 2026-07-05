@@ -94,10 +94,11 @@
 - Soniox recorder WebSocket connections can now carry validated `trackId`/`speakerLabel` metadata into provider-generated transcript events; a production smoke with generated speech verified `28` tracked transcript events and `3` tracked transcript segments for `soniox-smoke-alpha` on the deployed site.
 - Recorder pages now support no-cookie track-specific URLs for Main recorder, Speaker A, and Speaker B. The deployed UI preserves share/recorder tokens in those URLs, labels the active recorder, forwards track metadata through mock events and LiveKit publishing, and production Playwright verifies simultaneous Speaker A/B recorder pages export independent `speaker-a`/`speaker-b` segment timelines.
 - Transcript event appends now run inside a PostgreSQL transaction with a per-session advisory transaction lock, preventing parallel recorder pages from colliding on the `transcript_events(sessionId, sequenceNo)` unique constraint.
+- Production audio cutover readiness can now be checked with `pnpm audio:readiness:production`; the current production report is non-secret and shows `cutoverReady=false`, local source directory `/srv/aialra/storage/babbledeck` exists with `507` files, the database has `381` uploaded chunks totaling `5637981` bytes, and all `381` chunks still need current off-host target metadata after R2/S3 credentials are configured and migrated.
 - Cloudflare/R2 provisioning is not currently authenticated on the server: `wrangler whoami` reports not logged in, and no inspected server secret files expose Cloudflare/R2/S3/AWS credential variable names for BabbleDeck.
 
 ## Next Recommended Tasks
 
-1. Configure production R2/S3 credentials, run `pnpm audio:preflight:production`, run `pnpm audio:cutover:production`, rerun with `BABBLEDECK_AUDIO_CUTOVER_APPLY=1`, and pass strict readiness.
+1. Configure production R2/S3 credentials, run `pnpm audio:readiness:production`, run `pnpm audio:preflight:production`, run `pnpm audio:cutover:production`, rerun with `BABBLEDECK_AUDIO_CUTOVER_APPLY=1`, and pass strict readiness.
 2. Run the Android APK on a physical Android device, run iOS Capacitor on a macOS/iOS toolchain, and run desktop wrapper camera/microphone behavior in a real desktop session against `https://babbledeck.aialra.online`.
 3. Run one manual live microphone check from a physical browser/device for final hardware confidence.
