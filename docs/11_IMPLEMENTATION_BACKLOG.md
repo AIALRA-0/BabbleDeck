@@ -270,6 +270,9 @@ Progress:
   production PWA for live-site-first wrapper testing.
 - Added `pnpm --filter @babbledeck/mobile check` and root `pnpm wrappers:check`
   verification.
+- Added the Android Capacitor platform project, normalized the pnpm Gradle
+  module path after sync, installed the server Android SDK/JDK toolchain, and
+  verified `native:check:android` plus `native:build:android`.
 
 ### BDK-0902 Tauri wrapper
 

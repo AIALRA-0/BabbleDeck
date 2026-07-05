@@ -1,0 +1,12 @@
+node_modules/
+.turbo/
+coverage/
+dist/
+target/
+apps/desktop/src-tauri/gen/
+apps/desktop/src-tauri/target/
+apps/mobile/android/.gradle/
+apps/mobile/android/**/build/
+apps/mobile/android/app/src/main/assets/
+apps/mobile/android/app/src/main/res/xml/config.xml
+apps/mobile/android/capacitor-cordova-android-plugins/

@@ -1,5 +1,22 @@
 # Test Runs
 
+## 2026-07-05 Capacitor Android Build
+
+- Environment: production-first mobile wrapper pointing at `https://babbledeck.aialra.online`, Ubuntu 24.04 server, OpenJDK 21, Android SDK command-line tools, Android platform 36, build-tools 36.0.0, and platform-tools 37.0.0.
+- Commands:
+  - `pnpm --filter @babbledeck/mobile exec cap add android`
+  - `apt-get install openjdk-21-jdk google-android-cmdline-tools-13.0-installer google-android-platform-tools-installer`
+  - `sdkmanager --sdk_root=/usr/lib/android-sdk 'platforms;android-36' 'build-tools;36.0.0' 'platform-tools'`
+  - `pnpm --filter @babbledeck/mobile native:check:android`
+  - `pnpm --filter @babbledeck/mobile native:build:android`
+  - `pnpm wrappers:check`
+- Results:
+  - Added the committed Capacitor Android project in `apps/mobile/android`.
+  - Added `scripts/fix-capacitor-android-settings.ts` because Capacitor sync generated a pnpm virtual-store path that was one directory too shallow for this workspace layout; `native:sync` now normalizes the Android Gradle module path after every sync.
+  - Android Gradle project resolution passed with projects `:app`, `:capacitor-android`, and `:capacitor-cordova-android-plugins`.
+  - Debug APK assembly passed and produced `apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk` locally; build artifacts remain ignored.
+  - Physical Android device execution and iOS wrapper validation remain follow-up items.
+
 ## 2026-07-05 Production Soniox UI Smoke
 
 - Environment: production deployment at `https://babbledeck.aialra.online`, configured `SONIOX_API_KEY`, Chromium desktop project, and generated fake-microphone WAV from `ffmpeg` flite speech.

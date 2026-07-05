@@ -101,6 +101,25 @@ async function checkMobile(rootDir: string) {
     config.server?.allowNavigation?.includes(serverUrl.hostname),
     "Capacitor allowNavigation must include the production host.",
   );
+
+  const androidDir = path.join(rootDir, "apps/mobile/android");
+  await access(path.join(androidDir, "gradlew"));
+  await access(path.join(androidDir, "app/build.gradle"));
+  await access(path.join(androidDir, "app/src/main/AndroidManifest.xml"));
+  await access(
+    path.join(
+      rootDir,
+      "apps/mobile/node_modules/@capacitor/android/capacitor/build.gradle",
+    ),
+  );
+  const androidSettings = await readFile(
+    path.join(androidDir, "capacitor.settings.gradle"),
+    "utf8",
+  );
+  assert(
+    androidSettings.includes("../node_modules/@capacitor/android/capacitor"),
+    "Capacitor Android settings must use the workspace package symlink path.",
+  );
 }
 
 async function checkDesktop(rootDir: string) {
