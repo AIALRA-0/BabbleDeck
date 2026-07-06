@@ -16,14 +16,11 @@ import {
   productionDeviceEvidenceBaseUrl,
 } from "@/server/device-runtime-evidence";
 import { deviceRuntimeEvidenceSchema } from "@/server/schemas";
+import { getSessionForRecorderToken } from "@/server/session-service";
 
 export async function POST(request: Request) {
   const csrfResponse = requireSameOriginMutation(request);
   if (csrfResponse) return csrfResponse;
-
-  const auth = await requireApiUser();
-  if ("response" in auth) return auth.response;
-  const { user } = auth;
 
   let parsed;
   try {
@@ -32,12 +29,38 @@ export async function POST(request: Request) {
     return validationError(error);
   }
 
+  const auth = await requireApiUser();
+  let actorUserId: string | null = null;
+  let sessionId: string | null = parsed.recorderSessionId ?? null;
+  let authVia: "admin" | "recorder_token" = "admin";
+
+  if ("response" in auth) {
+    if (
+      parsed.source !== "recorder_page" ||
+      !parsed.recorderSessionId ||
+      !parsed.recorderToken
+    ) {
+      return auth.response;
+    }
+
+    const recorderSession = await getSessionForRecorderToken(
+      parsed.recorderSessionId,
+      parsed.recorderToken,
+    );
+    if (!recorderSession) return auth.response;
+    sessionId = recorderSession.id;
+    authVia = "recorder_token";
+  } else {
+    actorUserId = auth.user.id;
+  }
+
   let record;
   try {
     record = buildDeviceRuntimeEvidenceRecord({
       platform: parsed.platform,
       passed: parsed.passed,
       checks: parsed.checks,
+      sessionId,
       release: currentDeviceEvidenceRelease(),
       baseUrl: productionDeviceEvidenceBaseUrl(),
       notes: parsed.notes,
@@ -66,7 +89,8 @@ export async function POST(request: Request) {
 
   await appendDeviceRuntimeEvidenceRecord(record);
   await auditLog({
-    actorUserId: user.id,
+    actorUserId,
+    sessionId,
     action: "device_runtime_evidence.recorded",
     entityType: "device_runtime_evidence",
     entityId: `${record.platform}:${record.release.commit}`,
@@ -77,6 +101,7 @@ export async function POST(request: Request) {
       release: record.release,
       ok: record.ok,
       source: record.source,
+      authVia,
       client: {
         viewportWidth: record.client.viewportWidth,
         viewportHeight: record.client.viewportHeight,

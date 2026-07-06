@@ -267,6 +267,7 @@ export function RecorderClient({
   const timerRef = useRef<number | null>(null);
   const viewerUrlFromCache = viewerUrl ?? cachedViewerUrl;
   const effectiveRecorderToken = recorderToken ?? cachedRecorderToken;
+  const canRecordDeviceEvidence = Boolean(historyUrl || effectiveRecorderToken);
   const effectiveViewerUrl =
     viewerUrlFromCache && clientOrigin && viewerUrlFromCache.startsWith("/")
       ? new URL(viewerUrlFromCache, clientOrigin).toString()
@@ -1481,7 +1482,7 @@ export function RecorderClient({
           </div>
         </div>
 
-        {historyUrl ? (
+        {canRecordDeviceEvidence ? (
           <div className="mt-6 border-t border-border pt-5">
             <div>
               <h2 className="font-semibold">Device evidence</h2>
@@ -1504,6 +1505,10 @@ export function RecorderClient({
               initialNotes={`Recorder page · ${sessionId} · ${recorderTrackLabel}`}
               notesPlaceholder="Recorder device, wrapper, and run notes"
               className="mt-4 space-y-5"
+              recorderAuth={{
+                sessionId,
+                recorderToken: effectiveRecorderToken,
+              }}
             />
           </div>
         ) : null}

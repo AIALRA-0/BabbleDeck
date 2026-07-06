@@ -76,12 +76,14 @@ describe("device runtime evidence", () => {
       release,
       baseUrl: "https://babbledeck.aialra.online",
       source: "recorder_page",
+      sessionId: "00000000-0000-4000-8000-000000000001",
     });
 
     expect(record).toMatchObject({
       platform: "desktop",
       ok: true,
       source: "recorder_page",
+      sessionId: "00000000-0000-4000-8000-000000000001",
     });
   });
 

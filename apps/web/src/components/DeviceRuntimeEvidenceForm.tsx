@@ -75,6 +75,7 @@ export function DeviceRuntimeEvidenceForm({
   initialNotes = "",
   notesPlaceholder = "Release-bound wrapper runtime notes",
   className = "space-y-5 p-5",
+  recorderAuth,
 }: {
   releaseCommit: string | null;
   releaseBuiltAt: string | null;
@@ -84,6 +85,7 @@ export function DeviceRuntimeEvidenceForm({
   initialNotes?: string;
   notesPlaceholder?: string;
   className?: string;
+  recorderAuth?: { sessionId: string; recorderToken?: string | null };
 }) {
   const [platform, setPlatform] = useState<Platform>("android");
   const [checks, setChecks] =
@@ -149,6 +151,8 @@ export function DeviceRuntimeEvidenceForm({
             passed: allChecks,
             checks,
             notes,
+            recorderSessionId: recorderAuth?.sessionId,
+            recorderToken: recorderAuth?.recorderToken ?? undefined,
             client: clientSnapshot(),
           }),
         });

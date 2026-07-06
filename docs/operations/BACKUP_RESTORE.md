@@ -444,8 +444,10 @@ to another device or workstation for Android, iOS, or desktop verification.
 Settings also includes `Create verification link`, which creates a
 release-labeled live session using the configured realtime provider and shows an
 authenticated recorder link plus QR code for a real device or interactive
-wrapper session. Record evidence only after that device confirms production URL
-load, microphone permission, recording, captions, and audio backup.
+wrapper session. Devices opened from that recorder link may submit recorder-page
+evidence with the recorder token, without a separate admin login on the device.
+Record evidence only after that device confirms production URL load, microphone
+permission, recording, captions, and audio backup.
 
 When the Android debug APK exists on the production server, the same Settings
 status panel exposes an authenticated `Download Android APK` action for physical

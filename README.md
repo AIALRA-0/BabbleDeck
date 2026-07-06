@@ -290,6 +290,9 @@ page after completing the real wrapper run on that device. The recorder and
 history forms prefill checks that the current page has already observed, while
 the admin still confirms the full evidence record before it is written. The form
 writes the same non-secret JSONL evidence log and records an audit log entry.
+Recorder links created from Settings can also record evidence from the linked
+device by presenting the recorder token, so Android/iOS handoff does not require
+an admin login on the device.
 The production Settings page also shows per-platform evidence status and offers
 a release-bound Markdown checklist download for the currently deployed build.
 It also offers a JSON verification kit download that bundles the release,

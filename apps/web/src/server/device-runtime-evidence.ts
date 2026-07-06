@@ -40,6 +40,7 @@ export type DeviceRuntimeEvidenceRecord = {
   app: "babbledeck";
   recordedAt: string;
   platform: DeviceRuntimePlatform;
+  sessionId?: string;
   baseUrl: string;
   release: DeviceRuntimeRelease;
   ok: boolean;
@@ -478,6 +479,7 @@ export function buildDeviceRuntimeEvidenceRecord(input: {
   notes?: string | null;
   source?: DeviceRuntimeEvidenceSource;
   client?: DeviceRuntimeClient;
+  sessionId?: string | null;
   recordedAt?: Date;
 }): DeviceRuntimeEvidenceRecord {
   const missingChecks = deviceRuntimeCheckNames.filter(
@@ -488,6 +490,7 @@ export function buildDeviceRuntimeEvidenceRecord(input: {
     app: "babbledeck",
     recordedAt: (input.recordedAt ?? new Date()).toISOString(),
     platform: input.platform,
+    sessionId: cleanText(input.sessionId, 80),
     baseUrl: input.baseUrl ?? productionDeviceEvidenceBaseUrl(),
     release: input.release ?? currentDeviceEvidenceRelease(),
     ok: input.passed && missingChecks.length === 0,

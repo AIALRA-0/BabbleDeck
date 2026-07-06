@@ -1,5 +1,18 @@
 # Test Runs
 
+## 2026-07-06 Recorder Token Device Evidence
+
+- Environment: local workspace plus production target `https://babbledeck.aialra.online`, cross-device recorder links created from Settings, and production evidence log kept empty during automated validation.
+- Commands:
+  - `pnpm --filter @babbledeck/web typecheck`
+  - `pnpm --filter @babbledeck/web test -- device-runtime-evidence route recorder-access settings-service`
+  - `pnpm exec prettier --check apps/web/src/app/api/device-runtime-evidence/route.ts apps/web/src/app/api/device-runtime-evidence/route.test.ts apps/web/src/components/DeviceRuntimeEvidenceForm.tsx apps/web/src/components/RecorderClient.tsx apps/web/src/server/device-runtime-evidence.ts apps/web/src/server/device-runtime-evidence.test.ts apps/web/src/server/schemas.ts README.md docs/operations/BACKUP_RESTORE.md docs/TEST_RUNS.md`
+- Results:
+  - Recorder-token sessions can now submit `recorder_page` device runtime evidence without requiring an admin login on the real device.
+  - The evidence API still rejects unauthenticated requests without a matching recorder token and rejects recorder tokens for non-recorder evidence sources.
+  - Recorder-page evidence records include the session id for auditability.
+  - This enables Android/iOS devices opened from the Settings QR recorder link to write release-bound evidence only after the real checks are completed.
+
 ## 2026-07-06 Device Verification Session Launcher
 
 - Environment: local workspace plus production target `https://babbledeck.aialra.online`, current release-bound Settings device evidence workflow, and Soniox configured in production.

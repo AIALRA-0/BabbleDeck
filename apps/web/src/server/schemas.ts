@@ -105,6 +105,14 @@ export const deviceRuntimeEvidenceSchema = z.object({
   source: z
     .enum(["admin_settings", "recorder_page", "session_history"])
     .default("admin_settings"),
+  recorderSessionId: z.string().uuid().optional(),
+  recorderToken: z
+    .string()
+    .trim()
+    .min(16)
+    .max(256)
+    .regex(/^[A-Za-z0-9_-]+$/)
+    .optional(),
   passed: z.boolean(),
   checks: z.object({
     productionUrlOpened: z.boolean(),
