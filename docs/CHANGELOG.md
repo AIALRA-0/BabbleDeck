@@ -15,6 +15,7 @@
 - Updated the device runtime checklist and readiness report to point operators at the protected native handoff pages before recording release-bound evidence.
 - Added stable non-secret receipt IDs to future device runtime evidence records, API receipts, audit metadata, and Settings status cards.
 - Added `selfHostedReady` to `/api/health` audio storage status so the active single-server deployment reports its intended storage mode without exposing secrets.
+- Added `pnpm audio:selfhost:production` and clarified operations/security docs so self-hosted server storage is the current production target while R2/S3 stays optional migration tooling.
 - Added a production device runtime evidence checklist command that binds Android, iOS, and desktop manual verification steps to the current `/api/health` release and stores non-secret Markdown snapshots under the production logs directory.
 - Added an authenticated production Settings form and API for recording release-bound Android, iOS, and desktop runtime evidence directly from the real wrapper/device session.
 - Made production deploys regenerate the Prisma client before the forced standalone build so dependency/cache restoration cannot leave Next build with untyped Prisma models.

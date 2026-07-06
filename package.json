@@ -14,6 +14,7 @@
     "deploy:production": "scripts/deploy-production.sh",
     "cache:cleanup:production": "scripts/cleanup-production-build-cache.sh",
     "cache:cleanup:install:production": "scripts/install-production-build-cache-cleanup.sh",
+    "audio:selfhost:production": "scripts/preflight-self-hosted-audio-storage-production.sh",
     "audio:configure:production": "scripts/configure-production-audio-storage.sh",
     "audio:preflight:production": "scripts/preflight-audio-storage-production.sh",
     "audio:readiness:production": "scripts/check-audio-cutover-readiness-production.sh",

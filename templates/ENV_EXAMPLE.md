@@ -19,7 +19,7 @@ DATABASE_URL=postgresql://user:password@localhost:5432/babbledeck
 # Redis optional
 REDIS_URL=
 
-# Audio object storage
+# Audio object storage (self-hosted server default)
 AUDIO_STORAGE_DRIVER=local
 AUDIO_STORAGE_DIR=./storage/babbledeck
 AUDIO_STORAGE_BUCKET=
@@ -49,12 +49,12 @@ LIVEKIT_API_SECRET=
 LIVEKIT_TOKEN_TTL_SECONDS=900
 LIVEKIT_TOKEN_RATE_LIMIT_PER_MINUTE=60
 
-# Cloudflare R2 / S3-compatible storage
+# Optional Cloudflare R2 / S3-compatible migration target
 R2_ACCOUNT_ID=
 R2_ACCESS_KEY_ID=
 R2_SECRET_ACCESS_KEY=
-R2_BUCKET=babbledeck-dev
-R2_ENDPOINT=https://ACCOUNT_ID.r2.cloudflarestorage.com
+R2_BUCKET=
+R2_ENDPOINT=
 R2_PUBLIC_BASE_URL=
 
 # Realtime

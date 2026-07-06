@@ -17,7 +17,7 @@ Target baseline: OWASP ASVS-inspired practical controls for MVP.
 - Use platform secret manager or environment variables.
 - `.env.example` must contain placeholders only.
 
-### Required secrets
+### Required runtime secrets
 
 ```text
 DATABASE_URL
@@ -27,6 +27,15 @@ SONIOX_API_KEY
 AZURE_TRANSLATOR_KEY optional
 AZURE_TRANSLATOR_REGION optional
 OPENAI_API_KEY optional
+LIVEKIT_URL required when LiveKit is enabled
+LIVEKIT_API_KEY required when LiveKit is enabled
+LIVEKIT_API_SECRET required when LiveKit is enabled
+```
+
+Optional R2/S3 migration secrets, not required for the current self-hosted
+single-server launch:
+
+```text
 R2_ACCOUNT_ID
 R2_ACCESS_KEY_ID
 R2_SECRET_ACCESS_KEY
@@ -89,9 +98,10 @@ Rules:
 
 ### At rest
 
-- Database managed encryption if provider supports it.
-- R2/S3 bucket private by default.
-- Signed URLs for downloads.
+- Restrict the self-hosted server object directory to the application service
+  account and include it in verified backups.
+- If migrating to R2/S3 later, keep the bucket private by default.
+- Signed URLs for downloads when object downloads are exposed.
 - No public raw audio links.
 
 ### In transit
@@ -245,7 +255,8 @@ production
 ### Environment separation
 
 - Separate database or schema.
-- Separate object storage prefix/bucket.
+- Separate self-hosted object directory per environment; use separate prefixes
+  or buckets only for optional R2/S3 migrations.
 - Separate provider keys if possible.
 - No production secrets in preview builds.
 

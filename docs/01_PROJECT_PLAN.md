@@ -149,7 +149,8 @@ Deliverables:
 - Silence/clipping warnings.
 - AudioWorklet or fallback audio processing.
 - MediaRecorder chunks persisted to IndexedDB.
-- Server chunk upload endpoint and R2/S3 integration interface.
+- Server chunk upload endpoint backed by self-hosted storage, with an optional
+  R2/S3 migration interface.
 
 Exit criteria:
 

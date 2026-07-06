@@ -10,7 +10,7 @@ Production: https://babbledeck.aialra.online
 - Prisma/PostgreSQL persistence in `db/schema.prisma`.
 - Bootstrap admin seed via `SEED_ADMIN_PASSWORD`.
 - Login, dashboard, live session creation, recorder page, public viewer page with caption display controls and transcript copy, session history, provider usage, budget caps with degraded-provider status, and exports.
-- Browser microphone permission flow, volume meter with no-input/clipping feedback, IndexedDB local backup with recorder-side reconnect/retry/uploaded-cleanup controls, binary audio chunk upload to local/S3-compatible object storage, SSE viewer stream with polling fallback, and deterministic mock transcript provider.
+- Browser microphone permission flow, volume meter with no-input/clipping feedback, IndexedDB local backup with recorder-side reconnect/retry/uploaded-cleanup controls, binary audio chunk upload to self-hosted server object storage, SSE viewer stream with polling fallback, and deterministic mock transcript provider.
 - Recorder WebSocket transport streams audio chunks to server-side provider adapters; Soniox realtime activates when `SONIOX_API_KEY` is configured.
 - Playwright desktop/mobile E2E for the full MVP flow.
 - Capacitor and Tauri wrapper scaffolds that load the deployed production PWA
@@ -174,8 +174,20 @@ route Playwright smoke, and appends a non-secret record to
 `/srv/aialra/logs/babbledeck/deployments.jsonl`, including the current release
 wrapper artifact SHA-256 summary.
 
-Production raw-audio storage cutovers should use the guarded wrapper after the
-R2/S3 target variables are present in the production env file:
+Production raw-audio storage is self-hosted on the existing server. Verify the
+current production target with:
+
+```bash
+pnpm audio:selfhost:production
+```
+
+The preflight loads the production env without printing secrets, requires the
+active target to be local, writes/heads/deletes a temporary object, and fails if
+the server object root is not usable.
+
+Optional R2/S3 raw-audio migrations should use the guarded wrapper only if the
+deployment model changes later and target variables are present in the
+production env file:
 
 ```bash
 pnpm audio:readiness:production
@@ -185,16 +197,16 @@ pnpm audio:cutover:production
 BABBLEDECK_AUDIO_CUTOVER_APPLY=1 pnpm audio:cutover:production
 ```
 
-The readiness step loads the production env without printing secrets, reports
-which accepted R2/S3 variable groups are missing, and counts uploaded audio
-chunks that still need current-target metadata. The configure step patches the
-production env file from the R2/S3 variables in the current shell, runs the
-off-host preflight against a temporary env copy, and only then installs the
-patched env with a timestamped backup. The preflight creates, heads, and
-deletes a temporary object on the configured off-host target. The first cutover
-command then validates the local source objects. The apply run migrates batches
-to the configured off-host target, audits object presence and metadata, then
-runs a strict production deploy smoke.
+The migration readiness step loads the production env without printing secrets,
+reports which accepted R2/S3 variable groups are missing, and counts uploaded
+audio chunks that would need current-target metadata after a migration. The
+configure step patches the production env file from the R2/S3 variables in the
+current shell, runs the off-host preflight against a temporary env copy, and only
+then installs the patched env with a timestamped backup. The preflight creates,
+heads, and deletes a temporary object on the configured off-host target. The
+first cutover command then validates the local source objects. The apply run
+migrates batches to the configured off-host target, audits object presence and
+metadata, then runs a strict production deploy smoke.
 
 Production LiveKit V2 room audio can be self-hosted on the existing production
 server. The installer follows the current systemd + Nginx project pattern,
@@ -359,7 +371,11 @@ Soniox realtime requires `SONIOX_API_KEY`. Without it, Soniox-mode sessions are 
 
 `pnpm build` also copies `.next/static` and `public` into the standalone output through `scripts/prepare-standalone-assets.sh`. `pnpm deploy:production` then copies the full standalone output into an immutable release directory and flips the `current` symlink before restarting the web service, so later builds do not rewrite the directory currently serving production traffic.
 
-To migrate existing raw audio from the local object root to R2/S3-compatible storage, configure the target `AUDIO_STORAGE_*` or `R2_*` variables, keep `SOURCE_AUDIO_STORAGE_DIR` pointed at the previous local root, run:
+The current production target is the self-hosted local object root. Only migrate
+existing raw audio to R2/S3-compatible storage if the deployment model changes
+later. For that optional migration, configure the target `AUDIO_STORAGE_*` or
+`R2_*` variables, keep `SOURCE_AUDIO_STORAGE_DIR` pointed at the previous local
+root, run:
 
 For Cloudflare R2, `R2_ACCOUNT_ID` is enough to derive `https://ACCOUNT_ID.r2.cloudflarestorage.com`; set `R2_ENDPOINT` only when overriding that endpoint.
 

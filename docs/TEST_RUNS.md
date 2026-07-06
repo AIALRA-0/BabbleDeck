@@ -1,5 +1,23 @@
 # Test Runs
 
+## 2026-07-06 Self-Hosted Audio Storage Alignment
+
+- Environment: local workspace plus production env at `https://babbledeck.aialra.online`, production audio storage intentionally self-hosted on the server under `/srv/aialra/storage/babbledeck`, and no positive device runtime evidence submitted.
+- Commands:
+  - `bash -n scripts/preflight-self-hosted-audio-storage-production.sh scripts/preflight-audio-storage-production.sh scripts/check-audio-cutover-readiness-production.sh`
+  - `pnpm exec prettier --check scripts/preflight-audio-storage.ts package.json README.md docs/10_SECURITY_AND_OPERATIONS.md docs/operations/BACKUP_RESTORE.md docs/01_PROJECT_PLAN.md docs/CHANGELOG.md PROJECT_MEMORY.md templates/ENV_EXAMPLE.md docs/TEST_RUNS.md`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/preflight-audio-storage.ts scripts/check-production-readiness.ts`
+  - `pnpm audio:selfhost:production`
+  - `pnpm exec tsx scripts/preflight-audio-storage.ts --require-off-host --require-local`
+  - `pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --check-soniox-live --expected-release-commit=$(git rev-parse --short=12 HEAD)`
+- Results:
+  - Added `pnpm audio:selfhost:production`, a production wrapper that loads the server env without printing secrets and requires the active audio storage target to be local.
+  - Extended `scripts/preflight-audio-storage.ts` with `--require-local` / `--require-self-hosted` so current production storage can be checked as a first-class launch requirement.
+  - The production self-hosted preflight returned `ok=true`, `targetDriver=local`, `uploaded=true`, `headed=true`, and `deleted=true`.
+  - Passing both `--require-off-host` and `--require-local` fails explicitly, preventing ambiguous storage-mode checks.
+  - README, operations, security, env template, project plan, changelog, and project memory now describe R2/S3 as optional future migration tooling, not a current production launch blocker.
+  - Production readiness with live Soniox still reports `requiredOk=true`; `externalOk=false` remains only because Android, iOS, and desktop runtime evidence has not been recorded from real devices.
+
 ## 2026-07-06 Production Wrapper Artifact Refresh
 
 - Environment: local workspace plus production target `https://babbledeck.aialra.online`, server-built Android APK and Linux desktop wrapper binary, no positive device evidence submitted.

@@ -27,8 +27,8 @@
 - Verification passed locally: Prisma validate/generate/migrate, format, lint, typecheck, Vitest unit tests, Next build, and Playwright desktop/mobile MVP E2E.
 - Production deployment is live at `https://babbledeck.aialra.online` through systemd service `aialra-babbledeck.service`, Nginx TLS, and production database `babbledeck_prod`.
 - Production recorder WebSocket transport is live through `aialra-babbledeck-ws.service` on `127.0.0.1:11971` and Nginx `/ws/recorder` upgrade proxying.
-- Production audio object storage currently uses local root `/srv/aialra/storage/babbledeck` with S3/R2-compatible env hooks available for later off-host storage.
-- Raw audio storage migration tooling exists in `scripts/migrate-audio-storage.ts`; it dry-runs local source readability, validates byte size/checksum, and can copy existing chunks to configured R2/S3-compatible storage once credentials are provided.
+- Production audio object storage intentionally uses the self-hosted local root `/srv/aialra/storage/babbledeck`; `pnpm audio:selfhost:production` verifies that target by writing, heading, and deleting a temporary object.
+- Raw audio storage migration tooling exists in `scripts/migrate-audio-storage.ts`; it dry-runs local source readability, validates byte size/checksum, and can copy existing chunks to configured R2/S3-compatible storage only if the deployment model changes later.
 - Production `SONIOX_API_KEY` is configured. Direct Soniox realtime staging and BabbleDeck adapter write-path checks with a public speech sample returned transcript and translation events without provider errors.
 - Production backup/restore automation is installed through `aialra-babbledeck-backup.timer`; verified backups restore into a temporary database and temporary audio directory.
 - Production raw audio retention automation is installed through `aialra-babbledeck-audio-retention.timer`; it deletes uploaded raw audio objects for ended sessions after the configured retention window and marks chunks `DELETED`.
@@ -74,7 +74,7 @@
 - Production static-asset readiness now checks the active immutable release static directory before workspace build outputs, so `pnpm cache:cleanup:production` can remove local `.next` without causing a false required readiness failure.
 - Production raw-audio cutovers can now use `pnpm audio:cutover:production`; it defaults to dry-run source validation, requires `BABBLEDECK_AUDIO_CUTOVER_APPLY=1` before writing objects, migrates batches to the configured off-host target, audits target metadata, and runs strict production deploy smoke.
 - Production R2/S3 env setup can now use `pnpm audio:configure:production`; it builds a patched env from the current shell, runs off-host preflight against the temporary env by default, and only then installs the production env with a timestamped backup and non-secret JSONL record.
-- Production off-host audio targets can now be checked with `pnpm audio:preflight:production`; the preflight writes, heads, and deletes a temporary object before any raw audio migration is attempted.
+- Optional off-host audio migration targets can be checked with `pnpm audio:preflight:production`; the preflight writes, heads, and deletes a temporary object before any R2/S3 raw audio migration is attempted.
 - R2/S3 audio migrations now skip chunks already marked on the current target by default, so repeated batch runs continue through remaining unmigrated rows. `--include-migrated` is available for intentional rewrites.
 - R2 audio storage config now uses S3 SDK `region=auto` whenever `AUDIO_STORAGE_DRIVER=r2` selects the target, even if operators prefer generic `AUDIO_STORAGE_BUCKET` credentials over the `R2_BUCKET` aliases.
 - The R2 generic-bucket region hardening has been deployed to production; production health and strict live Soniox readiness still pass, while `pnpm audio:preflight:production` still fails only because production remains on local audio storage.

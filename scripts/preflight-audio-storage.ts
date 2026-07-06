@@ -41,12 +41,31 @@ function errorMessage(error: unknown) {
 async function main() {
   const checkedAt = new Date().toISOString();
   const requireOffHost = boolFlag("--require-off-host");
+  const requireLocal =
+    boolFlag("--require-local") || boolFlag("--require-self-hosted");
   const objectKey = `${safePrefix()}/${crypto.randomUUID()}.txt`;
   const body = Buffer.from(
     `BabbleDeck audio storage preflight ${checkedAt}\n`,
     "utf8",
   );
   const checksumSha256 = sha256Hex(body);
+
+  if (requireOffHost && requireLocal) {
+    process.stdout.write(
+      `${JSON.stringify({
+        app: "babbledeck",
+        checkedAt,
+        ok: false,
+        targetDriver: "unknown",
+        requireOffHost,
+        requireLocal,
+        objectKey,
+        error: "Use only one of --require-off-host or --require-local.",
+      })}\n`,
+    );
+    process.exitCode = 1;
+    return;
+  }
 
   let config: ReturnType<typeof resolveAudioStorageConfig>;
   try {
@@ -59,6 +78,7 @@ async function main() {
         ok: false,
         targetDriver: "unknown",
         requireOffHost,
+        requireLocal,
         objectKey,
         error: errorMessage(error),
       })}\n`,
@@ -75,8 +95,27 @@ async function main() {
         ok: false,
         targetDriver: config.driver,
         requireOffHost,
+        requireLocal,
         objectKey,
         error: "Current audio storage target is local.",
+      })}\n`,
+    );
+    process.exitCode = 1;
+    return;
+  }
+
+  if (requireLocal && config.driver !== "local") {
+    process.stdout.write(
+      `${JSON.stringify({
+        app: "babbledeck",
+        checkedAt,
+        ok: false,
+        targetDriver: config.driver,
+        targetBucket: config.driver === "s3" ? config.bucket : undefined,
+        requireOffHost,
+        requireLocal,
+        objectKey,
+        error: "Current audio storage target is not local.",
       })}\n`,
     );
     process.exitCode = 1;
@@ -131,6 +170,7 @@ async function main() {
       targetDriver: config.driver,
       targetBucket: config.driver === "s3" ? config.bucket : undefined,
       requireOffHost,
+      requireLocal,
       objectKey,
       uploaded,
       headed,

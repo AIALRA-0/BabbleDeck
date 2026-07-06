@@ -304,15 +304,21 @@ pnpm tsx scripts/prune-audio-retention.ts --retention-days=30 --batch-size=500
 
 Production intentionally stores uploaded raw audio chunks on the self-hosted
 server at `/srv/aialra/storage/babbledeck`, and the daily backup includes that
-local object archive. Use `scripts/migrate-audio-storage.ts` only when moving
-uploaded raw audio chunks from the local object directory to R2/S3-compatible
-storage. The script scans
+local object archive. Verify that current production target with:
+
+```bash
+pnpm audio:selfhost:production
+```
+
+Use `scripts/migrate-audio-storage.ts` only when moving uploaded raw audio
+chunks from the local object directory to R2/S3-compatible storage because the
+deployment model changed later. The script scans
 `UPLOADED` audio chunks, reads each existing object from
 `SOURCE_AUDIO_STORAGE_DIR`, validates the stored byte size and SHA-256 checksum
 when available, writes the object through the configured audio storage adapter,
 and records migration metadata on each chunk row.
 
-For production, prefer the guarded cutover wrapper:
+For an optional production migration, prefer the guarded cutover wrapper:
 
 ```bash
 pnpm audio:readiness:production
@@ -322,18 +328,18 @@ pnpm audio:cutover:production
 BABBLEDECK_AUDIO_CUTOVER_APPLY=1 pnpm audio:cutover:production
 ```
 
-The readiness step loads the production env without printing secrets, reports
-which accepted R2/S3 variable groups are missing, counts source files, and
-checks how many uploaded audio chunks are marked on the current target. The
-configure step patches the production env file from R2/S3 variables in the
-current shell, runs the off-host preflight against a temporary env copy, and
-only installs the patched env after that preflight passes. It writes a
-timestamped backup and appends a non-secret JSONL record. The preflight creates,
-heads, and deletes a temporary object on the configured off-host target without
-touching production audio rows. The default cutover run validates the current
-source objects. The apply run migrates batches to the configured R2/S3 target,
-audits that uploaded chunks are present and marked on the current target, and
-then runs `pnpm deploy:production` in strict readiness mode.
+The migration readiness step loads the production env without printing secrets,
+reports which accepted R2/S3 variable groups are missing, counts source files,
+and checks how many uploaded audio chunks would need current-target metadata
+after migration. The configure step patches the production env file from R2/S3
+variables in the current shell, runs the off-host preflight against a temporary
+env copy, and only installs the patched env after that preflight passes. It
+writes a timestamped backup and appends a non-secret JSONL record. The preflight
+creates, heads, and deletes a temporary object on the configured off-host target
+without touching production audio rows. The default cutover run validates the
+current source objects. The apply run migrates batches to the configured R2/S3
+target, audits that uploaded chunks are present and marked on the current
+target, and then runs `pnpm deploy:production` in strict readiness mode.
 
 Dry run:
 
@@ -345,10 +351,13 @@ SOURCE_AUDIO_STORAGE_DIR=/srv/aialra/storage/babbledeck \
 Audit the currently configured storage target before and after a migration:
 
 ```bash
-pnpm tsx scripts/preflight-audio-storage.ts --require-off-host
+pnpm audio:selfhost:production
 pnpm tsx scripts/audit-audio-storage.ts --all --limit=500
 pnpm tsx scripts/audit-audio-storage.ts --all --limit=500 --require-current-target
 ```
+
+Use `pnpm tsx scripts/preflight-audio-storage.ts --require-off-host` only after
+switching to a configured R2/S3-compatible migration target.
 
 R2/S3 run:
 
