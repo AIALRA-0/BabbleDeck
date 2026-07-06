@@ -279,9 +279,10 @@ rechecks the artifact SHA-256 values against the files on disk.
 connected physical Android devices, Xcode availability for iOS, and an
 interactive desktop display session without printing device serials or secrets.
 It also reports non-secret artifact size/sha256 metadata for the Android APK
-and desktop binary when present. Add `-- --check-desktop-headless` to run the
-Linux Tauri binary under Xvfb as a launch smoke; this still does not replace
-real microphone/caption/audio-backup evidence from an interactive desktop run.
+and desktop binary when present, plus the release handoff URLs for Android,
+iOS, and desktop. Add `-- --check-desktop-headless` to run the Linux Tauri
+binary under Xvfb as a launch smoke; this still does not replace real
+microphone/caption/audio-backup evidence from an interactive desktop run.
 After a real device run, record non-secret manual evidence for each platform:
 
 ```bash

@@ -102,6 +102,10 @@ function shellQuote(value: string) {
   return `'${value.replaceAll("'", "'\"'\"'")}'`;
 }
 
+function absoluteUrl(baseUrl: string, path: string) {
+  return new URL(path, baseUrl).toString();
+}
+
 async function desktopHeadlessSmoke(binaryPath: string) {
   const result = await runCommand(
     "bash",
@@ -247,6 +251,7 @@ async function main() {
     production,
     android: {
       ready: androidReady,
+      handoffUrl: absoluteUrl(productionUrl, "/install/android"),
       adbAvailable: adb.available,
       debugApkExists: androidApk.exists,
       debugApk: androidApk,
@@ -258,6 +263,7 @@ async function main() {
           : "physical Android device in adb device state",
       ].filter((item): item is string => Boolean(item)),
       manualChecks: [
+        "Open the protected Android handoff page and create a release-labeled recorder link.",
         "Install or run the wrapper on a physical Android device.",
         "Grant microphone permission against the production PWA.",
         "Start a recorder session and confirm live captions/audio backup.",
@@ -270,6 +276,7 @@ async function main() {
     },
     ios: {
       ready: iosReady,
+      handoffUrl: absoluteUrl(productionUrl, "/install/ios"),
       platform: process.platform,
       xcodebuildAvailable: xcodebuild.available,
       projectExists: iosProjectExists,
@@ -279,6 +286,7 @@ async function main() {
         iosProjectExists ? undefined : "Capacitor iOS project",
       ].filter((item): item is string => Boolean(item)),
       manualChecks: [
+        "Open the protected iOS handoff page and create a release-labeled recorder link.",
         "Run the wrapper on macOS with Xcode and an iOS simulator or device.",
         "Grant microphone permission against the production PWA.",
         "Start a recorder session and confirm live captions/audio backup.",
@@ -291,6 +299,7 @@ async function main() {
     },
     desktop: {
       ready: desktopReady,
+      handoffUrl: absoluteUrl(productionUrl, "/install/desktop"),
       tauriCliExists: desktopTauriCliExists,
       releaseBinaryExists: desktopBinary.exists,
       releaseBinary: desktopBinary,
@@ -301,6 +310,7 @@ async function main() {
         displayAvailable ? undefined : "interactive desktop display session",
       ].filter((item): item is string => Boolean(item)),
       manualChecks: [
+        "Open the protected desktop handoff page and create a release-labeled recorder link.",
         "Launch the desktop wrapper in an interactive desktop session.",
         "Grant microphone permission against the production PWA.",
         "Start a recorder session and confirm live captions/audio backup.",

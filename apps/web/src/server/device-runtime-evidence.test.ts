@@ -100,6 +100,7 @@ describe("device runtime evidence", () => {
     );
     expect(markdown).toContain("- Release commit: 783585d7a975");
     expect(markdown).toContain("## Android");
+    expect(markdown).toContain("/install/android");
     expect(markdown).toContain("--platform=android");
     expect(markdown).toContain("/api/wrappers/android-debug-apk");
     expect(markdown).toContain("--base-url=https://babbledeck.aialra.online");
@@ -115,6 +116,7 @@ describe("device runtime evidence", () => {
     });
 
     expect(markdown).toContain("## Desktop");
+    expect(markdown).toContain("/install/desktop");
     expect(markdown).toContain("/api/wrappers/desktop-release-binary");
     expect(markdown).toContain("--platform=desktop");
   });

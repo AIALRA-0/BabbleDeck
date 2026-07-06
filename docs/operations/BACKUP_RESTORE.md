@@ -437,6 +437,9 @@ readiness requires a recent current-release refresh record and rechecks the
 recorded SHA-256 values against the files on disk. This proves the server
 handoff artifacts are available, but it does not replace real Android, iOS, or
 interactive desktop runtime evidence.
+The readiness output also includes the protected Android, iOS, and desktop
+handoff URLs for creating release-labeled recorder links before evidence is
+recorded.
 
 Authenticated admins can also record the same release-bound evidence directly
 from the production Settings page, the recorder page, or a completed session

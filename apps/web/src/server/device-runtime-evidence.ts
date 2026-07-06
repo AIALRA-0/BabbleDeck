@@ -178,16 +178,18 @@ function deviceRuntimePlatformTitle(platform: DeviceRuntimePlatform) {
 function deviceRuntimePlatformChecklist(platform: DeviceRuntimePlatform) {
   if (platform === "android") {
     return [
-      "1. Build or refresh the Android wrapper on the server.",
+      "1. Open the protected Android handoff page from production Settings.",
+      "   `GET /install/android`",
+      "2. Build or refresh the Android wrapper on the server.",
       "   `pnpm --filter @babbledeck/mobile native:build:android`",
-      "2. Or, as an authenticated admin, download the current server-built APK from Settings.",
+      "3. Or, as an authenticated admin, download the current server-built APK from the handoff page.",
       "   `GET /api/wrappers/android-debug-apk`",
-      "3. Connect a physical Android device with USB debugging enabled.",
+      "4. Connect a physical Android device with USB debugging enabled.",
       "   `adb devices -l`",
-      "4. Install/run the wrapper against the production PWA.",
+      "5. Install/run the wrapper against the production PWA, then use the handoff page to create a release-labeled recorder link/QR.",
       "   `pnpm --filter @babbledeck/mobile native:run:android`",
-      "5. On the device, open the production app, grant microphone permission, start a recorder session, confirm live captions are visible, and confirm the audio backup/upload indicator succeeds.",
-      "6. Back on the server, record evidence:",
+      "6. On the device, open the production app, grant microphone permission, start a recorder session, confirm live captions are visible, and confirm the audio backup/upload indicator succeeds.",
+      "7. Back on the server, record evidence:",
       `   \`${deviceRuntimeEvidenceCommand("android")}\``,
     ];
   }
@@ -208,15 +210,17 @@ function deviceRuntimePlatformChecklist(platform: DeviceRuntimePlatform) {
   }
 
   return [
-    "1. Use an interactive desktop session on a machine that can launch the Tauri wrapper.",
-    "2. Build or refresh the desktop wrapper if needed.",
+    "1. Open the protected desktop handoff page from production Settings.",
+    "   `GET /install/desktop`",
+    "2. Use an interactive desktop session on a machine that can launch the Tauri wrapper.",
+    "3. Build or refresh the desktop wrapper if needed.",
     "   `pnpm --filter @babbledeck/desktop native:build`",
-    "3. For Linux desktop verification, an authenticated admin can download the current server-built release binary from Settings.",
+    "4. For Linux desktop verification, an authenticated admin can download the current server-built release binary from the handoff page.",
     "   `GET /api/wrappers/desktop-release-binary`",
-    "4. Launch the wrapper in that interactive session.",
+    "5. Launch the wrapper in that interactive session, then use the handoff page to create a release-labeled recorder link/QR.",
     "   `pnpm --filter @babbledeck/desktop native:dev`",
-    "5. In the wrapper, open the production app, grant microphone permission, start a recorder session, confirm live captions are visible, and confirm the audio backup/upload indicator succeeds.",
-    "6. Back on the production server, record evidence:",
+    "6. In the wrapper, open the production app, grant microphone permission, start a recorder session, confirm live captions are visible, and confirm the audio backup/upload indicator succeeds.",
+    "7. Back on the production server, record evidence:",
     `   \`${deviceRuntimeEvidenceCommand("desktop")}\``,
   ];
 }
