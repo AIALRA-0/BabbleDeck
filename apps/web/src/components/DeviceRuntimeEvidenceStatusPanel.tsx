@@ -204,6 +204,11 @@ export function DeviceRuntimeEvidenceStatusPanel({
                     ? `Release ${item.releaseCommit}`
                     : "Release unavailable"}
                 </p>
+                <p>
+                  {item.receiptId
+                    ? `Receipt ${item.receiptId}`
+                    : "Receipt unavailable"}
+                </p>
               </div>
             </div>
           );

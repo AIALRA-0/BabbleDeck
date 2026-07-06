@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { createHash } from "node:crypto";
 
 export const deviceRuntimePlatforms = ["android", "ios", "desktop"] as const;
 export type DeviceRuntimePlatform = (typeof deviceRuntimePlatforms)[number];
@@ -38,6 +39,7 @@ export type DeviceRuntimeEvidenceSource =
 
 export type DeviceRuntimeEvidenceRecord = {
   app: "babbledeck";
+  receiptId: string;
   recordedAt: string;
   platform: DeviceRuntimePlatform;
   sessionId?: string;
@@ -68,6 +70,7 @@ export type DeviceRuntimeEvidencePlatformStatus = {
   recordedAt: string | null;
   source: DeviceRuntimeEvidenceSource | null;
   releaseCommit: string | null;
+  receiptId: string | null;
   missingChecks: string[];
 };
 
@@ -318,6 +321,30 @@ function recordSource(value: unknown): DeviceRuntimeEvidenceSource | null {
     : null;
 }
 
+function recordReceiptId(input: {
+  platform: DeviceRuntimePlatform;
+  recordedAt: string;
+  baseUrl: string;
+  release: DeviceRuntimeRelease;
+  source: DeviceRuntimeEvidenceSource;
+  sessionId?: string;
+}) {
+  return createHash("sha256")
+    .update(
+      JSON.stringify({
+        app: "babbledeck",
+        platform: input.platform,
+        recordedAt: input.recordedAt,
+        baseUrl: normalizedUrl(input.baseUrl),
+        release: input.release,
+        source: input.source,
+        sessionId: input.sessionId ?? null,
+      }),
+    )
+    .digest("hex")
+    .slice(0, 24);
+}
+
 function deviceRuntimeRecordStatus(input: {
   record: Record<string, unknown>;
   platform: DeviceRuntimePlatform;
@@ -340,6 +367,8 @@ function deviceRuntimeRecordStatus(input: {
     (input.now ?? new Date()).getTime() - recordedAtMs <= input.maxAgeMs;
   const releaseCommit =
     typeof release.commit === "string" ? release.commit : null;
+  const receiptId =
+    typeof record.receiptId === "string" ? record.receiptId : null;
   const releaseOk =
     !input.releaseCommit || release.commit === input.releaseCommit;
   const baseUrlOk =
@@ -372,6 +401,7 @@ function deviceRuntimeRecordStatus(input: {
     recordedAt,
     source,
     releaseCommit,
+    receiptId,
     missingChecks,
   };
 }
@@ -451,6 +481,7 @@ export async function getDeviceRuntimeEvidenceStatus(input?: {
           recordedAt: null,
           source: null,
           releaseCommit: null,
+          receiptId: null,
           missingChecks: [...deviceRuntimeCheckNames],
         };
   });
@@ -492,18 +523,31 @@ export function buildDeviceRuntimeEvidenceRecord(input: {
     (name) => input.checks[name] !== true,
   );
   const client = input.client ?? {};
+  const recordedAt = (input.recordedAt ?? new Date()).toISOString();
+  const release = input.release ?? currentDeviceEvidenceRelease();
+  const baseUrl = input.baseUrl ?? productionDeviceEvidenceBaseUrl();
+  const source = input.source ?? "admin_settings";
+  const sessionId = cleanText(input.sessionId, 80);
   return {
     app: "babbledeck",
-    recordedAt: (input.recordedAt ?? new Date()).toISOString(),
+    receiptId: recordReceiptId({
+      platform: input.platform,
+      recordedAt,
+      baseUrl,
+      release,
+      source,
+      sessionId,
+    }),
+    recordedAt,
     platform: input.platform,
-    sessionId: cleanText(input.sessionId, 80),
-    baseUrl: input.baseUrl ?? productionDeviceEvidenceBaseUrl(),
-    release: input.release ?? currentDeviceEvidenceRelease(),
+    sessionId,
+    baseUrl,
+    release,
     ok: input.passed && missingChecks.length === 0,
     checks: input.checks,
     missingChecks,
     notes: cleanText(input.notes),
-    source: input.source ?? "admin_settings",
+    source,
     client: {
       userAgent: cleanText(client.userAgent),
       reportedUserAgent: cleanText(client.reportedUserAgent),

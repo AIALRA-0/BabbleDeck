@@ -20,6 +20,7 @@ type EvidenceResponse =
   | {
       ok: true;
       data: {
+        receiptId: string;
         recordedAt: string;
         platform: Platform;
         source: EvidenceSource;
@@ -270,6 +271,14 @@ export function DeviceRuntimeEvidenceForm({
         <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
           <p className="font-semibold">Evidence receipt</p>
           <dl className="mt-2 grid gap-2 sm:grid-cols-2">
+            <div>
+              <dt className="text-xs font-semibold uppercase text-emerald-800">
+                Receipt
+              </dt>
+              <dd className="mt-1 break-all font-mono text-xs">
+                {receipt.receiptId}
+              </dd>
+            </div>
             <div>
               <dt className="text-xs font-semibold uppercase text-emerald-800">
                 Recorded

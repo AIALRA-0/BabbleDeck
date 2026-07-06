@@ -52,6 +52,7 @@ describe("device runtime evidence", () => {
 
     expect(record).toMatchObject({
       app: "babbledeck",
+      receiptId: expect.stringMatching(/^[0-9a-f]{24}$/),
       recordedAt: "2026-07-06T05:40:00.000Z",
       platform: "android",
       baseUrl: "https://babbledeck.aialra.online",
@@ -81,6 +82,7 @@ describe("device runtime evidence", () => {
 
     expect(record).toMatchObject({
       platform: "desktop",
+      receiptId: expect.stringMatching(/^[0-9a-f]{24}$/),
       ok: true,
       source: "recorder_page",
       sessionId: "00000000-0000-4000-8000-000000000001",
@@ -165,6 +167,7 @@ describe("device runtime evidence", () => {
     const lines = (await fs.readFile(logPath, "utf8")).trim().split("\n");
     expect(lines).toHaveLength(1);
     expect(JSON.parse(lines[0])).toMatchObject({
+      receiptId: expect.stringMatching(/^[0-9a-f]{24}$/),
       platform: "ios",
       ok: true,
       release,
@@ -187,6 +190,11 @@ describe("device runtime evidence", () => {
       "missing",
       "missing",
       "missing",
+    ]);
+    expect(status.platforms.map((item) => item.receiptId)).toEqual([
+      null,
+      null,
+      null,
     ]);
   });
 
@@ -221,6 +229,7 @@ describe("device runtime evidence", () => {
       "verified",
       "verified",
     ]);
+    expect(status.platforms.every((item) => item.receiptId)).toBe(true);
   });
 
   test("uses the latest platform record when reporting release mismatch", async () => {

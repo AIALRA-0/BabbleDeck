@@ -305,7 +305,7 @@ writes the same non-secret JSONL evidence log and records an audit log entry.
 Recorder links created from Settings can also record evidence from the linked
 device by presenting the recorder token, so Android/iOS handoff does not require
 an admin login on the device. A successful submission shows a non-secret receipt
-with recorded time, platform, release, source, and session id.
+with receipt id, recorded time, platform, release, source, and session id.
 The production Settings page also shows per-platform evidence status and offers
 a release-bound Markdown checklist download for the currently deployed build.
 It also offers a JSON verification kit download that bundles the release,

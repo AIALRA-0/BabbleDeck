@@ -93,7 +93,7 @@ export async function POST(request: Request) {
     sessionId,
     action: "device_runtime_evidence.recorded",
     entityType: "device_runtime_evidence",
-    entityId: `${record.platform}:${record.release.commit}`,
+    entityId: record.receiptId,
     ip: getClientIp(request),
     userAgent: request.headers.get("user-agent"),
     metadata: {
@@ -101,6 +101,7 @@ export async function POST(request: Request) {
       release: record.release,
       ok: record.ok,
       source: record.source,
+      receiptId: record.receiptId,
       authVia,
       client: {
         viewportWidth: record.client.viewportWidth,
@@ -111,6 +112,7 @@ export async function POST(request: Request) {
   });
 
   return ok({
+    receiptId: record.receiptId,
     recordedAt: record.recordedAt,
     platform: record.platform,
     source: record.source,

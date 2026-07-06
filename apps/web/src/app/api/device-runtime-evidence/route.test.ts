@@ -112,6 +112,7 @@ beforeEach(() => {
   );
   mocks.buildDeviceRuntimeEvidenceRecord.mockImplementation((input) => ({
     app: "babbledeck",
+    receiptId: "abcd1234abcd1234abcd1234",
     recordedAt: "2026-07-06T07:40:00.000Z",
     platform: input.platform,
     sessionId: input.sessionId,
@@ -161,6 +162,7 @@ describe("device runtime evidence route", () => {
     expect(body).toMatchObject({
       ok: true,
       data: {
+        receiptId: "abcd1234abcd1234abcd1234",
         platform: "android",
         source: "recorder_page",
         sessionId: recorderSessionId,
@@ -181,8 +183,10 @@ describe("device runtime evidence route", () => {
       expect.objectContaining({
         actorUserId: null,
         sessionId: recorderSessionId,
+        entityId: "abcd1234abcd1234abcd1234",
         metadata: expect.objectContaining({
           authVia: "recorder_token",
+          receiptId: "abcd1234abcd1234abcd1234",
         }),
       }),
     );
