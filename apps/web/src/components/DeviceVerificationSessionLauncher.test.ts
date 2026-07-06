@@ -1,5 +1,8 @@
 import { describe, expect, test } from "vitest";
-import { deviceVerificationSessionPayload } from "@/components/DeviceVerificationSessionLauncher";
+import {
+  absoluteVerificationUrl,
+  deviceVerificationSessionPayload,
+} from "@/components/DeviceVerificationSessionLauncher";
 
 describe("device verification session launcher", () => {
   test("builds a Soniox verification session payload for the current release", () => {
@@ -34,5 +37,16 @@ describe("device verification session launcher", () => {
       providerName: "mock",
       targetLanguage: "en",
     });
+  });
+
+  test("builds absolute recorder URLs for cross-device handoff", () => {
+    expect(
+      absoluteVerificationUrl(
+        "/sessions/session-1/record?share=share-token&recorder=recorder-token",
+        "https://babbledeck.aialra.online",
+      ),
+    ).toBe(
+      "https://babbledeck.aialra.online/sessions/session-1/record?share=share-token&recorder=recorder-token",
+    );
   });
 });

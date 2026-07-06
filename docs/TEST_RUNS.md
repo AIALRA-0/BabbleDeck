@@ -8,7 +8,7 @@
   - `pnpm --filter @babbledeck/web test -- DeviceVerificationSessionLauncher settings-service device-runtime-evidence kit wrapper-artifacts`
   - `pnpm exec prettier --check apps/web/src/components/DeviceVerificationSessionLauncher.tsx apps/web/src/components/DeviceVerificationSessionLauncher.test.ts apps/web/src/app/settings/page.tsx README.md docs/operations/BACKUP_RESTORE.md docs/TEST_RUNS.md`
 - Results:
-  - Added a Settings `Start verification session` action that creates a release-labeled live session and opens the recorder page directly.
+  - Added a Settings `Create verification link` action that creates a release-labeled live session and shows an authenticated recorder link plus QR code for real-device handoff.
   - The launcher uses Soniox when configured and falls back to the mock provider otherwise.
   - The recorder page still requires the real device or wrapper session to confirm production URL load, microphone permission, recording, captions, and audio backup before evidence can be submitted.
 

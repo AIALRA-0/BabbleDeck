@@ -1,7 +1,7 @@
 "use client";
 
-import { Loader2, Radio } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { QRCodeSVG } from "qrcode.react";
+import { Check, Copy, ExternalLink, Loader2, Radio } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { storeSessionTokens } from "@/features/recorder/session-tokens";
@@ -10,12 +10,18 @@ type CreateSessionResponse =
   | {
       ok: true;
       data: {
-        session: { id: string; recordUrl: string };
+        session: { id: string; title: string; recordUrl: string };
         shareToken: string;
         recorderToken: string;
       };
     }
   | { ok: false };
+
+type CreatedVerificationSession = {
+  id: string;
+  title: string;
+  recorderUrl: string;
+};
 
 export function deviceVerificationSessionPayload(input: {
   releaseCommit: string | null;
@@ -35,6 +41,14 @@ export function deviceVerificationSessionPayload(input: {
   };
 }
 
+export function absoluteVerificationUrl(recordUrl: string, origin: string) {
+  try {
+    return new URL(recordUrl, origin).toString();
+  } catch {
+    return recordUrl;
+  }
+}
+
 export function DeviceVerificationSessionLauncher({
   releaseCommit,
   targetLanguage,
@@ -46,9 +60,14 @@ export function DeviceVerificationSessionLauncher({
   budgetCapUsd: number;
   sonioxConfigured: boolean;
 }) {
-  const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">(
+    "idle",
+  );
+  const [created, setCreated] = useState<CreatedVerificationSession | null>(
+    null,
+  );
   const providerLabel = sonioxConfigured ? "Soniox realtime" : "Mock realtime";
   const release = releaseCommit?.slice(0, 12) ?? "current release";
 
@@ -67,6 +86,7 @@ export function DeviceVerificationSessionLauncher({
           onClick={async () => {
             setPending(true);
             setError("");
+            setCopyStatus("idle");
             const response = await fetch("/api/sessions", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -91,7 +111,14 @@ export function DeviceVerificationSessionLauncher({
               shareToken: payload.data.shareToken,
               recorderToken: payload.data.recorderToken,
             });
-            router.push(payload.data.session.recordUrl);
+            setCreated({
+              id: payload.data.session.id,
+              title: payload.data.session.title,
+              recorderUrl: absoluteVerificationUrl(
+                payload.data.session.recordUrl,
+                window.location.origin,
+              ),
+            });
           }}
         >
           {pending ? (
@@ -99,9 +126,55 @@ export function DeviceVerificationSessionLauncher({
           ) : (
             <Radio className="h-4 w-4" />
           )}
-          Start verification session
+          Create verification link
         </Button>
       </div>
+      {created ? (
+        <div className="mt-4 grid gap-4 rounded-md border border-border bg-muted/30 p-4 sm:grid-cols-[auto_minmax(0,1fr)]">
+          <div className="rounded-md border border-border bg-white p-2">
+            <QRCodeSVG value={created.recorderUrl} size={132} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold">{created.title}</p>
+            <p className="mt-1 break-all text-xs text-muted-foreground">
+              {created.recorderUrl}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button asChild size="sm" variant="secondary">
+                <a href={created.recorderUrl}>
+                  <ExternalLink className="h-4 w-4" />
+                  Open recorder
+                </a>
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard?.writeText(created.recorderUrl);
+                    setCopyStatus("copied");
+                  } catch {
+                    setCopyStatus("failed");
+                  }
+                }}
+              >
+                {copyStatus === "copied" ? (
+                  <Check className="h-4 w-4" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+                {copyStatus === "copied" ? "Copied" : "Copy recorder link"}
+              </Button>
+            </div>
+            {copyStatus === "failed" ? (
+              <p className="mt-2 text-xs font-medium text-red-700">
+                Copy failed.
+              </p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
       {error ? (
         <p className="mt-3 text-sm font-medium text-red-700">{error}</p>
       ) : null}
