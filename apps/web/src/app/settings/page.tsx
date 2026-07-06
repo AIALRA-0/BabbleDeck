@@ -4,6 +4,7 @@ import { AudioRetentionSettingsForm } from "@/components/AudioRetentionSettingsF
 import { DefaultSessionSettingsForm } from "@/components/DefaultSessionSettingsForm";
 import { DeviceRuntimeEvidenceForm } from "@/components/DeviceRuntimeEvidenceForm";
 import { DeviceRuntimeEvidenceStatusPanel } from "@/components/DeviceRuntimeEvidenceStatusPanel";
+import { DeviceVerificationSessionLauncher } from "@/components/DeviceVerificationSessionLauncher";
 import { GlossarySettingsForm } from "@/components/GlossarySettingsForm";
 import { Badge } from "@/components/ui/badge";
 import { requireUser } from "@/server/auth";
@@ -121,6 +122,12 @@ export default async function SettingsPage() {
             summary={deviceEvidenceStatus}
             androidDebugApk={androidDebugApk}
             desktopReleaseBinary={desktopReleaseBinary}
+          />
+          <DeviceVerificationSessionLauncher
+            releaseCommit={releaseCommit}
+            targetLanguage={defaultSession.targetLanguage}
+            budgetCapUsd={defaultSession.budgetCapUsd}
+            sonioxConfigured={Boolean(process.env.SONIOX_API_KEY)}
           />
           <DeviceRuntimeEvidenceForm
             releaseCommit={releaseCommit}

@@ -1,5 +1,17 @@
 # Test Runs
 
+## 2026-07-06 Device Verification Session Launcher
+
+- Environment: local workspace plus production target `https://babbledeck.aialra.online`, current release-bound Settings device evidence workflow, and Soniox configured in production.
+- Commands:
+  - `pnpm --filter @babbledeck/web typecheck`
+  - `pnpm --filter @babbledeck/web test -- DeviceVerificationSessionLauncher settings-service device-runtime-evidence kit wrapper-artifacts`
+  - `pnpm exec prettier --check apps/web/src/components/DeviceVerificationSessionLauncher.tsx apps/web/src/components/DeviceVerificationSessionLauncher.test.ts apps/web/src/app/settings/page.tsx README.md docs/operations/BACKUP_RESTORE.md docs/TEST_RUNS.md`
+- Results:
+  - Added a Settings `Start verification session` action that creates a release-labeled live session and opens the recorder page directly.
+  - The launcher uses Soniox when configured and falls back to the mock provider otherwise.
+  - The recorder page still requires the real device or wrapper session to confirm production URL load, microphone permission, recording, captions, and audio backup before evidence can be submitted.
+
 ## 2026-07-06 Device Runtime Verification Kit
 
 - Environment: local workspace plus production target `https://babbledeck.aialra.online`, current release-bound device evidence workflow, and server-built Android/desktop wrapper artifacts.

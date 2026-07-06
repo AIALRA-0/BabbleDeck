@@ -441,6 +441,12 @@ current release, evidence status, checklist URL, artifact URLs, artifact
 SHA-256 values, and record commands. Use it when handing the active deployment
 to another device or workstation for Android, iOS, or desktop verification.
 
+Settings also includes `Start verification session`, which creates a
+release-labeled live session using the configured realtime provider and opens
+the recorder page. Record evidence only after that real device or interactive
+wrapper session confirms production URL load, microphone permission, recording,
+captions, and audio backup.
+
 When the Android debug APK exists on the production server, the same Settings
 status panel exposes an authenticated `Download Android APK` action for physical
 Android install/run verification.
