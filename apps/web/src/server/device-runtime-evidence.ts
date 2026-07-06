@@ -83,6 +83,16 @@ export type DeviceRuntimeEvidenceStatusSummary = {
   missingPlatforms: DeviceRuntimePlatform[];
 };
 
+export type DeviceRuntimeEvidenceChecklist = {
+  app: "babbledeck";
+  kind: "device-runtime-evidence-checklist";
+  generatedAt: string;
+  baseUrl: string;
+  release: DeviceRuntimeRelease;
+  platforms: DeviceRuntimePlatform[];
+  markdown: string;
+};
+
 function cleanText(value: string | undefined | null, maxLength = 300) {
   if (!value) return undefined;
   const cleaned = value
@@ -140,6 +150,137 @@ export function deviceRuntimeEvidenceMaxAgeMs() {
   return Number.isFinite(maxAgeHours) && maxAgeHours > 0
     ? maxAgeHours * 60 * 60 * 1000
     : 720 * 60 * 60 * 1000;
+}
+
+export function deviceRuntimeEvidenceCommand(platform: DeviceRuntimePlatform) {
+  return [
+    "pnpm device:evidence:production --",
+    `--platform=${platform}`,
+    "--passed",
+    "--production-url-opened",
+    "--microphone-granted",
+    "--recording-started",
+    "--captions-visible",
+    "--audio-backup-confirmed",
+    `--notes="${platform} production wrapper runtime verified on release"`,
+  ].join(" ");
+}
+
+function deviceRuntimePlatformTitle(platform: DeviceRuntimePlatform) {
+  return platform === "android"
+    ? "Android"
+    : platform === "ios"
+      ? "iOS"
+      : "Desktop";
+}
+
+function deviceRuntimePlatformChecklist(platform: DeviceRuntimePlatform) {
+  if (platform === "android") {
+    return [
+      "1. Build or refresh the Android wrapper on the server.",
+      "   `pnpm --filter @babbledeck/mobile native:build:android`",
+      "2. Connect a physical Android device with USB debugging enabled.",
+      "   `adb devices -l`",
+      "3. Install/run the wrapper against the production PWA.",
+      "   `pnpm --filter @babbledeck/mobile native:run:android`",
+      "4. On the device, open the production app, grant microphone permission, start a recorder session, confirm live captions are visible, and confirm the audio backup/upload indicator succeeds.",
+      "5. Back on the server, record evidence:",
+      `   \`${deviceRuntimeEvidenceCommand("android")}\``,
+    ];
+  }
+
+  if (platform === "ios") {
+    return [
+      "1. Use a macOS host with Xcode and the same repository checkout.",
+      "2. Sync/check the iOS wrapper metadata.",
+      "   `pnpm --filter @babbledeck/mobile native:check:ios`",
+      "3. Run the wrapper on an iOS simulator or physical iOS device.",
+      "   `pnpm --filter @babbledeck/mobile native:run:ios`",
+      "4. On the device, open the production app, grant microphone permission, start a recorder session, confirm live captions are visible, and confirm the audio backup/upload indicator succeeds.",
+      "5. Back on the production server, record evidence:",
+      `   \`${deviceRuntimeEvidenceCommand("ios")}\``,
+    ];
+  }
+
+  return [
+    "1. Use an interactive desktop session on a machine that can launch the Tauri wrapper.",
+    "2. Build or refresh the desktop wrapper if needed.",
+    "   `pnpm --filter @babbledeck/desktop native:build`",
+    "3. Launch the wrapper in that interactive session.",
+    "   `pnpm --filter @babbledeck/desktop native:dev`",
+    "4. In the wrapper, open the production app, grant microphone permission, start a recorder session, confirm live captions are visible, and confirm the audio backup/upload indicator succeeds.",
+    "5. Back on the production server, record evidence:",
+    `   \`${deviceRuntimeEvidenceCommand("desktop")}\``,
+  ];
+}
+
+export function buildDeviceRuntimeEvidenceChecklistMarkdown(input: {
+  baseUrl: string;
+  release: DeviceRuntimeRelease;
+  generatedAt: string;
+  platforms?: DeviceRuntimePlatform[];
+}) {
+  const selected = input.platforms ?? [...deviceRuntimePlatforms];
+  const releaseLines = [
+    `- Base URL: ${input.baseUrl}`,
+    `- Release commit: ${input.release.commit}`,
+    input.release.branch ? `- Branch: ${input.release.branch}` : undefined,
+    input.release.builtAt ? `- Built at: ${input.release.builtAt}` : undefined,
+    `- Checklist generated at: ${input.generatedAt}`,
+  ].filter((line): line is string => Boolean(line));
+  const platformSections = selected
+    .map((platform) =>
+      [
+        `## ${deviceRuntimePlatformTitle(platform)}`,
+        "",
+        ...deviceRuntimePlatformChecklist(platform),
+      ].join("\n"),
+    )
+    .join("\n\n");
+
+  return [
+    "# BabbleDeck Device Runtime Evidence Checklist",
+    "",
+    ...releaseLines,
+    "",
+    "This checklist is non-secret. It ties manual device verification to the currently deployed `/api/health` release. Record evidence only after the listed checks are truly complete on the real device or interactive wrapper session.",
+    "",
+    platformSections,
+    "",
+    "## Final Verification",
+    "",
+    "After all three platform records are written, run:",
+    "",
+    `\`pnpm tsx scripts/check-production-readiness.ts --base-url=${input.baseUrl} --check-soniox-live --expected-release-commit=$(git rev-parse --short=12 HEAD) --strict\``,
+    "",
+  ].join("\n");
+}
+
+export function buildDeviceRuntimeEvidenceChecklist(input?: {
+  baseUrl?: string;
+  release?: DeviceRuntimeRelease;
+  generatedAt?: string;
+  platforms?: DeviceRuntimePlatform[];
+}): DeviceRuntimeEvidenceChecklist {
+  const options = input ?? {};
+  const baseUrl = options.baseUrl ?? productionDeviceEvidenceBaseUrl();
+  const release = options.release ?? currentDeviceEvidenceRelease();
+  const generatedAt = options.generatedAt ?? new Date().toISOString();
+  const platforms = options.platforms ?? [...deviceRuntimePlatforms];
+  return {
+    app: "babbledeck",
+    kind: "device-runtime-evidence-checklist",
+    generatedAt,
+    baseUrl,
+    release,
+    platforms,
+    markdown: buildDeviceRuntimeEvidenceChecklistMarkdown({
+      baseUrl,
+      release,
+      generatedAt,
+      platforms,
+    }),
+  };
 }
 
 function normalizedUrl(value: unknown) {

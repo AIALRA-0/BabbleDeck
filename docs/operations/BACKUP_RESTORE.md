@@ -431,3 +431,7 @@ from the production Settings page, the recorder page, or a completed session
 history page. The recorder and history forms prefill checks that the current
 device/session has already observed, but the record is only written after all
 checks are confirmed.
+
+The production Settings page also includes the current release evidence status
+and a `Download checklist` action that serves the same non-secret Markdown
+checklist as an authenticated download.

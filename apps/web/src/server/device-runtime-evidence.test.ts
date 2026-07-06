@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
 import {
   appendDeviceRuntimeEvidenceRecord,
+  buildDeviceRuntimeEvidenceChecklistMarkdown,
   buildDeviceRuntimeEvidenceRecord,
   getDeviceRuntimeEvidenceStatus,
   type DeviceRuntimeChecks,
@@ -82,6 +83,24 @@ describe("device runtime evidence", () => {
       ok: true,
       source: "recorder_page",
     });
+  });
+
+  test("builds release-bound checklist markdown", () => {
+    const markdown = buildDeviceRuntimeEvidenceChecklistMarkdown({
+      baseUrl: "https://babbledeck.aialra.online",
+      release,
+      generatedAt: "2026-07-06T05:42:00.000Z",
+      platforms: ["android"],
+    });
+
+    expect(markdown).toContain(
+      "# BabbleDeck Device Runtime Evidence Checklist",
+    );
+    expect(markdown).toContain("- Release commit: 783585d7a975");
+    expect(markdown).toContain("## Android");
+    expect(markdown).toContain("--platform=android");
+    expect(markdown).toContain("--base-url=https://babbledeck.aialra.online");
+    expect(markdown).not.toContain("## iOS");
   });
 
   test("keeps incomplete records from satisfying readiness", () => {

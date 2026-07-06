@@ -1,5 +1,20 @@
 # Test Runs
 
+## 2026-07-06 Settings Checklist Download
+
+- Environment: local workspace plus production target `https://babbledeck.aialra.online`, authenticated device evidence Settings workflow, and existing release-bound checklist command.
+- Commands:
+  - `pnpm --filter @babbledeck/web typecheck`
+  - `pnpm --filter @babbledeck/web test -- health settings-service device-runtime-evidence`
+  - `pnpm exec prettier --check apps/web/src/server/device-runtime-evidence.ts apps/web/src/server/device-runtime-evidence.test.ts apps/web/src/app/api/device-runtime-evidence/checklist/route.ts apps/web/src/app/api/device-runtime-evidence/checklist/route.test.ts apps/web/src/components/DeviceRuntimeEvidenceStatusPanel.tsx scripts/prepare-device-runtime-evidence.ts`
+  - `pnpm exec tsx scripts/prepare-device-runtime-evidence.ts --base-url=https://babbledeck.aialra.online --platforms=android`
+- Results:
+  - Added a shared checklist Markdown builder used by both the CLI checklist script and the web server.
+  - Added authenticated `GET /api/device-runtime-evidence/checklist`, which returns the current release checklist as a non-secret Markdown attachment.
+  - Added a Settings page `Download checklist` action beside the current release evidence status panel.
+  - Route coverage verifies authentication is required and the response is a Markdown attachment for the current release.
+  - This only improves operator handoff for real device verification; it does not create or mark Android, iOS, or desktop evidence as passing.
+
 ## 2026-07-06 Device Evidence Status Visibility
 
 - Environment: local workspace plus production target `https://babbledeck.aialra.online`, current release-bound device evidence log semantics, and no positive Android/iOS/desktop evidence submitted during automated validation.

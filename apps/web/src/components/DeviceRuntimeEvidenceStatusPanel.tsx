@@ -1,4 +1,7 @@
+import { Download } from "lucide-react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import type {
   DeviceRuntimeEvidenceSource,
   DeviceRuntimeEvidenceStatusReason,
@@ -58,6 +61,14 @@ export function DeviceRuntimeEvidenceStatusPanel({
         <Badge tone={summary.ok ? "green" : "amber"}>
           {summary.ok ? "Complete" : "Missing evidence"}
         </Badge>
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button asChild variant="secondary">
+          <Link href="/api/device-runtime-evidence/checklist" prefetch={false}>
+            <Download className="h-4 w-4" />
+            Download checklist
+          </Link>
+        </Button>
       </div>
       <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
         <div>
