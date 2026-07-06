@@ -316,8 +316,11 @@ When the Android debug APK is present on the server, Settings also offers an
 authenticated APK download so a physical Android device can install the wrapper
 without opening a shell on the server, plus an Android-scannable install QR that
 goes through admin sign-in to `/install/android` before downloading the APK.
-When the Linux desktop release binary is present, Settings exposes the matching
-authenticated desktop binary download for interactive wrapper verification.
+The install page can also create a release-labeled recorder verification link
+and QR, so the target device can run the production recorder and submit
+release-bound evidence from the same flow. When the Linux desktop release binary
+is present, Settings exposes the matching authenticated desktop binary download
+for interactive wrapper verification.
 
 Strict production readiness requires both current wrapper handoff artifacts and
 recent passing Android, iOS, and desktop device evidence before treating native

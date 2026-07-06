@@ -1,9 +1,11 @@
 import { Download, ShieldCheck, Smartphone } from "lucide-react";
 import Link from "next/link";
 import { AppHeader } from "@/components/AppHeader";
+import { DeviceVerificationSessionLauncher } from "@/components/DeviceVerificationSessionLauncher";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { requireUser } from "@/server/auth";
+import { getDefaultSessionSettings } from "@/server/settings-service";
 import { getAndroidDebugApkArtifact } from "@/server/wrapper-artifacts";
 
 function formatBytes(value?: number) {
@@ -13,7 +15,10 @@ function formatBytes(value?: number) {
 
 export default async function AndroidInstallPage() {
   await requireUser();
-  const artifact = await getAndroidDebugApkArtifact();
+  const [artifact, defaultSession] = await Promise.all([
+    getAndroidDebugApkArtifact(),
+    getDefaultSessionSettings(),
+  ]);
   const releaseCommit = process.env.BABBLEDECK_RELEASE_COMMIT ?? "current";
   const releaseBuiltAt = process.env.BABBLEDECK_RELEASE_BUILT_AT ?? null;
 
@@ -107,6 +112,21 @@ export default async function AndroidInstallPage() {
                 <Link href="/settings">Back to verification</Link>
               </Button>
             </div>
+          </div>
+        </section>
+
+        <section className="mt-6 rounded-lg border border-border bg-white shadow-sm">
+          <DeviceVerificationSessionLauncher
+            releaseCommit={releaseCommit}
+            targetLanguage={defaultSession.targetLanguage}
+            budgetCapUsd={defaultSession.budgetCapUsd}
+            sonioxConfigured={Boolean(process.env.SONIOX_API_KEY)}
+          />
+          <div className="p-5 text-sm leading-6 text-muted-foreground">
+            The recorder link opens on the target device and includes the
+            release-bound evidence form. Record evidence only after the wrapper
+            has opened the production app, microphone permission is granted,
+            captions are visible, and audio backup upload succeeds.
           </div>
         </section>
       </main>

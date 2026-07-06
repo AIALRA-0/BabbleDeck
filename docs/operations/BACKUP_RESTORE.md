@@ -468,7 +468,10 @@ When the Android debug APK exists on the production server, the same Settings
 status panel exposes an authenticated `Download Android APK` action for physical
 Android install/run verification. It also shows an Android APK install QR that
 opens the protected `/install/android` handoff page through admin sign-in
-instead of making the APK public.
+instead of making the APK public. The install page can create the same
+release-labeled recorder verification link and QR as Settings, so the Android
+operator can move from APK install to production recorder evidence without
+opening a shell on the server.
 
 When the Linux desktop release binary exists on the production server, Settings
 also exposes `Download desktop binary` so an authenticated admin can fetch the
