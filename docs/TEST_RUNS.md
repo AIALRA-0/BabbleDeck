@@ -1,5 +1,31 @@
 # Test Runs
 
+## 2026-07-06 Production Build Cache Cleanup
+
+- Environment: production workspace for `https://babbledeck.aialra.online`, root filesystem near deployment preflight pressure, immutable production releases serving from `/srv/aialra/releases/babbledeck/current`, and local build caches present in the workspace/root home.
+- Commands:
+  - `df -h / /srv /tmp`
+  - `du -h -d 1 /srv/aialra/apps/codexapp/state/browser-workspaces/2026-07-04-babbledeck`
+  - `du -h -d 2 apps/desktop/src-tauri/target`
+  - `./apps/mobile/android/gradlew -p apps/mobile/android --stop`
+  - Manual cache cleanup of `.turbo`, `apps/web/.next`, `/root/.cache/pnpm`, selected `/root/.gradle` caches, and Rust/Tauri release intermediates while preserving `apps/desktop/src-tauri/target/release/babbledeck-desktop`.
+  - `pnpm device:readiness:production -- --check-desktop-headless`
+  - `bash -n scripts/cleanup-production-build-cache.sh`
+  - `BABBLEDECK_BUILD_CACHE_CLEANUP_DRY_RUN=1 pnpm cache:cleanup:production`
+  - `pnpm cache:cleanup:production`
+  - Temporary `.turbo/cleanup-smoke.bin` cleanup smoke
+  - `pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --check-soniox-live --expected-release-commit=2c2bfe9d3e43`
+- Results:
+  - Manual cleanup raised free root disk from about `3.1G` to about `9.2G`.
+  - The Android debug APK remained present with sha256 `857955bcd635774ee5af6adafb2c1f6b84e79a528d09ad5ec19773ad4109b0f8`.
+  - The desktop release binary remained present with sha256 `4863aedaaab82953a6f1e7c626ba3d82c5f70c7797ecd0656cef313e4aec75c3`, and the Tauri/Xvfb headless launch smoke still passed.
+  - Added `pnpm cache:cleanup:production`, which removes only rebuildable Turbo, local Next build, pnpm HTTP metadata, Gradle, and Rust/Tauri intermediate caches; it preserves immutable production releases, database/audio storage, Android APKs, and the desktop release binary.
+  - The cleanup command logs non-secret JSONL records to `/srv/aialra/logs/babbledeck/build-cache-cleanups.jsonl` and supports `BABBLEDECK_BUILD_CACHE_CLEANUP_DRY_RUN=1`.
+  - The dry-run command reported existing cleanup targets without removing them.
+  - A real cleanup command and a temporary `.turbo` smoke both wrote JSONL records with `disk.plannedRemovedMb`, so the log captures the deleted cache footprint even when filesystem free-space accounting updates later.
+  - `standalone_static_assets` initially failed after local `.next` cleanup because readiness still looked only at workspace build output; `scripts/check-production-readiness.ts` now checks the active immutable release path `/srv/aialra/releases/babbledeck/current/apps/web/.next/static/chunks` before falling back to local build directories.
+  - Strict production readiness with live Soniox returned `requiredOk=true` again after that fix; the only remaining failures are still external device runtime evidence and off-host audio storage.
+
 ## 2026-07-06 Device Evidence Release Binding
 
 - Environment: production `https://babbledeck.aialra.online`, live `/api/health` reporting release `da98c799690a`, production secret env loaded without printing secrets, and temporary JSONL evidence logs that do not touch production evidence.

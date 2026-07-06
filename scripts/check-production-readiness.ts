@@ -121,14 +121,29 @@ async function securityHeadersOk(baseUrl: string) {
 }
 
 async function staticAssetOk(baseUrl: string) {
-  const staticRoot = path.join(
-    process.cwd(),
-    "apps/web/.next/standalone/apps/web/.next/static/chunks",
-  );
   try {
-    const entries = await fs.readdir(staticRoot);
-    const cssFile = entries.find((entry) => entry.endsWith(".css"));
-    if (!cssFile) return false;
+    const staticRoots = [
+      process.env.BABBLEDECK_STATIC_ASSET_DIR,
+      "/srv/aialra/releases/babbledeck/current/apps/web/.next/static/chunks",
+      path.join(
+        process.cwd(),
+        "apps/web/.next/standalone/apps/web/.next/static/chunks",
+      ),
+      path.join(process.cwd(), "apps/web/.next/static/chunks"),
+    ].filter((item): item is string => Boolean(item));
+    let cssFile: string | undefined;
+    for (const staticRoot of staticRoots) {
+      try {
+        const entries = await fs.readdir(staticRoot);
+        cssFile = entries.find((entry) => entry.endsWith(".css"));
+        if (cssFile) break;
+      } catch {
+        continue;
+      }
+    }
+    if (!cssFile) {
+      return false;
+    }
     const response = await fetch(
       new URL(`/_next/static/chunks/${cssFile}`, baseUrl),
       { method: "HEAD" },
