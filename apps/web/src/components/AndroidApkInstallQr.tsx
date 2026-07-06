@@ -5,11 +5,11 @@ import { Check, Copy, ExternalLink, Smartphone } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
-const ANDROID_APK_ROUTE = "/api/wrappers/android-debug-apk";
+const ANDROID_INSTALL_ROUTE = "/install/android";
 
 export function androidApkInstallUrl(baseUrl: string) {
   const url = new URL("/login", baseUrl);
-  url.searchParams.set("next", ANDROID_APK_ROUTE);
+  url.searchParams.set("next", ANDROID_INSTALL_ROUTE);
   return url.toString();
 }
 
@@ -30,7 +30,7 @@ export function AndroidApkInstallQr({ baseUrl }: { baseUrl: string }) {
           <p className="text-sm font-semibold">Android APK install QR</p>
         </div>
         <p className="mt-1 text-xs leading-5 text-muted-foreground">
-          Scan from Android, sign in, and download the current release APK.
+          Scan from Android, sign in, review the release, and download the APK.
         </p>
         <p className="mt-2 break-all text-xs text-muted-foreground">
           {installUrl}

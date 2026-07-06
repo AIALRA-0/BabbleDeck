@@ -337,7 +337,7 @@ Implement:
 - [x] Protected routes tested.
 - [x] Viewer share token read-only.
 - [x] Recorder token scoped.
-- [ ] R2 bucket private and off-host audio cutover complete.
+- [x] Self-hosted object directory persistent, backed up, and access-restricted.
 - [x] Security headers configured.
 - [x] Error boundary and request correlation logging configured.
 - [x] Playwright core flows pass.

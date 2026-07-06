@@ -43,8 +43,9 @@ pnpm tsx scripts/check-production-readiness.ts
 ```
 
 Use `--strict` when deciding whether the full production target is complete.
-Strict mode fails while external dependencies such as R2/S3-compatible raw audio
-storage remain unconfigured.
+Strict mode treats the self-hosted audio directory as the production storage
+target and fails while release-bound Android, iOS, or desktop runtime evidence
+is missing.
 
 After Soniox credential changes, add `--check-soniox-live` to verify the
 realtime websocket accepts a short generated WAV silence probe without printing
@@ -466,8 +467,8 @@ non-secret receipt with recorded time, platform, release, source, and session id
 When the Android debug APK exists on the production server, the same Settings
 status panel exposes an authenticated `Download Android APK` action for physical
 Android install/run verification. It also shows an Android APK install QR that
-opens the protected APK route through admin sign-in instead of making the APK
-public.
+opens the protected `/install/android` handoff page through admin sign-in
+instead of making the APK public.
 
 When the Linux desktop release binary exists on the production server, Settings
 also exposes `Download desktop binary` so an authenticated admin can fetch the

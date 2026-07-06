@@ -18,12 +18,17 @@ function artifactPayload(
   filename: string,
   contentType: string,
   baseUrl: string,
+  handoffRoute?: string,
 ) {
   const loginUrl = new URL("/login", baseUrl);
   loginUrl.searchParams.set("next", route);
+  const handoffUrl = handoffRoute ? new URL("/login", baseUrl) : null;
+  if (handoffUrl && handoffRoute)
+    handoffUrl.searchParams.set("next", handoffRoute);
   return {
     url: route,
     loginUrl: loginUrl.toString(),
+    handoffUrl: handoffUrl?.toString() ?? null,
     filename,
     contentType,
     exists: artifact.exists,
@@ -74,6 +79,7 @@ export async function GET() {
           "babbledeck-debug.apk",
           "application/vnd.android.package-archive",
           checklist.baseUrl,
+          "/install/android",
         ),
         desktopReleaseBinary: artifactPayload(
           desktopReleaseBinary,

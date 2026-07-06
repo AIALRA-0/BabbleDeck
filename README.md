@@ -315,9 +315,9 @@ link/QR code for cross-device evidence capture.
 When the Android debug APK is present on the server, Settings also offers an
 authenticated APK download so a physical Android device can install the wrapper
 without opening a shell on the server, plus an Android-scannable install QR that
-goes through admin sign-in before downloading the APK. When the Linux desktop
-release binary is present, Settings exposes the matching authenticated desktop
-binary download for interactive wrapper verification.
+goes through admin sign-in to `/install/android` before downloading the APK.
+When the Linux desktop release binary is present, Settings exposes the matching
+authenticated desktop binary download for interactive wrapper verification.
 
 Strict production readiness requires both current wrapper handoff artifacts and
 recent passing Android, iOS, and desktop device evidence before treating native
@@ -338,7 +338,7 @@ The current production instance follows the server's existing systemd + Nginx pa
 - Nginx site: `/etc/nginx/sites-available/babbledeck.aialra.online`
 - Secret env file: `/srv/aialra/config/secrets/babbledeck.env`
 - Production database: `babbledeck_prod`
-- Production audio storage: local object root from `AUDIO_STORAGE_DIR` until R2/S3 credentials are configured.
+- Production audio storage: self-hosted local object root from `AUDIO_STORAGE_DIR`.
 - Production backup timer: `aialra-babbledeck-backup.timer`
 - Production backup verification timer: `aialra-babbledeck-backup-verify.timer`
 - Production raw audio retention timer: `aialra-babbledeck-audio-retention.timer`

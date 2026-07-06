@@ -120,6 +120,8 @@ describe("device runtime verification kit route", () => {
           url: "/api/wrappers/android-debug-apk",
           loginUrl:
             "https://babbledeck.aialra.online/login?next=%2Fapi%2Fwrappers%2Fandroid-debug-apk",
+          handoffUrl:
+            "https://babbledeck.aialra.online/login?next=%2Finstall%2Fandroid",
           exists: true,
           sizeBytes: 123,
           sha256: "a".repeat(64),
@@ -128,6 +130,7 @@ describe("device runtime verification kit route", () => {
           url: "/api/wrappers/desktop-release-binary",
           loginUrl:
             "https://babbledeck.aialra.online/login?next=%2Fapi%2Fwrappers%2Fdesktop-release-binary",
+          handoffUrl: null,
           exists: true,
           sizeBytes: 456,
           sha256: "b".repeat(64),

@@ -20,7 +20,7 @@ Realtime Backend
   ├─ Mock adapter for tests
   ├─ Event persistence
   ├─ Viewer broadcast via WS/SSE
-  └─ Audio chunk upload to R2/S3
+  └─ Audio chunk upload to server-local object storage
         ↓
 Viewer Client(s)
   ├─ Live transcript display
@@ -28,7 +28,7 @@ Viewer Client(s)
   ├─ Large captions mode
   └─ Connection status
         ↓
-Postgres + R2/S3 + Redis(optional)
+Postgres + server-local object storage + Redis(optional)
 ```
 
 ## 2. Design decisions
@@ -369,7 +369,7 @@ type LocalAudioChunk = {
 
 ### Server backup
 
-Upload chunks to R2/S3:
+Upload chunks to server-local object storage:
 
 ```text
 sessions/{sessionId}/audio/chunk-{index}.webm
