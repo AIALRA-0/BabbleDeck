@@ -37,8 +37,40 @@ function baseUrl() {
   );
 }
 
+function safeReleaseText(value: unknown) {
+  return typeof value === "string" && value.trim()
+    ? safeText(value)
+    : undefined;
+}
+
+async function productionRelease(baseUrl: string) {
+  const response = await fetch(new URL("/api/health", baseUrl), {
+    headers: { Accept: "application/json" },
+  });
+  if (!response.ok) {
+    throw new Error(
+      `Production health endpoint returned HTTP ${response.status}.`,
+    );
+  }
+  const body = await response.json();
+  const release = body?.data?.release;
+  const commit = safeReleaseText(release?.commit);
+  if (!commit) {
+    throw new Error(
+      "Production health endpoint did not report release.commit.",
+    );
+  }
+  return {
+    commit,
+    branch: safeReleaseText(release?.branch),
+    builtAt: safeReleaseText(release?.builtAt),
+  };
+}
+
 async function main() {
   const platform = requiredPlatform();
+  const url = baseUrl();
+  const release = await productionRelease(url);
   const checks = {
     productionUrlOpened: boolFlag("--production-url-opened"),
     microphoneGranted: boolFlag("--microphone-granted"),
@@ -54,7 +86,8 @@ async function main() {
     app: "babbledeck",
     recordedAt: new Date().toISOString(),
     platform,
-    baseUrl: baseUrl(),
+    baseUrl: url,
+    release,
     ok,
     checks,
     missingChecks,

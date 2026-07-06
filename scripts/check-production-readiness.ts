@@ -143,6 +143,7 @@ async function staticAssetOk(baseUrl: string) {
 }
 
 async function healthEndpointOk(baseUrl: string, expectedCommit?: string) {
+  let releaseCommit: string | null = null;
   try {
     const response = await fetch(new URL("/api/health", baseUrl), {
       headers: { Accept: "application/json" },
@@ -150,7 +151,7 @@ async function healthEndpointOk(baseUrl: string, expectedCommit?: string) {
     const body = await response.json();
     const databaseOk = body?.data?.checks?.database?.ok === true;
     const storageOk = body?.data?.checks?.audioStorage?.ok === true;
-    const releaseCommit =
+    releaseCommit =
       typeof body?.data?.release?.commit === "string"
         ? body.data.release.commit
         : null;
@@ -159,6 +160,7 @@ async function healthEndpointOk(baseUrl: string, expectedCommit?: string) {
     const coreOk = response.ok && body?.ok === true && databaseOk && storageOk;
     return {
       ok: coreOk && releaseOk,
+      releaseCommit,
       message: coreOk
         ? releaseOk
           ? expectedCommit
@@ -170,6 +172,7 @@ async function healthEndpointOk(baseUrl: string, expectedCommit?: string) {
   } catch {
     return {
       ok: false,
+      releaseCommit,
       message: "Production health endpoint could not be checked.",
     };
   }
@@ -802,6 +805,7 @@ function validDeviceRuntimeRecord(input: {
   platform: string;
   baseUrl: string;
   maxAgeMs: number;
+  releaseCommit?: string | null;
 }) {
   const recordedAtMs = Date.parse(String(input.record.recordedAt ?? ""));
   const fresh =
@@ -820,6 +824,14 @@ function validDeviceRuntimeRecord(input: {
     "captionsVisible",
     "audioBackupConfirmed",
   ].every((name) => checks[name] === true);
+  const release =
+    input.record.release &&
+    typeof input.record.release === "object" &&
+    !Array.isArray(input.record.release)
+      ? (input.record.release as Record<string, unknown>)
+      : {};
+  const releaseCommitOk =
+    !input.releaseCommit || release.commit === input.releaseCommit;
 
   return (
     input.record.app === "babbledeck" &&
@@ -827,11 +839,15 @@ function validDeviceRuntimeRecord(input: {
     input.record.ok === true &&
     normalizedUrl(input.record.baseUrl) === normalizedUrl(input.baseUrl) &&
     fresh &&
-    checksOk
+    checksOk &&
+    releaseCommitOk
   );
 }
 
-async function recentDeviceRuntimeEvidenceOk(baseUrl: string) {
+async function recentDeviceRuntimeEvidenceOk(
+  baseUrl: string,
+  releaseCommit?: string | null,
+) {
   const deviceRuntimeLog =
     process.env.BABBLEDECK_DEVICE_RUNTIME_LOG ??
     "/srv/aialra/logs/babbledeck/device-runtime.jsonl";
@@ -864,6 +880,7 @@ async function recentDeviceRuntimeEvidenceOk(baseUrl: string) {
           platform,
           baseUrl,
           maxAgeMs,
+          releaseCommit,
         })
       );
     });
@@ -872,8 +889,8 @@ async function recentDeviceRuntimeEvidenceOk(baseUrl: string) {
       ok: missingOrInvalid.length === 0,
       message:
         missingOrInvalid.length === 0
-          ? "Recent production device runtime evidence passed for Android, iOS, and desktop wrappers."
-          : `Missing or stale production device runtime evidence for ${missingOrInvalid.join(", ")}.`,
+          ? `Recent production device runtime evidence passed for Android, iOS, and desktop wrappers${releaseCommit ? ` on release ${releaseCommit}` : ""}.`
+          : `Missing, stale, or release-mismatched production device runtime evidence for ${missingOrInvalid.join(", ")}.`,
     };
   } catch (error) {
     if (
@@ -1167,7 +1184,10 @@ async function main() {
     message: securityBaseline.message,
   });
 
-  const deviceRuntime = await recentDeviceRuntimeEvidenceOk(baseUrl);
+  const deviceRuntime = await recentDeviceRuntimeEvidenceOk(
+    baseUrl,
+    healthEndpoint.releaseCommit,
+  );
   check(checks, {
     name: "recent_device_runtime_evidence",
     ok: deviceRuntime.ok,

@@ -279,6 +279,9 @@ pnpm device:evidence:production -- --platform=android --passed --production-url-
 
 Strict production readiness requires recent passing Android, iOS, and desktop
 device evidence before treating native wrapper runtime validation as complete.
+Each evidence record is tied to the current `/api/health` release commit, so
+new production deployments require fresh device evidence for the deployed
+release.
 
 ## Deployment Notes
 

@@ -1,5 +1,22 @@
 # Test Runs
 
+## 2026-07-06 Device Evidence Release Binding
+
+- Environment: production `https://babbledeck.aialra.online`, live `/api/health` reporting release `da98c799690a`, production secret env loaded without printing secrets, and temporary JSONL evidence logs that do not touch production evidence.
+- Commands:
+  - `pnpm exec tsx scripts/record-device-runtime-evidence.ts --platform=android --passed --production-url-opened --microphone-granted --recording-started --captions-visible --audio-backup-confirmed`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/record-device-runtime-evidence.ts scripts/check-production-readiness.ts`
+  - `bash -n scripts/record-device-runtime-evidence-production.sh`
+  - `pnpm prettier --write scripts/record-device-runtime-evidence.ts scripts/check-production-readiness.ts README.md docs/CHANGELOG.md PROJECT_MEMORY.md`
+  - Temporary three-platform JSONL readiness check with `release.commit="da98c799690a"`.
+  - Temporary three-platform JSONL readiness check with `release.commit="old-release-for-test"`.
+- Results:
+  - `scripts/record-device-runtime-evidence.ts` now fetches `/api/health` and includes non-secret `release.commit`, `release.branch`, and `release.builtAt` in every device runtime evidence record.
+  - `scripts/check-production-readiness.ts` now validates recent Android, iOS, and desktop evidence against the current health release commit, so evidence from an older deployed release no longer satisfies the external runtime gate.
+  - The direct record command emitted an Android evidence record with `release.commit="da98c799690a"` and all required manual checks true.
+  - The current-release temporary three-platform log made `recent_device_runtime_evidence` pass with message `Recent production device runtime evidence passed for Android, iOS, and desktop wrappers on release da98c799690a.`
+  - The old-release temporary three-platform log made `recent_device_runtime_evidence` fail as release-mismatched while leaving other required checks passing.
+
 ## 2026-07-06 Production Deploy Disk Preflight
 
 - Environment: production deployment workspace for `https://babbledeck.aialra.online`, root filesystem at about `4525MB` free before the change, and immutable release directories already enabled.
