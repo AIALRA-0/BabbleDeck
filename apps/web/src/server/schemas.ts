@@ -100,6 +100,29 @@ export const updateSettingsSchema = z.object({
   audioRetentionDays: z.coerce.number().int().min(1).max(3650).optional(),
 });
 
+export const deviceRuntimeEvidenceSchema = z.object({
+  platform: z.enum(["android", "ios", "desktop"]),
+  passed: z.boolean(),
+  checks: z.object({
+    productionUrlOpened: z.boolean(),
+    microphoneGranted: z.boolean(),
+    recordingStarted: z.boolean(),
+    captionsVisible: z.boolean(),
+    audioBackupConfirmed: z.boolean(),
+  }),
+  notes: z.string().trim().max(300).optional(),
+  client: z
+    .object({
+      reportedUserAgent: z.string().trim().max(300).optional(),
+      viewportWidth: z.coerce.number().int().min(0).max(10000).optional(),
+      viewportHeight: z.coerce.number().int().min(0).max(10000).optional(),
+      displayMode: z.string().trim().max(80).optional(),
+      language: z.string().trim().max(40).optional(),
+      timezone: z.string().trim().max(80).optional(),
+    })
+    .optional(),
+});
+
 export const createGlossaryTermSchema = z.object({
   sourceTerm: z.string().trim().min(1).max(200),
   targetTerm: z.string().trim().min(1).max(200),

@@ -284,6 +284,11 @@ writes a non-secret Markdown checklist under
 checklist while running the Android, iOS, and desktop wrappers so each evidence
 record matches the deployed build.
 
+Authenticated admins can also record release-bound device evidence from the
+production Settings page after completing the real wrapper run on that device.
+The form writes the same non-secret JSONL evidence log and records an audit log
+entry.
+
 Strict production readiness requires recent passing Android, iOS, and desktop
 device evidence before treating native wrapper runtime validation as complete.
 Each evidence record is tied to the current `/api/health` release commit, so

@@ -2,6 +2,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { AuditLogList } from "@/components/AuditLogList";
 import { AudioRetentionSettingsForm } from "@/components/AudioRetentionSettingsForm";
 import { DefaultSessionSettingsForm } from "@/components/DefaultSessionSettingsForm";
+import { DeviceRuntimeEvidenceForm } from "@/components/DeviceRuntimeEvidenceForm";
 import { GlossarySettingsForm } from "@/components/GlossarySettingsForm";
 import { Badge } from "@/components/ui/badge";
 import { requireUser } from "@/server/auth";
@@ -34,6 +35,8 @@ export default async function SettingsPage() {
     ["Azure Translator", Boolean(process.env.AZURE_TRANSLATOR_KEY)],
     ["OpenAI", Boolean(process.env.OPENAI_API_KEY)],
   ] as const;
+  const releaseCommit = process.env.BABBLEDECK_RELEASE_COMMIT ?? null;
+  const releaseBuiltAt = process.env.BABBLEDECK_RELEASE_BUILT_AT ?? null;
 
   return (
     <>
@@ -87,6 +90,15 @@ export default async function SettingsPage() {
             <h2 className="font-semibold">Data retention</h2>
           </div>
           <AudioRetentionSettingsForm initialDays={audioRetentionDays} />
+        </section>
+        <section className="mt-6 rounded-lg border border-border bg-white shadow-sm">
+          <div className="border-b border-border p-5">
+            <h2 className="font-semibold">Device evidence</h2>
+          </div>
+          <DeviceRuntimeEvidenceForm
+            releaseCommit={releaseCommit}
+            releaseBuiltAt={releaseBuiltAt}
+          />
         </section>
         <section className="mt-6 rounded-lg border border-border bg-white shadow-sm">
           <div className="border-b border-border p-5">

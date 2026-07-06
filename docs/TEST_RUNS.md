@@ -1,5 +1,20 @@
 # Test Runs
 
+## 2026-07-06 Settings Device Evidence Entry
+
+- Environment: local workspace plus production target `https://babbledeck.aialra.online`, existing production JSONL evidence format, authenticated Settings page, and no real device evidence submitted during automated validation.
+- Commands:
+  - `pnpm --filter @babbledeck/web test -- device-runtime-evidence health settings-service`
+  - `pnpm --filter @babbledeck/web typecheck`
+  - `pnpm exec prettier --check apps/web/src/server/device-runtime-evidence.ts apps/web/src/server/device-runtime-evidence.test.ts apps/web/src/app/api/device-runtime-evidence/route.ts apps/web/src/components/DeviceRuntimeEvidenceForm.tsx apps/web/src/server/schemas.ts apps/web/src/app/settings/page.tsx`
+- Results:
+  - Added a server helper for release-bound device runtime evidence records and JSONL appends.
+  - Added `/api/device-runtime-evidence`, guarded by same-origin mutation checks and authenticated admin sessions, which writes only complete passing evidence records and records an audit-log entry.
+  - Added a Settings page form for Android, iOS, and desktop evidence with the five readiness checks and a browser microphone authorization probe.
+  - Unit coverage confirms passing records, incomplete records, and JSONL append behavior.
+  - The first production deploy attempt after dependency restoration exposed a missing Prisma client generation step (`sessions.map((session) => ...)` lost Prisma types during Next build); running `pnpm db:generate` restored typecheck, and `scripts/deploy-production.sh` now regenerates Prisma before the standalone build.
+  - Positive evidence was not fabricated; the production readiness external gate still requires real Android, iOS, and desktop wrapper runs.
+
 ## 2026-07-06 Device Evidence Checklist
 
 - Environment: production `https://babbledeck.aialra.online`, live `/api/health` release `8d0e07fa0de7`, production env loaded without printing secrets, and existing device runtime evidence gate still waiting on real Android, iOS, and interactive desktop runs.

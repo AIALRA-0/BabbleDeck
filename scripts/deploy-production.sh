@@ -314,6 +314,8 @@ status_line "deploying commit $commit from $branch to $BASE_URL"
 release_path="$APP_DIR/apps/web/.next/standalone"
 
 if [[ "$SKIP_BUILD" != "1" ]]; then
+  status_line "generating Prisma client"
+  pnpm db:generate
   status_line "building standalone output"
   BABBLEDECK_RELEASE_COMMIT="$commit" \
     BABBLEDECK_RELEASE_BRANCH="$branch" \
