@@ -41,6 +41,7 @@ export async function POST(request: Request) {
       release: currentDeviceEvidenceRelease(),
       baseUrl: productionDeviceEvidenceBaseUrl(),
       notes: parsed.notes,
+      source: parsed.source,
       client: {
         ...parsed.client,
         userAgent: request.headers.get("user-agent") ?? undefined,

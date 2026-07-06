@@ -102,6 +102,9 @@ export const updateSettingsSchema = z.object({
 
 export const deviceRuntimeEvidenceSchema = z.object({
   platform: z.enum(["android", "ios", "desktop"]),
+  source: z
+    .enum(["admin_settings", "recorder_page", "session_history"])
+    .default("admin_settings"),
   passed: z.boolean(),
   checks: z.object({
     productionUrlOpened: z.boolean(),

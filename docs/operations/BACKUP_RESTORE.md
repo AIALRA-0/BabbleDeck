@@ -425,3 +425,9 @@ pnpm device:evidence:production -- --platform=android --passed --production-url-
 Repeat the record command with `--platform=ios` and `--platform=desktop`. Each
 record includes the current `/api/health` release commit, and production
 readiness rejects stale records from older deployments.
+
+Authenticated admins can also record the same release-bound evidence directly
+from the production Settings page, the recorder page, or a completed session
+history page. The recorder and history forms prefill checks that the current
+device/session has already observed, but the record is only written after all
+checks are confirmed.

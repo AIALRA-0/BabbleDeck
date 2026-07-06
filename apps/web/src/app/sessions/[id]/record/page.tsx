@@ -54,6 +54,8 @@ export default async function RecorderPage({
   const session = adminSession ?? tokenSession;
   if (!session) notFound();
   const serialized = serializeSession(session);
+  const releaseCommit = process.env.BABBLEDECK_RELEASE_COMMIT ?? null;
+  const releaseBuiltAt = process.env.BABBLEDECK_RELEASE_BUILT_AT ?? null;
   return (
     <>
       <AppHeader />
@@ -71,6 +73,8 @@ export default async function RecorderPage({
           trackId={parseTrackId(trackId)}
           speakerLabel={parseSpeakerLabel(speakerLabel)}
           historyUrl={adminSession ? `/sessions/${serialized.id}` : null}
+          releaseCommit={releaseCommit}
+          releaseBuiltAt={releaseBuiltAt}
         />
       </main>
     </>

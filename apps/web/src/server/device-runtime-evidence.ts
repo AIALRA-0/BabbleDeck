@@ -33,6 +33,9 @@ export type DeviceRuntimeRelease = {
   builtAt?: string;
 };
 
+export type DeviceRuntimeEvidenceSource =
+  "admin_settings" | "recorder_page" | "session_history";
+
 export type DeviceRuntimeEvidenceRecord = {
   app: "babbledeck";
   recordedAt: string;
@@ -43,7 +46,7 @@ export type DeviceRuntimeEvidenceRecord = {
   checks: DeviceRuntimeChecks;
   missingChecks: string[];
   notes?: string;
-  source: "admin_settings";
+  source: DeviceRuntimeEvidenceSource;
   client: DeviceRuntimeClient;
 };
 
@@ -104,6 +107,7 @@ export function buildDeviceRuntimeEvidenceRecord(input: {
   release?: DeviceRuntimeRelease;
   baseUrl?: string;
   notes?: string | null;
+  source?: DeviceRuntimeEvidenceSource;
   client?: DeviceRuntimeClient;
   recordedAt?: Date;
 }): DeviceRuntimeEvidenceRecord {
@@ -121,7 +125,7 @@ export function buildDeviceRuntimeEvidenceRecord(input: {
     checks: input.checks,
     missingChecks,
     notes: cleanText(input.notes),
-    source: "admin_settings",
+    source: input.source ?? "admin_settings",
     client: {
       userAgent: cleanText(client.userAgent),
       reportedUserAgent: cleanText(client.reportedUserAgent),

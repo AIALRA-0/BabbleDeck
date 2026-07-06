@@ -1,5 +1,27 @@
 # Test Runs
 
+## 2026-07-06 Recorder Flow Device Evidence Entry
+
+- Environment: local workspace plus production target `https://babbledeck.aialra.online`, self-hosted audio storage, authenticated admin browser flow, and no positive Android/iOS/desktop evidence submitted during automated validation.
+- Commands:
+  - `pnpm --filter @babbledeck/web typecheck`
+  - `pnpm --filter @babbledeck/web test -- health settings-service device-runtime-evidence`
+  - `pnpm exec prettier --check apps/web/src/server/device-runtime-evidence.ts apps/web/src/server/device-runtime-evidence.test.ts apps/web/src/app/api/device-runtime-evidence/route.ts apps/web/src/components/DeviceRuntimeEvidenceForm.tsx apps/web/src/components/RecorderClient.tsx apps/web/src/app/sessions/[id]/record/page.tsx apps/web/src/app/sessions/[id]/page.tsx apps/web/src/server/schemas.ts README.md docs/operations/BACKUP_RESTORE.md`
+  - `pnpm deploy:production`
+  - `curl -fsS https://babbledeck.aialra.online/api/health`
+  - `pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --check-soniox-live --expected-release-commit=$(git rev-parse --short=12 HEAD)`
+  - Authenticated production smoke for Settings, recorder, and session history `Device evidence` entry visibility plus incomplete evidence rejection.
+  - `pnpm device:readiness:production -- --check-desktop-headless`
+  - `pnpm device:evidence:checklist:production`
+- Results:
+  - Deployment smoke passed from `main`; `/api/health` reports `{ ok: true }` and local audio storage `{ ok: true, driver: "local", selfHostedReady: true, offHostReady: false }`.
+  - Added source-aware device evidence records with `admin_settings`, `recorder_page`, and `session_history` sources.
+  - The recorder page now prechecks evidence items observed by the current live run: production URL opened, microphone granted, recording started, captions visible, and audio backup uploaded. The completed session history page prechecks session-derived recording, captions, and backup items while still requiring admin confirmation and microphone verification.
+  - Production smoke created a temporary session and confirmed Settings, recorder, and history pages all expose `Device evidence`.
+  - Incomplete `/api/device-runtime-evidence` submission returned `400 VALIDATION_ERROR`; JSONL evidence remained at `0` lines, so no positive evidence was fabricated.
+  - Required production readiness is green. External readiness remains incomplete only because real Android, iOS, and interactive desktop evidence for the deployed release has not yet been recorded.
+  - A new release-bound checklist was written under `/srv/aialra/logs/babbledeck/device-runtime-checklists/`.
+
 ## 2026-07-06 Settings Device Evidence Entry
 
 - Environment: local workspace plus production target `https://babbledeck.aialra.online`, existing production JSONL evidence format, authenticated Settings page, and no real device evidence submitted during automated validation.

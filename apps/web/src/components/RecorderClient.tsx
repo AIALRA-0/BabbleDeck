@@ -20,6 +20,7 @@ import type {
   LocalTrackPublication,
   Room as LiveKitRoom,
 } from "livekit-client";
+import { DeviceRuntimeEvidenceForm } from "@/components/DeviceRuntimeEvidenceForm";
 import { SessionStatusBadge } from "@/components/SessionStatusBadge";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -58,6 +59,8 @@ type RecorderClientProps = {
   trackId: string;
   speakerLabel: string | null;
   historyUrl: string | null;
+  releaseCommit: string | null;
+  releaseBuiltAt: string | null;
 };
 
 type AudioChunkUploadResponse =
@@ -163,6 +166,8 @@ const script = [
 const SILENCE_PEAK_THRESHOLD = 0.02;
 const SILENCE_WARNING_DELAY_MS = 1500;
 const CLIPPING_PEAK_THRESHOLD = 0.96;
+const WAITING_ORIGINAL = "Waiting for speech...";
+const WAITING_TRANSLATION = "字幕会在这里显示。";
 
 export function RecorderClient({
   sessionId,
@@ -177,6 +182,8 @@ export function RecorderClient({
   trackId,
   speakerLabel,
   historyUrl,
+  releaseCommit,
+  releaseBuiltAt,
 }: RecorderClientProps) {
   const router = useRouter();
   const [permission, setPermission] = useState<
@@ -220,10 +227,15 @@ export function RecorderClient({
       : null,
   );
   const [networkOffline, setNetworkOffline] = useState(false);
-  const [latestOriginal, setLatestOriginal] = useState("Waiting for speech...");
+  const [latestOriginal, setLatestOriginal] = useState(WAITING_ORIGINAL);
   const [latestTranslation, setLatestTranslation] =
-    useState("字幕会在这里显示。");
+    useState(WAITING_TRANSLATION);
   const [eventsSent, setEventsSent] = useState(0);
+  const [recordingStartedObserved, setRecordingStartedObserved] = useState(
+    status === "recording",
+  );
+  const [captionsObserved, setCaptionsObserved] = useState(false);
+  const [backupObserved, setBackupObserved] = useState(false);
   const [cachedViewerUrl, setCachedViewerUrl] = useState<string | null>(null);
   const [cachedRecorderToken, setCachedRecorderToken] = useState<string | null>(
     null,
@@ -335,6 +347,14 @@ export function RecorderClient({
   useEffect(() => {
     recordingRef.current = recording;
   }, [recording]);
+
+  useEffect(() => {
+    if (recording) setRecordingStartedObserved(true);
+  }, [recording]);
+
+  useEffect(() => {
+    if (backup.uploaded > 0) setBackupObserved(true);
+  }, [backup.uploaded]);
 
   useEffect(() => {
     function syncNetworkState() {
@@ -563,6 +583,9 @@ export function RecorderClient({
         const latestSegment = [...payload.data.segments]
           .reverse()
           .find((segment) => segment.originalText || segment.translationText);
+        if (latestSegment) {
+          setCaptionsObserved(true);
+        }
         if (latestSegment?.originalText) {
           setLatestOriginal(latestSegment.originalText);
         }
@@ -893,6 +916,7 @@ export function RecorderClient({
       const result = await uploadChunkToServer(input, mimeType);
       applyProviderResult(result.provider);
       await markLocalChunkUploaded(sessionId, input.index);
+      setBackupObserved(true);
       await refreshBackupSummary();
       setBackupError(null);
       return result;
@@ -936,6 +960,7 @@ export function RecorderClient({
       );
       applyProviderResult(result.provider);
       await markLocalChunkUploaded(sessionId, chunk.chunkIndex);
+      setBackupObserved(true);
       await refreshBackupSummary();
       return result;
     } catch (error) {
@@ -1053,6 +1078,7 @@ export function RecorderClient({
     };
     setLatestOriginal(item.original);
     setLatestTranslation(item.translation);
+    setCaptionsObserved(true);
     await fetch(`/api/sessions/${sessionId}/events`, {
       method: "POST",
       headers: {
@@ -1122,6 +1148,7 @@ export function RecorderClient({
     setSessionStatus(
       startPayload.ok ? startPayload.data.session.status : status,
     );
+    setRecordingStartedObserved(true);
     setRecording(true);
     setPending(false);
     void connectLiveKitPublisher(stream);
@@ -1453,6 +1480,33 @@ export function RecorderClient({
             ) : null}
           </div>
         </div>
+
+        {historyUrl ? (
+          <div className="mt-6 border-t border-border pt-5">
+            <div>
+              <h2 className="font-semibold">Device evidence</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Record release-bound runtime evidence from this recorder device.
+              </p>
+            </div>
+            <DeviceRuntimeEvidenceForm
+              releaseCommit={releaseCommit}
+              releaseBuiltAt={releaseBuiltAt}
+              source="recorder_page"
+              detectPlatform
+              observedChecks={{
+                productionUrlOpened: true,
+                microphoneGranted: permission === "granted",
+                recordingStarted: recordingStartedObserved,
+                captionsVisible: captionsObserved,
+                audioBackupConfirmed: backupObserved,
+              }}
+              initialNotes={`Recorder page · ${sessionId} · ${recorderTrackLabel}`}
+              notesPlaceholder="Recorder device, wrapper, and run notes"
+              className="mt-4 space-y-5"
+            />
+          </div>
+        ) : null}
       </section>
 
       <aside className="rounded-lg border border-border bg-white p-5 shadow-sm">

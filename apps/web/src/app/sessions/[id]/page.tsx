@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
+import { DeviceRuntimeEvidenceForm } from "@/components/DeviceRuntimeEvidenceForm";
 import { SessionLegalHoldForm } from "@/components/SessionLegalHoldForm";
 import { SessionHistoryClient } from "@/components/SessionHistoryClient";
 import { SessionStatusBadge } from "@/components/SessionStatusBadge";
@@ -21,6 +22,8 @@ export default async function SessionDetailPage({
   if (!session) notFound();
   const serialized = serializeSession(session);
   const segments = session.transcriptSegments.map(serializeSegment);
+  const releaseCommit = process.env.BABBLEDECK_RELEASE_COMMIT ?? null;
+  const releaseBuiltAt = process.env.BABBLEDECK_RELEASE_BUILT_AT ?? null;
 
   return (
     <>
@@ -73,6 +76,28 @@ export default async function SessionDetailPage({
             initialEnabled={serialized.rawAudioLegalHold}
           />
         </div>
+        <section className="mt-6 rounded-lg border border-border bg-white shadow-sm">
+          <div className="border-b border-border p-5">
+            <h2 className="font-semibold">Device evidence</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Record release-bound runtime evidence from this session device.
+            </p>
+          </div>
+          <DeviceRuntimeEvidenceForm
+            releaseCommit={releaseCommit}
+            releaseBuiltAt={releaseBuiltAt}
+            source="session_history"
+            detectPlatform
+            observedChecks={{
+              productionUrlOpened: true,
+              recordingStarted: Boolean(serialized.startedAt),
+              captionsVisible: segments.length > 0,
+              audioBackupConfirmed: serialized.backup.uploadedChunks > 0,
+            }}
+            initialNotes={`Session history · ${serialized.id}`}
+            notesPlaceholder="Device, wrapper, and completed session notes"
+          />
+        </section>
         <div className="mt-6">
           <SessionHistoryClient sessionId={serialized.id} segments={segments} />
         </div>

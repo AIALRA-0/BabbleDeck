@@ -285,9 +285,11 @@ checklist while running the Android, iOS, and desktop wrappers so each evidence
 record matches the deployed build.
 
 Authenticated admins can also record release-bound device evidence from the
-production Settings page after completing the real wrapper run on that device.
-The form writes the same non-secret JSONL evidence log and records an audit log
-entry.
+production Settings page, the recorder page, or the completed session history
+page after completing the real wrapper run on that device. The recorder and
+history forms prefill checks that the current page has already observed, while
+the admin still confirms the full evidence record before it is written. The form
+writes the same non-secret JSONL evidence log and records an audit log entry.
 
 Strict production readiness requires recent passing Android, iOS, and desktop
 device evidence before treating native wrapper runtime validation as complete.

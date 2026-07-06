@@ -66,6 +66,23 @@ describe("device runtime evidence", () => {
     });
   });
 
+  test("preserves the recorder page source", () => {
+    const record = buildDeviceRuntimeEvidenceRecord({
+      platform: "desktop",
+      passed: true,
+      checks: completeChecks,
+      release,
+      baseUrl: "https://babbledeck.aialra.online",
+      source: "recorder_page",
+    });
+
+    expect(record).toMatchObject({
+      platform: "desktop",
+      ok: true,
+      source: "recorder_page",
+    });
+  });
+
   test("keeps incomplete records from satisfying readiness", () => {
     const record = buildDeviceRuntimeEvidenceRecord({
       platform: "desktop",

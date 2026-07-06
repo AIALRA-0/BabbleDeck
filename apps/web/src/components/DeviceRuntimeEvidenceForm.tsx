@@ -1,11 +1,12 @@
 "use client";
 
 import { CheckCircle2, Loader2, Mic, Save } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 type Platform = "android" | "ios" | "desktop";
+type EvidenceSource = "admin_settings" | "recorder_page" | "session_history";
 
 type CheckName =
   | "productionUrlOpened"
@@ -33,6 +34,14 @@ const checkLabels: { name: CheckName; label: string }[] = [
   { name: "audioBackupConfirmed", label: "Audio backup confirmed" },
 ];
 
+const defaultChecks: Record<CheckName, boolean> = {
+  productionUrlOpened: true,
+  microphoneGranted: false,
+  recordingStarted: false,
+  captionsVisible: false,
+  audioBackupConfirmed: false,
+};
+
 function clientSnapshot() {
   const standalone =
     window.matchMedia?.("(display-mode: standalone)").matches === true ||
@@ -50,22 +59,36 @@ function clientSnapshot() {
   };
 }
 
+function detectRuntimePlatform(): Platform {
+  const userAgent = window.navigator.userAgent;
+  if (/android/i.test(userAgent)) return "android";
+  if (/iphone|ipad|ipod/i.test(userAgent)) return "ios";
+  return "desktop";
+}
+
 export function DeviceRuntimeEvidenceForm({
   releaseCommit,
   releaseBuiltAt,
+  source = "admin_settings",
+  observedChecks,
+  detectPlatform = false,
+  initialNotes = "",
+  notesPlaceholder = "Release-bound wrapper runtime notes",
+  className = "space-y-5 p-5",
 }: {
   releaseCommit: string | null;
   releaseBuiltAt: string | null;
+  source?: EvidenceSource;
+  observedChecks?: Partial<Record<CheckName, boolean>>;
+  detectPlatform?: boolean;
+  initialNotes?: string;
+  notesPlaceholder?: string;
+  className?: string;
 }) {
   const [platform, setPlatform] = useState<Platform>("android");
-  const [checks, setChecks] = useState<Record<CheckName, boolean>>({
-    productionUrlOpened: true,
-    microphoneGranted: false,
-    recordingStarted: false,
-    captionsVisible: false,
-    audioBackupConfirmed: false,
-  });
-  const [notes, setNotes] = useState("");
+  const [checks, setChecks] =
+    useState<Record<CheckName, boolean>>(defaultChecks);
+  const [notes, setNotes] = useState(initialNotes);
   const [pending, setPending] = useState(false);
   const [micPending, setMicPending] = useState(false);
   const [status, setStatus] = useState<
@@ -76,6 +99,25 @@ export function DeviceRuntimeEvidenceForm({
     () => checkLabels.every((item) => checks[item.name]),
     [checks],
   );
+
+  useEffect(() => {
+    if (detectPlatform) setPlatform(detectRuntimePlatform());
+  }, [detectPlatform]);
+
+  useEffect(() => {
+    if (!observedChecks) return;
+    setChecks((current) => {
+      let changed = false;
+      const next = { ...current };
+      for (const item of checkLabels) {
+        if (observedChecks[item.name] === true && !next[item.name]) {
+          next[item.name] = true;
+          changed = true;
+        }
+      }
+      return changed ? next : current;
+    });
+  }, [observedChecks]);
 
   async function verifyMicrophone() {
     setMicPending(true);
@@ -93,7 +135,7 @@ export function DeviceRuntimeEvidenceForm({
 
   return (
     <form
-      className="space-y-5 p-5"
+      className={className}
       onSubmit={async (event) => {
         event.preventDefault();
         setPending(true);
@@ -103,6 +145,7 @@ export function DeviceRuntimeEvidenceForm({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             platform,
+            source,
             passed: allChecks,
             checks,
             notes,
@@ -187,7 +230,7 @@ export function DeviceRuntimeEvidenceForm({
           id="deviceEvidenceNotes"
           value={notes}
           maxLength={300}
-          placeholder="Release-bound wrapper runtime notes"
+          placeholder={notesPlaceholder}
           onChange={(event) => {
             setNotes(event.target.value);
             setStatus("idle");
