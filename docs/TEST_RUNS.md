@@ -1,5 +1,24 @@
 # Test Runs
 
+## 2026-07-06 Production Wrapper Artifact Refresh
+
+- Environment: local workspace plus production target `https://babbledeck.aialra.online`, server-built Android APK and Linux desktop wrapper binary, no positive device evidence submitted.
+- Commands:
+  - `bash -n scripts/refresh-production-wrapper-artifacts.sh scripts/deploy-production.sh`
+  - `pnpm exec prettier --check package.json README.md docs/CHANGELOG.md docs/TEST_RUNS.md`
+  - `pnpm --filter @babbledeck/mobile native:build:android`
+  - `pnpm --filter @babbledeck/desktop native:smoke:headless`
+  - `pnpm wrappers:refresh:production`
+  - `pnpm device:readiness:production -- --check-desktop-headless`
+  - Authenticated production download smoke for `/api/wrappers/android-debug-apk` and `/api/wrappers/desktop-release-binary`
+- Results:
+  - Added `pnpm wrappers:refresh:production`, a guarded server-side refresh that writes non-secret artifact metadata to `/srv/aialra/logs/babbledeck/wrapper-artifacts.jsonl`.
+  - Production deploys now run the wrapper artifact refresh by default, with `BABBLEDECK_DEPLOY_SKIP_WRAPPER_REFRESH=1` available for emergency web-only deploys.
+  - Android debug APK was rebuilt successfully at `apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk` with sha256 `857955bcd635774ee5af6adafb2c1f6b84e79a528d09ad5ec19773ad4109b0f8`.
+  - Desktop release binary remained present at `apps/desktop/src-tauri/target/release/babbledeck-desktop` with sha256 `4863aedaaab82953a6f1e7c626ba3d82c5f70c7797ecd0656cef313e4aec75c3`, and the Xvfb launch smoke passed.
+  - Production authenticated artifact downloads returned HTTP 200 with matching content length and SHA-256 headers.
+  - This restores and verifies server-side wrapper handoff artifacts, but real Android/iOS/interactive desktop runtime evidence is still intentionally missing.
+
 ## 2026-07-06 Device Evidence Receipt
 
 - Environment: local workspace plus production target `https://babbledeck.aialra.online`, recorder-token device evidence path, and production evidence log kept empty during automated validation.

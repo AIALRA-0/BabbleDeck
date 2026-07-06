@@ -256,6 +256,7 @@ Native wrapper configuration checks:
 
 ```bash
 pnpm wrappers:check
+pnpm wrappers:refresh:production
 pnpm device:readiness:production
 pnpm device:readiness:production -- --check-desktop-headless
 pnpm --filter @babbledeck/mobile check
@@ -264,6 +265,12 @@ pnpm --filter @babbledeck/desktop check
 
 The mobile and desktop wrapper packages default to the deployed production PWA
 at `https://babbledeck.aialra.online` for live-site-first wrapper testing.
+`wrappers:refresh:production` rebuilds the Android debug APK, verifies the
+desktop release binary, runs the desktop Xvfb launch smoke by default, and
+writes non-secret artifact metadata to
+`/srv/aialra/logs/babbledeck/wrapper-artifacts.jsonl`. Production deploys run
+this refresh by default; set `BABBLEDECK_DEPLOY_SKIP_WRAPPER_REFRESH=1` only
+for an emergency web-only deploy.
 `device:readiness:production` checks the production URL, Android debug APK,
 connected physical Android devices, Xcode availability for iOS, and an
 interactive desktop display session without printing device serials or secrets.

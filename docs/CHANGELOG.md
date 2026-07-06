@@ -8,6 +8,7 @@
 - Added a production build-cache cleanup command that removes only rebuildable Turbo, Next, pnpm, Gradle, and Rust/Tauri intermediate caches while preserving deployed releases and native runtime artifacts.
 - Added a systemd timer installer and readiness checks for production build-cache cleanup, including protection against running while a deployment lock is active.
 - Aligned production readiness with the self-hosted server storage model: local audio storage under `/srv/aialra/storage/babbledeck` is now a required production check, and R2/S3 remains optional migration tooling instead of a launch blocker.
+- Added a guarded production wrapper artifact refresh command and wired production deploys to rebuild the Android APK, verify the desktop binary, and log non-secret artifact metadata by default.
 - Added `selfHostedReady` to `/api/health` audio storage status so the active single-server deployment reports its intended storage mode without exposing secrets.
 - Added a production device runtime evidence checklist command that binds Android, iOS, and desktop manual verification steps to the current `/api/health` release and stores non-secret Markdown snapshots under the production logs directory.
 - Added an authenticated production Settings form and API for recording release-bound Android, iOS, and desktop runtime evidence directly from the real wrapper/device session.

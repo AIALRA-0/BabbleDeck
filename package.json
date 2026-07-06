@@ -35,6 +35,7 @@
     "security:audit:production": "scripts/security-baseline-production.sh",
     "logs:install:production": "scripts/install-production-logrotate.sh",
     "wrappers:check": "tsx scripts/verify-wrapper-configs.ts",
+    "wrappers:refresh:production": "scripts/refresh-production-wrapper-artifacts.sh",
     "device:readiness:production": "tsx scripts/check-device-runtime-readiness.ts",
     "device:evidence:checklist:production": "scripts/prepare-device-runtime-evidence-production.sh",
     "device:evidence:production": "scripts/record-device-runtime-evidence-production.sh",
