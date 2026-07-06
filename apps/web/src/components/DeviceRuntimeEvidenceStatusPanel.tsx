@@ -95,12 +95,23 @@ export function DeviceRuntimeEvidenceStatusPanel({
           </Button>
         )}
         {desktopReleaseBinary?.exists ? (
-          <Button asChild variant="secondary">
-            <Link href="/api/wrappers/desktop-release-binary" prefetch={false}>
-              <Monitor className="h-4 w-4" />
-              Download desktop binary
-            </Link>
-          </Button>
+          <>
+            <Button asChild variant="secondary">
+              <Link href="/install/desktop" prefetch={false}>
+                <Monitor className="h-4 w-4" />
+                Desktop handoff
+              </Link>
+            </Button>
+            <Button asChild variant="secondary">
+              <Link
+                href="/api/wrappers/desktop-release-binary"
+                prefetch={false}
+              >
+                <Download className="h-4 w-4" />
+                Download desktop binary
+              </Link>
+            </Button>
+          </>
         ) : (
           <Button disabled variant="secondary">
             <Monitor className="h-4 w-4" />

@@ -17,7 +17,7 @@
   - Authenticated production download smoke for `/api/wrappers/android-debug-apk` and `/api/wrappers/desktop-release-binary`
 - Results:
   - Added `pnpm wrappers:refresh:production`, a guarded server-side refresh that writes non-secret artifact metadata to `/srv/aialra/logs/babbledeck/wrapper-artifacts.jsonl`.
-  - Added a login-gated Android APK install page/QR, release verification link creation on that install page, and kit artifact `handoffUrl` fields so physical Android handoff can start from production Settings without making wrapper artifacts public.
+  - Added login-gated Android and desktop wrapper handoff pages, release verification link creation on those pages, and kit artifact `handoffUrl` fields so native runtime handoff can start from production Settings without making wrapper artifacts public.
   - Production deploys now run the wrapper artifact refresh by default and include the matching current-release wrapper artifact summary in deployment JSONL records.
   - Production readiness now requires a recent current-release wrapper artifact refresh record and rechecks the APK/desktop binary SHA-256 values on disk.
   - Android debug APK was rebuilt successfully at `apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk` with sha256 `857955bcd635774ee5af6adafb2c1f6b84e79a528d09ad5ec19773ad4109b0f8`.

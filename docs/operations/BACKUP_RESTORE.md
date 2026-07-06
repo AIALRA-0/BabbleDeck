@@ -476,4 +476,6 @@ opening a shell on the server.
 When the Linux desktop release binary exists on the production server, Settings
 also exposes `Download desktop binary` so an authenticated admin can fetch the
 exact server-built wrapper artifact for an interactive desktop verification
-session.
+session. It also links to the protected `/install/desktop` handoff page, which
+can create the release-labeled recorder verification link for that interactive
+desktop run.

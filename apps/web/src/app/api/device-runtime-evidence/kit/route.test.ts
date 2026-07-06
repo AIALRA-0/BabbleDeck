@@ -130,7 +130,8 @@ describe("device runtime verification kit route", () => {
           url: "/api/wrappers/desktop-release-binary",
           loginUrl:
             "https://babbledeck.aialra.online/login?next=%2Fapi%2Fwrappers%2Fdesktop-release-binary",
-          handoffUrl: null,
+          handoffUrl:
+            "https://babbledeck.aialra.online/login?next=%2Finstall%2Fdesktop",
           exists: true,
           sizeBytes: 456,
           sha256: "b".repeat(64),

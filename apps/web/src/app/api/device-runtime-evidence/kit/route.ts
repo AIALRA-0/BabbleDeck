@@ -87,6 +87,7 @@ export async function GET() {
           "babbledeck-desktop-linux-x64",
           "application/octet-stream",
           checklist.baseUrl,
+          "/install/desktop",
         ),
       },
       evidence: {

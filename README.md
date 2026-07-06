@@ -320,7 +320,8 @@ The install page can also create a release-labeled recorder verification link
 and QR, so the target device can run the production recorder and submit
 release-bound evidence from the same flow. When the Linux desktop release binary
 is present, Settings exposes the matching authenticated desktop binary download
-for interactive wrapper verification.
+and a protected `/install/desktop` handoff page with release verification link
+creation for interactive wrapper evidence.
 
 Strict production readiness requires both current wrapper handoff artifacts and
 recent passing Android, iOS, and desktop device evidence before treating native
