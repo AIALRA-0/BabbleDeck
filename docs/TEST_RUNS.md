@@ -1,5 +1,19 @@
 # Test Runs
 
+## 2026-07-06 Device Evidence Checklist
+
+- Environment: production `https://babbledeck.aialra.online`, live `/api/health` release `8d0e07fa0de7`, production env loaded without printing secrets, and existing device runtime evidence gate still waiting on real Android, iOS, and interactive desktop runs.
+- Commands:
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/prepare-device-runtime-evidence.ts scripts/record-device-runtime-evidence.ts scripts/check-production-readiness.ts`
+  - `pnpm exec prettier --check scripts/prepare-device-runtime-evidence.ts package.json README.md docs/KNOWN_ISSUES.md docs/operations/BACKUP_RESTORE.md`
+  - `bash -n scripts/prepare-device-runtime-evidence-production.sh scripts/record-device-runtime-evidence-production.sh`
+  - `pnpm device:evidence:checklist:production -- --platforms=android,ios,desktop`
+- Results:
+  - Added `pnpm device:evidence:checklist:production`, which fetches the live production `/api/health` release and writes a non-secret Markdown checklist under `/srv/aialra/logs/babbledeck/device-runtime-checklists/`.
+  - The generated checklist includes release commit, branch, build timestamp, Android/iOS/desktop manual steps, and the exact `pnpm device:evidence:production` commands to run after real device verification.
+  - The smoke run wrote `/srv/aialra/logs/babbledeck/device-runtime-checklists/20260706T053645Z.md` for release `8d0e07fa0de7`.
+  - This does not satisfy the external device gate by itself; it makes the remaining physical-device evidence collection release-bound and auditable.
+
 ## 2026-07-06 Self-Hosted Audio Storage Readiness
 
 - Environment: production `https://babbledeck.aialra.online`, production env loaded without printing secrets, self-hosted audio storage at `/srv/aialra/storage/babbledeck`, recent backup archive and restore verification present, and the root filesystem close to the deploy preflight threshold.

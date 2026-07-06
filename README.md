@@ -274,8 +274,15 @@ real microphone/caption/audio-backup evidence from an interactive desktop run.
 After a real device run, record non-secret manual evidence for each platform:
 
 ```bash
+pnpm device:evidence:checklist:production
 pnpm device:evidence:production -- --platform=android --passed --production-url-opened --microphone-granted --recording-started --captions-visible --audio-backup-confirmed
 ```
+
+The checklist command fetches the current production `/api/health` release and
+writes a non-secret Markdown checklist under
+`/srv/aialra/logs/babbledeck/device-runtime-checklists/`. Use that release-bound
+checklist while running the Android, iOS, and desktop wrappers so each evidence
+record matches the deployed build.
 
 Strict production readiness requires recent passing Android, iOS, and desktop
 device evidence before treating native wrapper runtime validation as complete.

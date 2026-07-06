@@ -400,3 +400,28 @@ microphone track to the LiveKit room, and viewers subscribe to room audio from
 the public viewer page. When LiveKit is not configured or temporarily
 unavailable, the room-audio status degrades without blocking captions, local
 backup, recorder WebSocket upload, or viewer SSE/polling.
+
+## Device Runtime Evidence
+
+Strict production readiness requires recent Android, iOS, and desktop wrapper
+runtime evidence for the currently deployed release. Before running the manual
+device checks, generate a release-bound checklist:
+
+```bash
+pnpm device:evidence:checklist:production
+```
+
+The command fetches the live `/api/health` release metadata, writes a non-secret
+Markdown snapshot under `/srv/aialra/logs/babbledeck/device-runtime-checklists/`,
+and prints the Android, iOS, and desktop commands and manual checks. After each
+real device or interactive wrapper run confirms production URL load, microphone
+permission, recording start, visible captions, and audio backup/upload success,
+record the evidence on the production server:
+
+```bash
+pnpm device:evidence:production -- --platform=android --passed --production-url-opened --microphone-granted --recording-started --captions-visible --audio-backup-confirmed
+```
+
+Repeat the record command with `--platform=ios` and `--platform=desktop`. Each
+record includes the current `/api/health` release commit, and production
+readiness rejects stale records from older deployments.

@@ -9,6 +9,7 @@
 - Added a systemd timer installer and readiness checks for production build-cache cleanup, including protection against running while a deployment lock is active.
 - Aligned production readiness with the self-hosted server storage model: local audio storage under `/srv/aialra/storage/babbledeck` is now a required production check, and R2/S3 remains optional migration tooling instead of a launch blocker.
 - Added `selfHostedReady` to `/api/health` audio storage status so the active single-server deployment reports its intended storage mode without exposing secrets.
+- Added a production device runtime evidence checklist command that binds Android, iOS, and desktop manual verification steps to the current `/api/health` release and stores non-secret Markdown snapshots under the production logs directory.
 - Fixed production static-asset readiness so it reads the active immutable release before falling back to local workspace build output.
 - Added build-time release metadata to `/api/health` so production can report the deployed git commit, branch, and build timestamp without exposing secrets, and made the deployment smoke verify the expected release commit.
 - Fixed strict Next build typing for export downloads by narrowing the export format before selecting the response content type.
