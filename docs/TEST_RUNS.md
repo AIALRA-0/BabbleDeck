@@ -1,5 +1,18 @@
 # Test Runs
 
+## 2026-07-06 Device Runtime Verification Kit
+
+- Environment: local workspace plus production target `https://babbledeck.aialra.online`, current release-bound device evidence workflow, and server-built Android/desktop wrapper artifacts.
+- Commands:
+  - `pnpm --filter @babbledeck/web typecheck`
+  - `pnpm --filter @babbledeck/web test -- device-runtime-evidence kit wrapper-artifacts settings-service`
+  - `pnpm exec prettier --check apps/web/src/app/api/device-runtime-evidence/kit/route.ts apps/web/src/app/api/device-runtime-evidence/kit/route.test.ts apps/web/src/app/settings/page.tsx apps/web/src/components/DeviceRuntimeEvidenceStatusPanel.tsx README.md docs/operations/BACKUP_RESTORE.md docs/TEST_RUNS.md`
+- Results:
+  - Added authenticated `GET /api/device-runtime-evidence/kit`, a JSON attachment that bundles the current release, evidence status, checklist URL, artifact URLs, artifact SHA-256 values, and record commands.
+  - Added a Settings `Download kit` action beside the existing checklist and wrapper artifact downloads.
+  - Settings evidence form now detects the current device platform, reducing accidental Android records from desktop or iOS runs.
+  - This improves real-device handoff and auditability but does not create passing Android, iOS, or desktop runtime evidence by itself.
+
 ## 2026-07-06 Settings Desktop Binary Download
 
 - Environment: local workspace plus production target `https://babbledeck.aialra.online`, Linux desktop release binary present at `apps/desktop/src-tauri/target/release/babbledeck-desktop`, and no interactive desktop display session.

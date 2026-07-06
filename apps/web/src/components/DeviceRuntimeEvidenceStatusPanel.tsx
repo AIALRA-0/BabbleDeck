@@ -1,4 +1,4 @@
-import { Download, Monitor, Smartphone } from "lucide-react";
+import { Download, FileJson, Monitor, Smartphone } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -72,6 +72,12 @@ export function DeviceRuntimeEvidenceStatusPanel({
           <Link href="/api/device-runtime-evidence/checklist" prefetch={false}>
             <Download className="h-4 w-4" />
             Download checklist
+          </Link>
+        </Button>
+        <Button asChild variant="secondary">
+          <Link href="/api/device-runtime-evidence/kit" prefetch={false}>
+            <FileJson className="h-4 w-4" />
+            Download kit
           </Link>
         </Button>
         {androidDebugApk?.exists ? (

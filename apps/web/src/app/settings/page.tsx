@@ -125,6 +125,7 @@ export default async function SettingsPage() {
           <DeviceRuntimeEvidenceForm
             releaseCommit={releaseCommit}
             releaseBuiltAt={releaseBuiltAt}
+            detectPlatform
           />
         </section>
         <section className="mt-6 rounded-lg border border-border bg-white shadow-sm">

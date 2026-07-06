@@ -292,6 +292,9 @@ the admin still confirms the full evidence record before it is written. The form
 writes the same non-secret JSONL evidence log and records an audit log entry.
 The production Settings page also shows per-platform evidence status and offers
 a release-bound Markdown checklist download for the currently deployed build.
+It also offers a JSON verification kit download that bundles the release,
+evidence status, artifact URLs, artifact SHA-256 values, and record commands for
+the current deployment.
 When the Android debug APK is present on the server, Settings also offers an
 authenticated APK download so a physical Android device can install the wrapper
 without opening a shell on the server. When the Linux desktop release binary is

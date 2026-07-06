@@ -436,6 +436,11 @@ The production Settings page also includes the current release evidence status
 and a `Download checklist` action that serves the same non-secret Markdown
 checklist as an authenticated download.
 
+Settings also includes `Download kit`, an authenticated JSON attachment with the
+current release, evidence status, checklist URL, artifact URLs, artifact
+SHA-256 values, and record commands. Use it when handing the active deployment
+to another device or workstation for Android, iOS, or desktop verification.
+
 When the Android debug APK exists on the production server, the same Settings
 status panel exposes an authenticated `Download Android APK` action for physical
 Android install/run verification.
