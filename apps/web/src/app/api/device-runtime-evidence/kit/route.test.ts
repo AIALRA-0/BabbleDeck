@@ -115,6 +115,13 @@ describe("device runtime verification kit route", () => {
       checklist: {
         url: "/api/device-runtime-evidence/checklist",
       },
+      handoffs: {
+        android:
+          "https://babbledeck.aialra.online/login?next=%2Finstall%2Fandroid",
+        ios: "https://babbledeck.aialra.online/login?next=%2Finstall%2Fios",
+        desktop:
+          "https://babbledeck.aialra.online/login?next=%2Finstall%2Fdesktop",
+      },
       artifacts: {
         androidDebugApk: {
           url: "/api/wrappers/android-debug-apk",

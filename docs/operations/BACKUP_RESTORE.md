@@ -473,6 +473,11 @@ release-labeled recorder verification link and QR as Settings, so the Android
 operator can move from APK install to production recorder evidence without
 opening a shell on the server.
 
+For iOS verification, Settings links to the protected `/install/ios` handoff
+page. That page creates a release-labeled recorder verification link for the
+macOS/Xcode iOS wrapper run; the actual build and device execution still happen
+on the Mac host.
+
 When the Linux desktop release binary exists on the production server, Settings
 also exposes `Download desktop binary` so an authenticated admin can fetch the
 exact server-built wrapper artifact for an interactive desktop verification

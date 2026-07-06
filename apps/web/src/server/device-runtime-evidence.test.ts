@@ -119,6 +119,20 @@ describe("device runtime evidence", () => {
     expect(markdown).toContain("--platform=desktop");
   });
 
+  test("includes iOS handoff in iOS checklist", () => {
+    const markdown = buildDeviceRuntimeEvidenceChecklistMarkdown({
+      baseUrl: "https://babbledeck.aialra.online",
+      release,
+      generatedAt: "2026-07-06T05:42:00.000Z",
+      platforms: ["ios"],
+    });
+
+    expect(markdown).toContain("## iOS");
+    expect(markdown).toContain("/install/ios");
+    expect(markdown).toContain("native:run:ios");
+    expect(markdown).toContain("--platform=ios");
+  });
+
   test("keeps incomplete records from satisfying readiness", () => {
     const record = buildDeviceRuntimeEvidenceRecord({
       platform: "desktop",

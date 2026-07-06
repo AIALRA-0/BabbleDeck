@@ -194,13 +194,15 @@ function deviceRuntimePlatformChecklist(platform: DeviceRuntimePlatform) {
 
   if (platform === "ios") {
     return [
-      "1. Use a macOS host with Xcode and the same repository checkout.",
-      "2. Sync/check the iOS wrapper metadata.",
+      "1. Open the protected iOS handoff page from production Settings.",
+      "   `GET /install/ios`",
+      "2. Use a macOS host with Xcode and the same repository checkout.",
+      "3. Sync/check the iOS wrapper metadata.",
       "   `pnpm --filter @babbledeck/mobile native:check:ios`",
-      "3. Run the wrapper on an iOS simulator or physical iOS device.",
+      "4. Run the wrapper on an iOS simulator or physical iOS device.",
       "   `pnpm --filter @babbledeck/mobile native:run:ios`",
-      "4. On the device, open the production app, grant microphone permission, start a recorder session, confirm live captions are visible, and confirm the audio backup/upload indicator succeeds.",
-      "5. Back on the production server, record evidence:",
+      "5. On the device, open the production app, grant microphone permission, start a recorder session, confirm live captions are visible, and confirm the audio backup/upload indicator succeeds.",
+      "6. Back on the production server, record evidence:",
       `   \`${deviceRuntimeEvidenceCommand("ios")}\``,
     ];
   }

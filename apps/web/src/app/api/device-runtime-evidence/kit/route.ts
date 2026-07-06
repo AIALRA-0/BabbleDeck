@@ -20,21 +20,22 @@ function artifactPayload(
   baseUrl: string,
   handoffRoute?: string,
 ) {
-  const loginUrl = new URL("/login", baseUrl);
-  loginUrl.searchParams.set("next", route);
-  const handoffUrl = handoffRoute ? new URL("/login", baseUrl) : null;
-  if (handoffUrl && handoffRoute)
-    handoffUrl.searchParams.set("next", handoffRoute);
   return {
     url: route,
-    loginUrl: loginUrl.toString(),
-    handoffUrl: handoffUrl?.toString() ?? null,
+    loginUrl: loginProtectedUrl(baseUrl, route),
+    handoffUrl: handoffRoute ? loginProtectedUrl(baseUrl, handoffRoute) : null,
     filename,
     contentType,
     exists: artifact.exists,
     sizeBytes: artifact.sizeBytes ?? null,
     sha256: artifact.sha256 ?? null,
   };
+}
+
+function loginProtectedUrl(baseUrl: string, nextPath: string) {
+  const url = new URL("/login", baseUrl);
+  url.searchParams.set("next", nextPath);
+  return url.toString();
 }
 
 export async function GET() {
@@ -71,6 +72,11 @@ export async function GET() {
       checklist: {
         url: "/api/device-runtime-evidence/checklist",
         filename: `babbledeck-device-runtime-${checklist.release.commit}.md`,
+      },
+      handoffs: {
+        android: loginProtectedUrl(checklist.baseUrl, "/install/android"),
+        ios: loginProtectedUrl(checklist.baseUrl, "/install/ios"),
+        desktop: loginProtectedUrl(checklist.baseUrl, "/install/desktop"),
       },
       artifacts: {
         androidDebugApk: artifactPayload(

@@ -94,6 +94,12 @@ export function DeviceRuntimeEvidenceStatusPanel({
             Android APK missing
           </Button>
         )}
+        <Button asChild variant="secondary">
+          <Link href="/install/ios" prefetch={false}>
+            <Smartphone className="h-4 w-4" />
+            iOS handoff
+          </Link>
+        </Button>
         {desktopReleaseBinary?.exists ? (
           <>
             <Button asChild variant="secondary">

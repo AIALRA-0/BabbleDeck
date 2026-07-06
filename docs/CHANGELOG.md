@@ -11,7 +11,7 @@
 - Added a guarded production wrapper artifact refresh command and wired production deploys to rebuild the Android APK, verify the desktop binary, and log non-secret artifact metadata by default.
 - Added a production readiness check for recent current-release wrapper artifact refresh records, including on-disk SHA-256 verification for the Android APK and desktop binary.
 - Expanded deployment JSONL records with the matching current-release wrapper artifact summary so APK and desktop binary SHA-256 values are visible from the deployment audit record.
-- Added login-gated Android and desktop wrapper handoff pages with release verification link creation to Settings and verification-kit artifact handoff URLs to make native runtime evidence collection easier without making wrapper artifacts public.
+- Added login-gated Android, iOS, and desktop wrapper handoff pages with release verification link creation to Settings and verification-kit handoff URLs to make native runtime evidence collection easier without making wrapper artifacts public.
 - Added `selfHostedReady` to `/api/health` audio storage status so the active single-server deployment reports its intended storage mode without exposing secrets.
 - Added a production device runtime evidence checklist command that binds Android, iOS, and desktop manual verification steps to the current `/api/health` release and stores non-secret Markdown snapshots under the production logs directory.
 - Added an authenticated production Settings form and API for recording release-bound Android, iOS, and desktop runtime evidence directly from the real wrapper/device session.
