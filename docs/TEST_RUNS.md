@@ -1,5 +1,17 @@
 # Test Runs
 
+## 2026-07-06 Device Evidence Receipt
+
+- Environment: local workspace plus production target `https://babbledeck.aialra.online`, recorder-token device evidence path, and production evidence log kept empty during automated validation.
+- Commands:
+  - `pnpm --filter @babbledeck/web typecheck`
+  - `pnpm --filter @babbledeck/web test -- device-runtime-evidence route settings-service`
+  - `pnpm exec prettier --check apps/web/src/app/api/device-runtime-evidence/route.ts apps/web/src/app/api/device-runtime-evidence/route.test.ts apps/web/src/components/DeviceRuntimeEvidenceForm.tsx README.md docs/operations/BACKUP_RESTORE.md docs/TEST_RUNS.md`
+- Results:
+  - Device evidence API responses now include source and session id when present.
+  - The evidence form shows a non-secret receipt after a successful record, including recorded time, platform, release, source, and session id.
+  - The receipt improves real-device handoff without changing the strict requirement that only fully confirmed checks can write passing evidence.
+
 ## 2026-07-06 Recorder Token Device Evidence
 
 - Environment: local workspace plus production target `https://babbledeck.aialra.online`, cross-device recorder links created from Settings, and production evidence log kept empty during automated validation.

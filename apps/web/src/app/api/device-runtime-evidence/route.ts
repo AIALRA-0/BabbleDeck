@@ -113,6 +113,8 @@ export async function POST(request: Request) {
   return ok({
     recordedAt: record.recordedAt,
     platform: record.platform,
+    source: record.source,
+    sessionId: record.sessionId ?? null,
     release: record.release,
   });
 }

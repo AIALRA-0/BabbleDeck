@@ -4,6 +4,7 @@ import { CheckCircle2, Loader2, Mic, Save } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formatDateTime } from "@/lib/utils";
 
 type Platform = "android" | "ios" | "desktop";
 type EvidenceSource = "admin_settings" | "recorder_page" | "session_history";
@@ -21,10 +22,14 @@ type EvidenceResponse =
       data: {
         recordedAt: string;
         platform: Platform;
+        source: EvidenceSource;
+        sessionId: string | null;
         release: { commit: string };
       };
     }
   | { ok: false };
+
+type EvidenceReceipt = Extract<EvidenceResponse, { ok: true }>["data"];
 
 const checkLabels: { name: CheckName; label: string }[] = [
   { name: "productionUrlOpened", label: "Production URL opened" },
@@ -40,6 +45,18 @@ const defaultChecks: Record<CheckName, boolean> = {
   recordingStarted: false,
   captionsVisible: false,
   audioBackupConfirmed: false,
+};
+
+const platformLabels: Record<Platform, string> = {
+  android: "Android",
+  ios: "iOS",
+  desktop: "Desktop",
+};
+
+const sourceLabels: Record<EvidenceSource, string> = {
+  admin_settings: "Settings",
+  recorder_page: "Recorder",
+  session_history: "Session history",
 };
 
 function clientSnapshot() {
@@ -96,6 +113,7 @@ export function DeviceRuntimeEvidenceForm({
   const [status, setStatus] = useState<
     "idle" | "saved" | "failed" | "mic-failed"
   >("idle");
+  const [receipt, setReceipt] = useState<EvidenceReceipt | null>(null);
 
   const allChecks = useMemo(
     () => checkLabels.every((item) => checks[item.name]),
@@ -142,6 +160,7 @@ export function DeviceRuntimeEvidenceForm({
         event.preventDefault();
         setPending(true);
         setStatus("idle");
+        setReceipt(null);
         const response = await fetch("/api/device-runtime-evidence", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -158,7 +177,12 @@ export function DeviceRuntimeEvidenceForm({
         });
         setPending(false);
         const payload = (await response.json()) as EvidenceResponse;
-        setStatus(response.ok && payload.ok ? "saved" : "failed");
+        if (response.ok && payload.ok) {
+          setReceipt(payload.data);
+          setStatus("saved");
+        } else {
+          setStatus("failed");
+        }
       }}
     >
       <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
@@ -241,6 +265,46 @@ export function DeviceRuntimeEvidenceForm({
           }}
         />
       </div>
+
+      {receipt ? (
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
+          <p className="font-semibold">Evidence receipt</p>
+          <dl className="mt-2 grid gap-2 sm:grid-cols-2">
+            <div>
+              <dt className="text-xs font-semibold uppercase text-emerald-800">
+                Recorded
+              </dt>
+              <dd className="mt-1">{formatDateTime(receipt.recordedAt)}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-semibold uppercase text-emerald-800">
+                Platform
+              </dt>
+              <dd className="mt-1">{platformLabels[receipt.platform]}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-semibold uppercase text-emerald-800">
+                Release
+              </dt>
+              <dd className="mt-1 break-all">{receipt.release.commit}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-semibold uppercase text-emerald-800">
+                Source
+              </dt>
+              <dd className="mt-1">{sourceLabels[receipt.source]}</dd>
+            </div>
+            {receipt.sessionId ? (
+              <div className="sm:col-span-2">
+                <dt className="text-xs font-semibold uppercase text-emerald-800">
+                  Session
+                </dt>
+                <dd className="mt-1 break-all">{receipt.sessionId}</dd>
+              </div>
+            ) : null}
+          </dl>
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-3">
         <Button disabled={pending || !allChecks || !releaseCommit}>

@@ -447,7 +447,8 @@ authenticated recorder link plus QR code for a real device or interactive
 wrapper session. Devices opened from that recorder link may submit recorder-page
 evidence with the recorder token, without a separate admin login on the device.
 Record evidence only after that device confirms production URL load, microphone
-permission, recording, captions, and audio backup.
+permission, recording, captions, and audio backup. The form then shows a
+non-secret receipt with recorded time, platform, release, source, and session id.
 
 When the Android debug APK exists on the production server, the same Settings
 status panel exposes an authenticated `Download Android APK` action for physical

@@ -162,6 +162,8 @@ describe("device runtime evidence route", () => {
       ok: true,
       data: {
         platform: "android",
+        source: "recorder_page",
+        sessionId: recorderSessionId,
         release,
       },
     });
