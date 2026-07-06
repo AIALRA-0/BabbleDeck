@@ -7,11 +7,24 @@
   - `df -Pm / /srv /tmp`
   - `bash -n scripts/deploy-production.sh`
   - `BABBLEDECK_DEPLOY_ALLOW_DIRTY=1 BABBLEDECK_DEPLOY_MIN_FREE_MB=999999 scripts/deploy-production.sh` (expected exit `1` before build/restart)
+  - GitHub Actions run `28759618951`
+  - `pnpm deploy:production`
+  - `curl -fsS https://babbledeck.aialra.online/api/health`
+  - `tail -n 1 /srv/aialra/logs/babbledeck/deployments.jsonl`
+  - `systemctl show aialra-babbledeck.service aialra-babbledeck-ws.service aialra-babbledeck-livekit.service --property=Id,ActiveState,SubState,NRestarts,ExecMainStartTimestamp --no-pager`
+  - `bash -lc 'set -a; . /srv/aialra/config/secrets/babbledeck.env; set +a; pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --check-soniox-live --expected-release-commit=f4cc1e075cec'`
 - Results:
   - Added `BABBLEDECK_DEPLOY_MIN_FREE_MB`, defaulting to `3072`, and `BABBLEDECK_DEPLOY_DISK_PATHS`, defaulting to the app directory, release root, log directory, and `/tmp`.
   - `pnpm deploy:production` now checks deployment disk space before building standalone output or restarting services.
   - The preflight deduplicates paths by mounted filesystem, records filesystem, checked path, available MB, use percentage, and mounted path in deployment JSONL, and exits before build/restart if any checked filesystem is below the threshold.
   - The high-threshold smoke failed safely at `[deploy] checking deployment disk space` with `/` reporting about `4386MB` free and did not enter build or service restart.
+  - CI run `28759618951` passed for commit `f4cc1e075cec`.
+  - Production deploy for commit `f4cc1e075cec` passed: disk preflight, forced standalone build, immutable release publication, web/recorder service restart, HTTPS readiness, homepage content check, readiness, seed-admin login/logout smoke, anonymous protected-route Playwright smoke, and release prune.
+  - Live `/api/health` returned `release.commit="f4cc1e075cec"`, `status="ok"`, audio storage `driver="local"`, Soniox configured, and LiveKit configured.
+  - Deployment JSONL recorded `disk.ok=true`, `minFreeMb=3072`, and `/` with about `4123MB` available at preflight time.
+  - Release prune kept five immutable releases and removed the oldest release directory, `9bb1a504cfbd-20260705T233435Z`.
+  - Web, recorder WebSocket, and LiveKit services were active/running after deployment with `NRestarts=0`.
+  - Strict production readiness with live Soniox returned `requiredOk=true`; `externalOk=false` remains because production still lacks Android/iOS/desktop runtime evidence and off-host audio storage.
 
 ## 2026-07-06 Immutable Release Retention
 
