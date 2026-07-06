@@ -22,6 +22,16 @@ export function androidDebugApkPath() {
   );
 }
 
+export function desktopReleaseBinaryPath() {
+  return (
+    process.env.BABBLEDECK_DESKTOP_RELEASE_BINARY_PATH ??
+    path.join(
+      process.env.BABBLEDECK_WORKSPACE_DIR ?? DEFAULT_WORKSPACE_ROOT,
+      "apps/desktop/src-tauri/target/release/babbledeck-desktop",
+    )
+  );
+}
+
 export async function readWrapperArtifact(filePath: string) {
   const [stat, contents] = await Promise.all([
     fs.stat(/*turbopackIgnore: true*/ filePath),
@@ -43,6 +53,18 @@ export async function readWrapperArtifact(filePath: string) {
 
 export async function getAndroidDebugApkArtifact(): Promise<WrapperArtifact> {
   const filePath = androidDebugApkPath();
+  try {
+    return (await readWrapperArtifact(filePath)).artifact;
+  } catch {
+    return {
+      path: filePath,
+      exists: false,
+    };
+  }
+}
+
+export async function getDesktopReleaseBinaryArtifact(): Promise<WrapperArtifact> {
+  const filePath = desktopReleaseBinaryPath();
   try {
     return (await readWrapperArtifact(filePath)).artifact;
   } catch {

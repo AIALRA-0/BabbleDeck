@@ -1,5 +1,18 @@
 # Test Runs
 
+## 2026-07-06 Settings Desktop Binary Download
+
+- Environment: local workspace plus production target `https://babbledeck.aialra.online`, Linux desktop release binary present at `apps/desktop/src-tauri/target/release/babbledeck-desktop`, and no interactive desktop display session.
+- Commands:
+  - `pnpm --filter @babbledeck/web typecheck`
+  - `pnpm --filter @babbledeck/web test -- wrapper-artifacts desktop-release-binary android-debug-apk device-runtime-evidence settings-service`
+  - `pnpm exec prettier --check apps/web/src/server/wrapper-artifacts.ts apps/web/src/server/wrapper-artifacts.test.ts apps/web/src/app/api/wrappers/desktop-release-binary/route.ts apps/web/src/app/api/wrappers/desktop-release-binary/route.test.ts apps/web/src/app/settings/page.tsx apps/web/src/components/DeviceRuntimeEvidenceStatusPanel.tsx apps/web/src/server/device-runtime-evidence.ts apps/web/src/server/device-runtime-evidence.test.ts README.md docs/operations/BACKUP_RESTORE.md docs/TEST_RUNS.md`
+- Results:
+  - Added authenticated `GET /api/wrappers/desktop-release-binary`, which serves the current server-built Linux desktop wrapper binary as an attachment and returns the SHA-256 in a non-secret response header.
+  - Added Settings page desktop binary status and download action next to the Android APK and release-bound checklist.
+  - Updated the release-bound device evidence checklist so Android and desktop verification steps mention the authenticated Settings artifact downloads.
+  - This makes interactive desktop handoff easier but does not mark desktop runtime evidence as passing; a real interactive wrapper run is still required.
+
 ## 2026-07-06 Settings Android APK Download
 
 - Environment: local workspace plus production target `https://babbledeck.aialra.online`, Android debug APK present at `apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk`, and no physical Android device connected.

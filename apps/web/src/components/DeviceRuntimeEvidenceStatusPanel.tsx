@@ -1,4 +1,4 @@
-import { Download, Smartphone } from "lucide-react";
+import { Download, Monitor, Smartphone } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,9 +47,11 @@ function formatDateTime(value: string | null) {
 export function DeviceRuntimeEvidenceStatusPanel({
   summary,
   androidDebugApk,
+  desktopReleaseBinary,
 }: {
   summary: DeviceRuntimeEvidenceStatusSummary;
   androidDebugApk?: WrapperArtifact;
+  desktopReleaseBinary?: WrapperArtifact;
 }) {
   return (
     <div className="border-b border-border p-5">
@@ -85,14 +87,36 @@ export function DeviceRuntimeEvidenceStatusPanel({
             Android APK missing
           </Button>
         )}
+        {desktopReleaseBinary?.exists ? (
+          <Button asChild variant="secondary">
+            <Link href="/api/wrappers/desktop-release-binary" prefetch={false}>
+              <Monitor className="h-4 w-4" />
+              Download desktop binary
+            </Link>
+          </Button>
+        ) : (
+          <Button disabled variant="secondary">
+            <Monitor className="h-4 w-4" />
+            Desktop binary missing
+          </Button>
+        )}
       </div>
-      {androidDebugApk ? (
-        <p className="mt-3 text-xs text-muted-foreground">
-          {androidDebugApk.exists
-            ? `Android APK ready · ${Math.round((androidDebugApk.sizeBytes ?? 0) / 1024 / 1024)} MB · ${androidDebugApk.sha256?.slice(0, 12)}`
-            : "Build the Android wrapper before physical device verification."}
-        </p>
-      ) : null}
+      <div className="mt-3 space-y-1 text-xs text-muted-foreground">
+        {androidDebugApk ? (
+          <p>
+            {androidDebugApk.exists
+              ? `Android APK ready · ${Math.round((androidDebugApk.sizeBytes ?? 0) / 1024 / 1024)} MB · ${androidDebugApk.sha256?.slice(0, 12)}`
+              : "Build the Android wrapper before physical device verification."}
+          </p>
+        ) : null}
+        {desktopReleaseBinary ? (
+          <p>
+            {desktopReleaseBinary.exists
+              ? `Desktop binary ready · ${Math.round((desktopReleaseBinary.sizeBytes ?? 0) / 1024 / 1024)} MB · ${desktopReleaseBinary.sha256?.slice(0, 12)}`
+              : "Build the desktop wrapper before interactive desktop verification."}
+          </p>
+        ) : null}
+      </div>
       <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
         <div>
           <dt className="text-xs font-semibold uppercase text-muted-foreground">

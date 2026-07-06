@@ -439,3 +439,8 @@ checklist as an authenticated download.
 When the Android debug APK exists on the production server, the same Settings
 status panel exposes an authenticated `Download Android APK` action for physical
 Android install/run verification.
+
+When the Linux desktop release binary exists on the production server, Settings
+also exposes `Download desktop binary` so an authenticated admin can fetch the
+exact server-built wrapper artifact for an interactive desktop verification
+session.

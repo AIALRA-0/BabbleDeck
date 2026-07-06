@@ -4,12 +4,15 @@ import path from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
 import {
   androidDebugApkPath,
+  desktopReleaseBinaryPath,
   getAndroidDebugApkArtifact,
+  getDesktopReleaseBinaryArtifact,
   readWrapperArtifact,
 } from "@/server/wrapper-artifacts";
 
 let tempDir: string | null = null;
 const originalApkPath = process.env.BABBLEDECK_ANDROID_DEBUG_APK_PATH;
+const originalDesktopPath = process.env.BABBLEDECK_DESKTOP_RELEASE_BINARY_PATH;
 const originalWorkspaceDir = process.env.BABBLEDECK_WORKSPACE_DIR;
 
 afterEach(async () => {
@@ -21,6 +24,11 @@ afterEach(async () => {
     delete process.env.BABBLEDECK_ANDROID_DEBUG_APK_PATH;
   } else {
     process.env.BABBLEDECK_ANDROID_DEBUG_APK_PATH = originalApkPath;
+  }
+  if (originalDesktopPath === undefined) {
+    delete process.env.BABBLEDECK_DESKTOP_RELEASE_BINARY_PATH;
+  } else {
+    process.env.BABBLEDECK_DESKTOP_RELEASE_BINARY_PATH = originalDesktopPath;
   }
   if (originalWorkspaceDir === undefined) {
     delete process.env.BABBLEDECK_WORKSPACE_DIR;
@@ -34,6 +42,13 @@ describe("wrapper artifacts", () => {
     process.env.BABBLEDECK_ANDROID_DEBUG_APK_PATH = "/tmp/app-debug.apk";
 
     expect(androidDebugApkPath()).toBe("/tmp/app-debug.apk");
+  });
+
+  test("uses an explicit desktop binary path when configured", () => {
+    process.env.BABBLEDECK_DESKTOP_RELEASE_BINARY_PATH =
+      "/tmp/babbledeck-desktop";
+
+    expect(desktopReleaseBinaryPath()).toBe("/tmp/babbledeck-desktop");
   });
 
   test("reads Android APK artifact metadata", async () => {
@@ -52,6 +67,22 @@ describe("wrapper artifacts", () => {
     expect(artifact.sha256).toHaveLength(64);
   });
 
+  test("reads desktop binary artifact metadata", async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "babbledeck-desktop-"));
+    const binaryPath = path.join(tempDir, "babbledeck-desktop");
+    await fs.writeFile(binaryPath, "desktop binary");
+    process.env.BABBLEDECK_DESKTOP_RELEASE_BINARY_PATH = binaryPath;
+
+    const artifact = await getDesktopReleaseBinaryArtifact();
+
+    expect(artifact).toMatchObject({
+      path: binaryPath,
+      exists: true,
+      sizeBytes: 14,
+    });
+    expect(artifact.sha256).toHaveLength(64);
+  });
+
   test("returns missing metadata when APK cannot be read", async () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "babbledeck-apk-"));
     const apkPath = path.join(tempDir, "missing.apk");
@@ -60,6 +91,18 @@ describe("wrapper artifacts", () => {
     await expect(readWrapperArtifact(apkPath)).rejects.toThrow();
     expect(await getAndroidDebugApkArtifact()).toEqual({
       path: apkPath,
+      exists: false,
+    });
+  });
+
+  test("returns missing metadata when desktop binary cannot be read", async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "babbledeck-desktop-"));
+    const binaryPath = path.join(tempDir, "missing-binary");
+    process.env.BABBLEDECK_DESKTOP_RELEASE_BINARY_PATH = binaryPath;
+
+    await expect(readWrapperArtifact(binaryPath)).rejects.toThrow();
+    expect(await getDesktopReleaseBinaryArtifact()).toEqual({
+      path: binaryPath,
       exists: false,
     });
   });

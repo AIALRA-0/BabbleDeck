@@ -17,7 +17,10 @@ import {
   listAuditLogs,
   listGlossaryTerms,
 } from "@/server/settings-service";
-import { getAndroidDebugApkArtifact } from "@/server/wrapper-artifacts";
+import {
+  getAndroidDebugApkArtifact,
+  getDesktopReleaseBinaryArtifact,
+} from "@/server/wrapper-artifacts";
 
 export default async function SettingsPage() {
   await requireUser();
@@ -30,6 +33,7 @@ export default async function SettingsPage() {
     auditLogs,
     deviceEvidenceStatus,
     androidDebugApk,
+    desktopReleaseBinary,
   ] = await Promise.all([
     getAudioRetentionDaysSetting(),
     getDefaultSessionSettings(),
@@ -40,6 +44,7 @@ export default async function SettingsPage() {
       releaseCommit,
     }),
     getAndroidDebugApkArtifact(),
+    getDesktopReleaseBinaryArtifact(),
   ]);
   const providers = [
     ["Soniox", Boolean(process.env.SONIOX_API_KEY)],
@@ -115,6 +120,7 @@ export default async function SettingsPage() {
           <DeviceRuntimeEvidenceStatusPanel
             summary={deviceEvidenceStatus}
             androidDebugApk={androidDebugApk}
+            desktopReleaseBinary={desktopReleaseBinary}
           />
           <DeviceRuntimeEvidenceForm
             releaseCommit={releaseCommit}

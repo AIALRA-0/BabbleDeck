@@ -99,8 +99,22 @@ describe("device runtime evidence", () => {
     expect(markdown).toContain("- Release commit: 783585d7a975");
     expect(markdown).toContain("## Android");
     expect(markdown).toContain("--platform=android");
+    expect(markdown).toContain("/api/wrappers/android-debug-apk");
     expect(markdown).toContain("--base-url=https://babbledeck.aialra.online");
     expect(markdown).not.toContain("## iOS");
+  });
+
+  test("includes desktop binary download in desktop checklist", () => {
+    const markdown = buildDeviceRuntimeEvidenceChecklistMarkdown({
+      baseUrl: "https://babbledeck.aialra.online",
+      release,
+      generatedAt: "2026-07-06T05:42:00.000Z",
+      platforms: ["desktop"],
+    });
+
+    expect(markdown).toContain("## Desktop");
+    expect(markdown).toContain("/api/wrappers/desktop-release-binary");
+    expect(markdown).toContain("--platform=desktop");
   });
 
   test("keeps incomplete records from satisfying readiness", () => {

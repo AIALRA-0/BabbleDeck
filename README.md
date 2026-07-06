@@ -294,7 +294,9 @@ The production Settings page also shows per-platform evidence status and offers
 a release-bound Markdown checklist download for the currently deployed build.
 When the Android debug APK is present on the server, Settings also offers an
 authenticated APK download so a physical Android device can install the wrapper
-without opening a shell on the server.
+without opening a shell on the server. When the Linux desktop release binary is
+present, Settings exposes the matching authenticated desktop binary download for
+interactive wrapper verification.
 
 Strict production readiness requires recent passing Android, iOS, and desktop
 device evidence before treating native wrapper runtime validation as complete.

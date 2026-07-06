@@ -179,12 +179,14 @@ function deviceRuntimePlatformChecklist(platform: DeviceRuntimePlatform) {
     return [
       "1. Build or refresh the Android wrapper on the server.",
       "   `pnpm --filter @babbledeck/mobile native:build:android`",
-      "2. Connect a physical Android device with USB debugging enabled.",
+      "2. Or, as an authenticated admin, download the current server-built APK from Settings.",
+      "   `GET /api/wrappers/android-debug-apk`",
+      "3. Connect a physical Android device with USB debugging enabled.",
       "   `adb devices -l`",
-      "3. Install/run the wrapper against the production PWA.",
+      "4. Install/run the wrapper against the production PWA.",
       "   `pnpm --filter @babbledeck/mobile native:run:android`",
-      "4. On the device, open the production app, grant microphone permission, start a recorder session, confirm live captions are visible, and confirm the audio backup/upload indicator succeeds.",
-      "5. Back on the server, record evidence:",
+      "5. On the device, open the production app, grant microphone permission, start a recorder session, confirm live captions are visible, and confirm the audio backup/upload indicator succeeds.",
+      "6. Back on the server, record evidence:",
       `   \`${deviceRuntimeEvidenceCommand("android")}\``,
     ];
   }
@@ -206,10 +208,12 @@ function deviceRuntimePlatformChecklist(platform: DeviceRuntimePlatform) {
     "1. Use an interactive desktop session on a machine that can launch the Tauri wrapper.",
     "2. Build or refresh the desktop wrapper if needed.",
     "   `pnpm --filter @babbledeck/desktop native:build`",
-    "3. Launch the wrapper in that interactive session.",
+    "3. For Linux desktop verification, an authenticated admin can download the current server-built release binary from Settings.",
+    "   `GET /api/wrappers/desktop-release-binary`",
+    "4. Launch the wrapper in that interactive session.",
     "   `pnpm --filter @babbledeck/desktop native:dev`",
-    "4. In the wrapper, open the production app, grant microphone permission, start a recorder session, confirm live captions are visible, and confirm the audio backup/upload indicator succeeds.",
-    "5. Back on the production server, record evidence:",
+    "5. In the wrapper, open the production app, grant microphone permission, start a recorder session, confirm live captions are visible, and confirm the audio backup/upload indicator succeeds.",
+    "6. Back on the production server, record evidence:",
     `   \`${deviceRuntimeEvidenceCommand("desktop")}\``,
   ];
 }
