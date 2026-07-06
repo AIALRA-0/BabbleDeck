@@ -2,6 +2,7 @@ import { constants as fsConstants } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { promisify } from "node:util";
 import { Prisma } from "@prisma/client";
 import { resolveAudioStorageConfig } from "../apps/web/src/server/audio-storage";
@@ -1079,6 +1080,131 @@ async function recentDeviceRuntimeEvidenceOk(
   }
 }
 
+async function artifactStillMatches(record: Record<string, unknown>) {
+  const filePath = typeof record.path === "string" ? record.path : "";
+  const expectedSize = Number(record.sizeBytes);
+  const expectedSha =
+    typeof record.sha256 === "string" ? record.sha256.toLowerCase() : "";
+  if (!filePath || record.exists !== true) return false;
+  if (!Number.isFinite(expectedSize) || expectedSize <= 0) return false;
+  if (!/^[a-f0-9]{64}$/.test(expectedSha)) return false;
+
+  try {
+    const [stat, contents] = await Promise.all([
+      fs.stat(filePath),
+      fs.readFile(filePath),
+    ]);
+    const actualSha = createHash("sha256").update(contents).digest("hex");
+    return (
+      stat.isFile() && stat.size === expectedSize && actualSha === expectedSha
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function recentWrapperArtifactsOk(releaseCommit?: string | null) {
+  const wrapperArtifactLog =
+    process.env.BABBLEDECK_WRAPPER_ARTIFACT_LOG ??
+    "/srv/aialra/logs/babbledeck/wrapper-artifacts.jsonl";
+  const maxAgeHours = Number(
+    process.env.BABBLEDECK_WRAPPER_ARTIFACT_MAX_AGE_HOURS ?? 168,
+  );
+  const maxAgeMs =
+    Number.isFinite(maxAgeHours) && maxAgeHours > 0
+      ? maxAgeHours * 60 * 60 * 1000
+      : 168 * 60 * 60 * 1000;
+
+  try {
+    const contents = await fs.readFile(wrapperArtifactLog, "utf8");
+    const records = contents
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+    const candidates = releaseCommit
+      ? records.filter((record) => record.commit === releaseCommit)
+      : records;
+    const latest = candidates
+      .sort((a, b) =>
+        String(b.finishedAt ?? "").localeCompare(String(a.finishedAt ?? "")),
+      )
+      .at(0);
+    if (!latest) {
+      return {
+        ok: false,
+        message: releaseCommit
+          ? `No wrapper artifact refresh record exists for release ${releaseCommit}.`
+          : "No wrapper artifact refresh record exists.",
+      };
+    }
+
+    const finishedAtMs = Date.parse(String(latest.finishedAt ?? ""));
+    const freshFinishedAt =
+      Number.isFinite(finishedAtMs) && Date.now() - finishedAtMs <= maxAgeMs;
+    const actions =
+      latest.actions &&
+      typeof latest.actions === "object" &&
+      !Array.isArray(latest.actions)
+        ? (latest.actions as Record<string, unknown>)
+        : {};
+    const artifacts =
+      latest.artifacts &&
+      typeof latest.artifacts === "object" &&
+      !Array.isArray(latest.artifacts)
+        ? (latest.artifacts as Record<string, unknown>)
+        : {};
+    const android =
+      artifacts.androidDebugApk &&
+      typeof artifacts.androidDebugApk === "object" &&
+      !Array.isArray(artifacts.androidDebugApk)
+        ? (artifacts.androidDebugApk as Record<string, unknown>)
+        : {};
+    const desktop =
+      artifacts.desktopReleaseBinary &&
+      typeof artifacts.desktopReleaseBinary === "object" &&
+      !Array.isArray(artifacts.desktopReleaseBinary)
+        ? (artifacts.desktopReleaseBinary as Record<string, unknown>)
+        : {};
+    const [androidMatches, desktopMatches] = await Promise.all([
+      artifactStillMatches(android),
+      artifactStillMatches(desktop),
+    ]);
+
+    const ok =
+      latest.app === "babbledeck" &&
+      freshFinishedAt &&
+      actions.androidBuildRan === true &&
+      actions.desktopSmokeRan === true &&
+      androidMatches &&
+      desktopMatches;
+
+    return {
+      ok,
+      message: ok
+        ? `Recent production wrapper artifact refresh passed${releaseCommit ? ` for release ${releaseCommit}` : ""}; Android APK and desktop binary are present with matching SHA-256 metadata.`
+        : "Latest production wrapper artifact refresh is missing, stale, skipped required actions, or no longer matches files on disk.",
+    };
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "ENOENT"
+    ) {
+      return {
+        ok: false,
+        message: "Production wrapper artifact refresh JSONL record is missing.",
+      };
+    }
+    return {
+      ok: false,
+      message:
+        "Production wrapper artifact refresh JSONL record could not be checked.",
+    };
+  }
+}
+
 async function recentSecurityBaselineOk() {
   const securityLog =
     process.env.BABBLEDECK_SECURITY_BASELINE_LOG ??
@@ -1356,6 +1482,15 @@ async function main() {
     name: "recent_security_baseline",
     ok: securityBaseline.ok,
     message: securityBaseline.message,
+  });
+
+  const wrapperArtifacts = await recentWrapperArtifactsOk(
+    healthEndpoint.releaseCommit,
+  );
+  check(checks, {
+    name: "recent_wrapper_artifacts",
+    ok: wrapperArtifacts.ok,
+    message: wrapperArtifacts.message,
   });
 
   const deviceRuntime = await recentDeviceRuntimeEvidenceOk(

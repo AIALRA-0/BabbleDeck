@@ -270,7 +270,9 @@ desktop release binary, runs the desktop Xvfb launch smoke by default, and
 writes non-secret artifact metadata to
 `/srv/aialra/logs/babbledeck/wrapper-artifacts.jsonl`. Production deploys run
 this refresh by default; set `BABBLEDECK_DEPLOY_SKIP_WRAPPER_REFRESH=1` only
-for an emergency web-only deploy.
+for an emergency web-only deploy. Production readiness requires a recent
+current-release refresh record and rechecks the artifact SHA-256 values against
+the files on disk.
 `device:readiness:production` checks the production URL, Android debug APK,
 connected physical Android devices, Xcode availability for iOS, and an
 interactive desktop display session without printing device serials or secrets.
@@ -313,11 +315,11 @@ without opening a shell on the server. When the Linux desktop release binary is
 present, Settings exposes the matching authenticated desktop binary download for
 interactive wrapper verification.
 
-Strict production readiness requires recent passing Android, iOS, and desktop
-device evidence before treating native wrapper runtime validation as complete.
-Each evidence record is tied to the current `/api/health` release commit, so
-new production deployments require fresh device evidence for the deployed
-release.
+Strict production readiness requires both current wrapper handoff artifacts and
+recent passing Android, iOS, and desktop device evidence before treating native
+wrapper runtime validation as complete. Each evidence record is tied to the
+current `/api/health` release commit, so new production deployments require
+fresh device evidence for the deployed release.
 
 ## Deployment Notes
 

@@ -9,11 +9,14 @@
   - `pnpm --filter @babbledeck/mobile native:build:android`
   - `pnpm --filter @babbledeck/desktop native:smoke:headless`
   - `pnpm wrappers:refresh:production`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/check-production-readiness.ts`
   - `pnpm device:readiness:production -- --check-desktop-headless`
+  - `pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --check-soniox-live --expected-release-commit=$(git rev-parse --short=12 HEAD)`
   - Authenticated production download smoke for `/api/wrappers/android-debug-apk` and `/api/wrappers/desktop-release-binary`
 - Results:
   - Added `pnpm wrappers:refresh:production`, a guarded server-side refresh that writes non-secret artifact metadata to `/srv/aialra/logs/babbledeck/wrapper-artifacts.jsonl`.
   - Production deploys now run the wrapper artifact refresh by default, with `BABBLEDECK_DEPLOY_SKIP_WRAPPER_REFRESH=1` available for emergency web-only deploys.
+  - Production readiness now requires a recent current-release wrapper artifact refresh record and rechecks the APK/desktop binary SHA-256 values on disk.
   - Android debug APK was rebuilt successfully at `apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk` with sha256 `857955bcd635774ee5af6adafb2c1f6b84e79a528d09ad5ec19773ad4109b0f8`.
   - Desktop release binary remained present at `apps/desktop/src-tauri/target/release/babbledeck-desktop` with sha256 `4863aedaaab82953a6f1e7c626ba3d82c5f70c7797ecd0656cef313e4aec75c3`, and the Xvfb launch smoke passed.
   - Production authenticated artifact downloads returned HTTP 200 with matching content length and SHA-256 headers.
