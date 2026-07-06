@@ -5,6 +5,7 @@ import { afterEach, describe, expect, test } from "vitest";
 import {
   appendDeviceRuntimeEvidenceRecord,
   buildDeviceRuntimeEvidenceRecord,
+  getDeviceRuntimeEvidenceStatus,
   type DeviceRuntimeChecks,
 } from "@/server/device-runtime-evidence";
 
@@ -116,6 +117,100 @@ describe("device runtime evidence", () => {
       platform: "ios",
       ok: true,
       release,
+    });
+  });
+
+  test("summarizes missing device evidence by platform", async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "babbledeck-device-"));
+    const status = await getDeviceRuntimeEvidenceStatus({
+      logPath: path.join(tempDir, "missing.jsonl"),
+      baseUrl: "https://babbledeck.aialra.online",
+      releaseCommit: release.commit,
+      now: new Date("2026-07-06T05:42:00.000Z"),
+    });
+
+    expect(status.ok).toBe(false);
+    expect(status.logExists).toBe(false);
+    expect(status.missingPlatforms).toEqual(["android", "ios", "desktop"]);
+    expect(status.platforms.map((item) => item.reason)).toEqual([
+      "missing",
+      "missing",
+      "missing",
+    ]);
+  });
+
+  test("summarizes current release evidence status", async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "babbledeck-device-"));
+    const logPath = path.join(tempDir, "device-runtime.jsonl");
+    for (const platform of ["android", "ios", "desktop"] as const) {
+      await appendDeviceRuntimeEvidenceRecord(
+        buildDeviceRuntimeEvidenceRecord({
+          platform,
+          passed: true,
+          checks: completeChecks,
+          release,
+          baseUrl: "https://babbledeck.aialra.online",
+          recordedAt: new Date("2026-07-06T05:42:00.000Z"),
+        }),
+        logPath,
+      );
+    }
+
+    const status = await getDeviceRuntimeEvidenceStatus({
+      logPath,
+      baseUrl: "https://babbledeck.aialra.online",
+      releaseCommit: release.commit,
+      now: new Date("2026-07-06T05:43:00.000Z"),
+    });
+
+    expect(status.ok).toBe(true);
+    expect(status.missingPlatforms).toEqual([]);
+    expect(status.platforms.map((item) => item.reason)).toEqual([
+      "verified",
+      "verified",
+      "verified",
+    ]);
+  });
+
+  test("uses the latest platform record when reporting release mismatch", async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "babbledeck-device-"));
+    const logPath = path.join(tempDir, "device-runtime.jsonl");
+    await appendDeviceRuntimeEvidenceRecord(
+      buildDeviceRuntimeEvidenceRecord({
+        platform: "android",
+        passed: true,
+        checks: completeChecks,
+        release,
+        baseUrl: "https://babbledeck.aialra.online",
+        recordedAt: new Date("2026-07-06T05:42:00.000Z"),
+      }),
+      logPath,
+    );
+    await appendDeviceRuntimeEvidenceRecord(
+      buildDeviceRuntimeEvidenceRecord({
+        platform: "android",
+        passed: true,
+        checks: completeChecks,
+        release: { ...release, commit: "deadbee" },
+        baseUrl: "https://babbledeck.aialra.online",
+        recordedAt: new Date("2026-07-06T05:44:00.000Z"),
+      }),
+      logPath,
+    );
+
+    const status = await getDeviceRuntimeEvidenceStatus({
+      logPath,
+      baseUrl: "https://babbledeck.aialra.online",
+      releaseCommit: release.commit,
+      now: new Date("2026-07-06T05:45:00.000Z"),
+    });
+
+    expect(status.ok).toBe(false);
+    expect(status.platforms[0]).toMatchObject({
+      platform: "android",
+      ok: false,
+      reason: "release_mismatch",
+      releaseCommit: "deadbee",
     });
   });
 });

@@ -3,9 +3,14 @@ import { AuditLogList } from "@/components/AuditLogList";
 import { AudioRetentionSettingsForm } from "@/components/AudioRetentionSettingsForm";
 import { DefaultSessionSettingsForm } from "@/components/DefaultSessionSettingsForm";
 import { DeviceRuntimeEvidenceForm } from "@/components/DeviceRuntimeEvidenceForm";
+import { DeviceRuntimeEvidenceStatusPanel } from "@/components/DeviceRuntimeEvidenceStatusPanel";
 import { GlossarySettingsForm } from "@/components/GlossarySettingsForm";
 import { Badge } from "@/components/ui/badge";
 import { requireUser } from "@/server/auth";
+import {
+  getDeviceRuntimeEvidenceStatus,
+  productionDeviceEvidenceBaseUrl,
+} from "@/server/device-runtime-evidence";
 import {
   getAudioRetentionDaysSetting,
   getDefaultSessionSettings,
@@ -15,13 +20,24 @@ import {
 
 export default async function SettingsPage() {
   await requireUser();
-  const [audioRetentionDays, defaultSession, glossaryTerms, auditLogs] =
-    await Promise.all([
-      getAudioRetentionDaysSetting(),
-      getDefaultSessionSettings(),
-      listGlossaryTerms(),
-      listAuditLogs(),
-    ]);
+  const releaseCommit = process.env.BABBLEDECK_RELEASE_COMMIT ?? null;
+  const releaseBuiltAt = process.env.BABBLEDECK_RELEASE_BUILT_AT ?? null;
+  const [
+    audioRetentionDays,
+    defaultSession,
+    glossaryTerms,
+    auditLogs,
+    deviceEvidenceStatus,
+  ] = await Promise.all([
+    getAudioRetentionDaysSetting(),
+    getDefaultSessionSettings(),
+    listGlossaryTerms(),
+    listAuditLogs(),
+    getDeviceRuntimeEvidenceStatus({
+      baseUrl: productionDeviceEvidenceBaseUrl(),
+      releaseCommit,
+    }),
+  ]);
   const providers = [
     ["Soniox", Boolean(process.env.SONIOX_API_KEY)],
     [
@@ -35,8 +51,6 @@ export default async function SettingsPage() {
     ["Azure Translator", Boolean(process.env.AZURE_TRANSLATOR_KEY)],
     ["OpenAI", Boolean(process.env.OPENAI_API_KEY)],
   ] as const;
-  const releaseCommit = process.env.BABBLEDECK_RELEASE_COMMIT ?? null;
-  const releaseBuiltAt = process.env.BABBLEDECK_RELEASE_BUILT_AT ?? null;
 
   return (
     <>
@@ -95,6 +109,7 @@ export default async function SettingsPage() {
           <div className="border-b border-border p-5">
             <h2 className="font-semibold">Device evidence</h2>
           </div>
+          <DeviceRuntimeEvidenceStatusPanel summary={deviceEvidenceStatus} />
           <DeviceRuntimeEvidenceForm
             releaseCommit={releaseCommit}
             releaseBuiltAt={releaseBuiltAt}

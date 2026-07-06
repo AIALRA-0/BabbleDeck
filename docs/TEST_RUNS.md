@@ -1,5 +1,23 @@
 # Test Runs
 
+## 2026-07-06 Device Evidence Status Visibility
+
+- Environment: local workspace plus production target `https://babbledeck.aialra.online`, current release-bound device evidence log semantics, and no positive Android/iOS/desktop evidence submitted during automated validation.
+- Commands:
+  - `pnpm --filter @babbledeck/web typecheck`
+  - `pnpm --filter @babbledeck/web test -- health settings-service device-runtime-evidence`
+  - `pnpm exec prettier --check apps/web/src/server/device-runtime-evidence.ts apps/web/src/server/device-runtime-evidence.test.ts apps/web/src/components/DeviceRuntimeEvidenceStatusPanel.tsx apps/web/src/app/settings/page.tsx`
+  - `pnpm db:generate`
+  - `BABBLEDECK_RELEASE_COMMIT=$(git rev-parse --short=12 HEAD) BABBLEDECK_RELEASE_BRANCH=$(git rev-parse --abbrev-ref HEAD) BABBLEDECK_RELEASE_BUILT_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ) pnpm --filter @babbledeck/web build`
+  - `pnpm deploy:production`
+- Results:
+  - Added a server-side device evidence status summary that reads the JSONL evidence log, selects the latest record for Android, iOS, and desktop, and validates current release, production base URL, all required checks, timestamp freshness, and source metadata.
+  - Added a Settings page status panel that shows current release evidence status, base URL, max evidence age, per-platform Verified/Missing state, latest record source, latest record release, and log-read warnings.
+  - Unit coverage now verifies missing logs, complete current-release evidence, and latest-record release mismatch behavior.
+  - Web build completed after `pnpm db:generate`; the device evidence log path uses Turbopack ignore annotations matching the existing audio-storage pattern, so the standalone build no longer emits the NFT trace warning from this helper.
+  - Production deploy smoke passed through build, service restart, readiness, seed-admin login/logout smoke, and anonymous protected-route Playwright smoke.
+  - This adds observability only; it does not create passing device evidence or change the requirement for real Android, iOS, and interactive desktop runs.
+
 ## 2026-07-06 Recorder Flow Device Evidence Entry
 
 - Environment: local workspace plus production target `https://babbledeck.aialra.online`, self-hosted audio storage, authenticated admin browser flow, and no positive Android/iOS/desktop evidence submitted during automated validation.
