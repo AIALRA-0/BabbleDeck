@@ -171,7 +171,8 @@ pnpm deploy:production
 The wrapper force-builds the standalone app, restarts the web and recorder
 WebSocket services, checks HTTPS/readiness/login, runs the anonymous protected
 route Playwright smoke, and appends a non-secret record to
-`/srv/aialra/logs/babbledeck/deployments.jsonl`.
+`/srv/aialra/logs/babbledeck/deployments.jsonl`, including the current release
+wrapper artifact SHA-256 summary.
 
 Production raw-audio storage cutovers should use the guarded wrapper after the
 R2/S3 target variables are present in the production env file:
@@ -268,11 +269,12 @@ at `https://babbledeck.aialra.online` for live-site-first wrapper testing.
 `wrappers:refresh:production` rebuilds the Android debug APK, verifies the
 desktop release binary, runs the desktop Xvfb launch smoke by default, and
 writes non-secret artifact metadata to
-`/srv/aialra/logs/babbledeck/wrapper-artifacts.jsonl`. Production deploys run
-this refresh by default; set `BABBLEDECK_DEPLOY_SKIP_WRAPPER_REFRESH=1` only
-for an emergency web-only deploy. Production readiness requires a recent
-current-release refresh record and rechecks the artifact SHA-256 values against
-the files on disk.
+`/srv/aialra/logs/babbledeck/wrapper-artifacts.jsonl`; the deploy record also
+embeds the matching current-release artifact summary. Production deploys run
+this refresh by default; `BABBLEDECK_DEPLOY_SKIP_WRAPPER_REFRESH=1` is only for
+same-commit reruns where a current-release artifact record already exists.
+Production readiness requires a recent current-release refresh record and
+rechecks the artifact SHA-256 values against the files on disk.
 `device:readiness:production` checks the production URL, Android debug APK,
 connected physical Android devices, Xcode availability for iOS, and an
 interactive desktop display session without printing device serials or secrets.

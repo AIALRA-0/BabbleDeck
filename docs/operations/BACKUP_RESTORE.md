@@ -76,7 +76,8 @@ force-builds the Next standalone output, restarts
 `aialra-babbledeck.service` and `aialra-babbledeck-ws.service`, checks HTTPS
 and readiness, runs seed-admin login/logout smoke, runs the anonymous
 protected-route Playwright smoke, and appends a non-secret JSONL record to
-`/srv/aialra/logs/babbledeck/deployments.jsonl`.
+`/srv/aialra/logs/babbledeck/deployments.jsonl`, including the matching
+wrapper artifact SHA-256 summary for the deployed commit.
 
 Useful overrides:
 
@@ -429,10 +430,11 @@ readiness rejects stale records from older deployments.
 Production deploys also run `pnpm wrappers:refresh:production` by default. The
 refresh rebuilds the Android debug APK, verifies the Linux desktop binary,
 runs the desktop Xvfb launch smoke, and writes non-secret artifact metadata to
-`/srv/aialra/logs/babbledeck/wrapper-artifacts.jsonl`. Production readiness
-requires a recent current-release refresh record and rechecks the recorded
-SHA-256 values against the files on disk. This proves the server handoff
-artifacts are available, but it does not replace real Android, iOS, or
+`/srv/aialra/logs/babbledeck/wrapper-artifacts.jsonl`; the deployment JSONL
+record embeds the matching current-release artifact summary. Production
+readiness requires a recent current-release refresh record and rechecks the
+recorded SHA-256 values against the files on disk. This proves the server
+handoff artifacts are available, but it does not replace real Android, iOS, or
 interactive desktop runtime evidence.
 
 Authenticated admins can also record the same release-bound evidence directly

@@ -8,6 +8,7 @@ WEB_SERVICE="${BABBLEDECK_WEB_SERVICE:-aialra-babbledeck.service}"
 WS_SERVICE="${BABBLEDECK_WS_SERVICE:-aialra-babbledeck-ws.service}"
 LOG_DIR="${BABBLEDECK_LOG_DIR:-/srv/aialra/logs/babbledeck}"
 DEPLOY_LOG="${BABBLEDECK_DEPLOY_LOG:-$LOG_DIR/deployments.jsonl}"
+WRAPPER_ARTIFACT_LOG="${BABBLEDECK_WRAPPER_ARTIFACT_LOG:-$LOG_DIR/wrapper-artifacts.jsonl}"
 LOCK_FILE="${BABBLEDECK_DEPLOY_LOCK:-$LOG_DIR/deploy.lock}"
 ALLOW_DIRTY="${BABBLEDECK_DEPLOY_ALLOW_DIRTY:-0}"
 SKIP_BUILD="${BABBLEDECK_DEPLOY_SKIP_BUILD:-0}"
@@ -486,6 +487,7 @@ export readiness_file readiness_status STRICT_READINESS
 export USE_RELEASE_DIR release_path RELEASE_CURRENT_LINK
 export prune_summary_file
 export disk_summary_file
+export WRAPPER_ARTIFACT_LOG
 node <<'NODE' >>"$DEPLOY_LOG"
 const fs = require("node:fs");
 
@@ -531,6 +533,29 @@ try {
   };
 }
 
+let wrapperArtifacts = null;
+try {
+  const records = fs
+    .readFileSync(process.env.WRAPPER_ARTIFACT_LOG, "utf8")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => JSON.parse(line))
+    .filter((record) => record.commit === process.env.commit)
+    .sort((a, b) =>
+      String(b.finishedAt ?? "").localeCompare(String(a.finishedAt ?? "")),
+    );
+  wrapperArtifacts = records[0] ?? {
+    ok: false,
+    missingForCommit: process.env.commit,
+  };
+} catch {
+  wrapperArtifacts = {
+    ok: false,
+    parseError: true,
+  };
+}
+
 const record = {
   app: "babbledeck",
   deployedAt: process.env.deployed_at,
@@ -550,6 +575,7 @@ const record = {
     prune,
   },
   disk,
+  wrapperArtifacts,
   readiness,
   services: {
     web: {
