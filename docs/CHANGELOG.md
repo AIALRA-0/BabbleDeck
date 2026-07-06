@@ -4,6 +4,7 @@
 
 - Changed production web deploys to publish immutable standalone release directories under `/srv/aialra/releases/babbledeck` and restart the web service through a stable `current` symlink.
 - Added deployment-time pruning for immutable web release directories, keeping the newest releases plus the active `current` symlink target and recording the non-secret prune summary in deployment JSONL.
+- Added a production deployment disk-space preflight that checks app, release, log, and temp filesystems before build/restart and records the non-secret disk summary in deployment JSONL.
 - Added build-time release metadata to `/api/health` so production can report the deployed git commit, branch, and build timestamp without exposing secrets, and made the deployment smoke verify the expected release commit.
 - Fixed strict Next build typing for export downloads by narrowing the export format before selecting the response content type.
 - Expanded production deployment JSONL records with non-secret readiness summaries and web/recorder systemd service state, result, start time, and restart counts.

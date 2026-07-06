@@ -1,5 +1,18 @@
 # Test Runs
 
+## 2026-07-06 Production Deploy Disk Preflight
+
+- Environment: production deployment workspace for `https://babbledeck.aialra.online`, root filesystem at about `4525MB` free before the change, and immutable release directories already enabled.
+- Commands:
+  - `df -Pm / /srv /tmp`
+  - `bash -n scripts/deploy-production.sh`
+  - `BABBLEDECK_DEPLOY_ALLOW_DIRTY=1 BABBLEDECK_DEPLOY_MIN_FREE_MB=999999 scripts/deploy-production.sh` (expected exit `1` before build/restart)
+- Results:
+  - Added `BABBLEDECK_DEPLOY_MIN_FREE_MB`, defaulting to `3072`, and `BABBLEDECK_DEPLOY_DISK_PATHS`, defaulting to the app directory, release root, log directory, and `/tmp`.
+  - `pnpm deploy:production` now checks deployment disk space before building standalone output or restarting services.
+  - The preflight deduplicates paths by mounted filesystem, records filesystem, checked path, available MB, use percentage, and mounted path in deployment JSONL, and exits before build/restart if any checked filesystem is below the threshold.
+  - The high-threshold smoke failed safely at `[deploy] checking deployment disk space` with `/` reporting about `4386MB` free and did not enter build or service restart.
+
 ## 2026-07-06 Immutable Release Retention
 
 - Environment: production workspace with immutable web release directories enabled, `/srv/aialra/releases/babbledeck` containing three releases, and server root filesystem at roughly 98% usage before any new cleanup automation.

@@ -23,6 +23,8 @@ WEB_SERVICE_DROPIN_DIR="${BABBLEDECK_WEB_SERVICE_DROPIN_DIR:-/etc/systemd/system
 WEB_SERVICE_RELEASE_DROPIN="${BABBLEDECK_WEB_SERVICE_RELEASE_DROPIN:-$WEB_SERVICE_DROPIN_DIR/release.conf}"
 RELEASE_PRUNE="${BABBLEDECK_RELEASE_PRUNE:-1}"
 RELEASES_KEEP="${BABBLEDECK_RELEASES_KEEP:-5}"
+MIN_FREE_MB="${BABBLEDECK_DEPLOY_MIN_FREE_MB:-3072}"
+DISK_PATHS="${BABBLEDECK_DEPLOY_DISK_PATHS:-$APP_DIR:$RELEASE_ROOT:$LOG_DIR:/tmp}"
 
 tmp_files=()
 cleanup() {
@@ -41,6 +43,85 @@ need_command() {
 
 status_line() {
   printf '[deploy] %s\n' "$*"
+}
+
+check_deploy_disk_space() {
+  disk_summary_file="$(mktemp)"
+  tmp_files+=("$disk_summary_file")
+
+  DEPLOY_DISK_PATHS="$DISK_PATHS" \
+    DEPLOY_MIN_FREE_MB="$MIN_FREE_MB" \
+    node <<'NODE' >"$disk_summary_file"
+const fs = require("node:fs");
+const path = require("node:path");
+const { execFileSync } = require("node:child_process");
+
+const parsedMin = Number.parseInt(process.env.DEPLOY_MIN_FREE_MB ?? "3072", 10);
+const minFreeMb =
+  Number.isFinite(parsedMin) && parsedMin >= 0 ? parsedMin : 3072;
+const inputPaths = (process.env.DEPLOY_DISK_PATHS ?? "")
+  .split(":")
+  .map((item) => item.trim())
+  .filter(Boolean);
+
+function existingAncestor(inputPath) {
+  let current = path.resolve(inputPath);
+  while (!fs.existsSync(current)) {
+    const parent = path.dirname(current);
+    if (parent === current) return current;
+    current = parent;
+  }
+  return current;
+}
+
+function filesystemFor(inputPath) {
+  const checkedPath = existingAncestor(inputPath);
+  const output = execFileSync("df", ["-Pm", checkedPath], {
+    encoding: "utf8",
+  });
+  const [, row] = output.trim().split(/\r?\n/);
+  const columns = row.trim().split(/\s+/);
+  return {
+    inputPath,
+    checkedPath,
+    filesystem: columns[0],
+    totalMb: Number(columns[1]),
+    usedMb: Number(columns[2]),
+    availableMb: Number(columns[3]),
+    usePercent: columns[4],
+    mountedOn: columns.slice(5).join(" "),
+  };
+}
+
+const filesystems = [];
+const seen = new Set();
+for (const inputPath of inputPaths.length ? inputPaths : [process.cwd()]) {
+  const status = filesystemFor(inputPath);
+  const key = `${status.filesystem}\n${status.mountedOn}`;
+  if (seen.has(key)) continue;
+  seen.add(key);
+  filesystems.push(status);
+}
+
+const low = filesystems.filter(
+  (status) => Number.isFinite(status.availableMb) && status.availableMb < minFreeMb,
+);
+const result = {
+  minFreeMb,
+  ok: low.length === 0,
+  filesystems,
+};
+
+process.stdout.write(`${JSON.stringify(result)}\n`);
+if (low.length > 0) {
+  for (const status of low) {
+    console.error(
+      `Deployment disk preflight failed: ${status.mountedOn} has ${status.availableMb}MB free, below required ${minFreeMb}MB.`,
+    );
+  }
+  process.exit(1);
+}
+NODE
 }
 
 wait_for_https() {
@@ -182,6 +263,7 @@ NODE
 }
 
 need_command curl
+need_command df
 need_command flock
 need_command git
 need_command node
@@ -224,6 +306,9 @@ if [[ -z "${SEED_ADMIN_PASSWORD:-}" ]]; then
   echo "SEED_ADMIN_PASSWORD is required for login smoke." >&2
   exit 1
 fi
+
+status_line "checking deployment disk space"
+check_deploy_disk_space
 
 status_line "deploying commit $commit from $branch to $BASE_URL"
 release_path="$APP_DIR/apps/web/.next/standalone"
@@ -392,6 +477,7 @@ export ws_started ws_active ws_sub ws_restarts ws_result
 export readiness_file readiness_status STRICT_READINESS
 export USE_RELEASE_DIR release_path RELEASE_CURRENT_LINK
 export prune_summary_file
+export disk_summary_file
 node <<'NODE' >>"$DEPLOY_LOG"
 const fs = require("node:fs");
 
@@ -427,6 +513,16 @@ try {
   };
 }
 
+let disk = null;
+try {
+  disk = JSON.parse(fs.readFileSync(process.env.disk_summary_file, "utf8"));
+} catch {
+  disk = {
+    ok: false,
+    parseError: true,
+  };
+}
+
 const record = {
   app: "babbledeck",
   deployedAt: process.env.deployed_at,
@@ -445,6 +541,7 @@ const record = {
         : null,
     prune,
   },
+  disk,
   readiness,
   services: {
     web: {
