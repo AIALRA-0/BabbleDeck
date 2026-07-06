@@ -467,6 +467,78 @@ async function recentMetricsSnapshotOk() {
   }
 }
 
+async function recentBuildCacheCleanupOk() {
+  const cleanupLog =
+    process.env.BABBLEDECK_BUILD_CACHE_CLEANUP_LOG ??
+    "/srv/aialra/logs/babbledeck/build-cache-cleanups.jsonl";
+  const maxAgeHours = Number(
+    process.env.BABBLEDECK_BUILD_CACHE_CLEANUP_MAX_AGE_HOURS ?? 48,
+  );
+  const maxAgeMs =
+    Number.isFinite(maxAgeHours) && maxAgeHours > 0
+      ? maxAgeHours * 60 * 60 * 1000
+      : 48 * 60 * 60 * 1000;
+  try {
+    const stat = await fs.stat(cleanupLog);
+    if (Date.now() - stat.mtimeMs > maxAgeMs) {
+      return {
+        ok: false,
+        message: `Production build-cache cleanup is older than ${Math.round(maxAgeMs / 3600000)} hours.`,
+      };
+    }
+
+    const contents = await fs.readFile(cleanupLog, "utf8");
+    const records = contents
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => JSON.parse(line));
+    const latest = records
+      .slice()
+      .reverse()
+      .find((record) => record.dryRun === false);
+    if (!latest) {
+      return {
+        ok: false,
+        message:
+          "Production build-cache cleanup log exists but has no non-dry-run JSONL records.",
+      };
+    }
+
+    const record = latest;
+    const finishedAtMs = Date.parse(record.finishedAt);
+    const freshFinishedAt =
+      Number.isFinite(finishedAtMs) && Date.now() - finishedAtMs <= maxAgeMs;
+    const diskOk =
+      record.skipped === true ||
+      (Number.isFinite(Number(record.disk?.beforeAvailableMb)) &&
+        Number.isFinite(Number(record.disk?.afterAvailableMb)) &&
+        Number.isFinite(Number(record.disk?.plannedRemovedMb)));
+    return {
+      ok:
+        record.app === "babbledeck" &&
+        record.dryRun === false &&
+        freshFinishedAt &&
+        diskOk,
+      message:
+        record.app === "babbledeck" &&
+        record.dryRun === false &&
+        freshFinishedAt &&
+        diskOk
+          ? record.skipped === true
+            ? "Recent production build-cache cleanup skipped safely because the deployment lock was active."
+            : `Recent production build-cache cleanup ran with ${Number(record.disk?.plannedRemovedMb ?? 0)}MB planned for removal.`
+          : "Latest production build-cache cleanup JSONL record is missing required fields, dry-run only, failed, or is stale.",
+    };
+  } catch {
+    return {
+      ok: false,
+      message:
+        "Production build-cache cleanup JSONL record could not be checked.",
+    };
+  }
+}
+
 async function recentLoadSmokeOk() {
   const loadSmokeLog =
     process.env.BABBLEDECK_LOAD_SMOKE_LOG ??
@@ -1082,6 +1154,7 @@ async function main() {
     "aialra-babbledeck-audio-retention.timer",
     "aialra-babbledeck-health-monitor.timer",
     "aialra-babbledeck-metrics.timer",
+    "aialra-babbledeck-build-cache-cleanup.timer",
   ]) {
     const state = await serviceState(service);
     check(checks, {
@@ -1153,6 +1226,13 @@ async function main() {
     name: "recent_metrics_snapshot",
     ok: metricsSnapshot.ok,
     message: metricsSnapshot.message,
+  });
+
+  const buildCacheCleanup = await recentBuildCacheCleanupOk();
+  check(checks, {
+    name: "recent_build_cache_cleanup",
+    ok: buildCacheCleanup.ok,
+    message: buildCacheCleanup.message,
   });
 
   const loadSmoke = await recentLoadSmokeOk();

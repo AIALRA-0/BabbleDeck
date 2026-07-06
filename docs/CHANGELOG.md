@@ -6,6 +6,7 @@
 - Added deployment-time pruning for immutable web release directories, keeping the newest releases plus the active `current` symlink target and recording the non-secret prune summary in deployment JSONL.
 - Added a production deployment disk-space preflight that checks app, release, log, and temp filesystems before build/restart and records the non-secret disk summary in deployment JSONL.
 - Added a production build-cache cleanup command that removes only rebuildable Turbo, Next, pnpm, Gradle, and Rust/Tauri intermediate caches while preserving deployed releases and native runtime artifacts.
+- Added a systemd timer installer and readiness checks for production build-cache cleanup, including protection against running while a deployment lock is active.
 - Fixed production static-asset readiness so it reads the active immutable release before falling back to local workspace build output.
 - Added build-time release metadata to `/api/health` so production can report the deployed git commit, branch, and build timestamp without exposing secrets, and made the deployment smoke verify the expected release commit.
 - Fixed strict Next build typing for export downloads by narrowing the export format before selecting the response content type.

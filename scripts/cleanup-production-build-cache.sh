@@ -5,9 +5,11 @@ APP_DIR="${BABBLEDECK_APP_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
 LOG_DIR="${BABBLEDECK_LOG_DIR:-/srv/aialra/logs/babbledeck}"
 CLEANUP_LOG="${BABBLEDECK_BUILD_CACHE_CLEANUP_LOG:-$LOG_DIR/build-cache-cleanups.jsonl}"
 LOCK_FILE="${BABBLEDECK_BUILD_CACHE_CLEANUP_LOCK:-$LOG_DIR/build-cache-cleanup.lock}"
+DEPLOY_LOCK_FILE="${BABBLEDECK_DEPLOY_LOCK:-$LOG_DIR/deploy.lock}"
 DRY_RUN="${BABBLEDECK_BUILD_CACHE_CLEANUP_DRY_RUN:-0}"
 CACHE_HOME="${BABBLEDECK_BUILD_CACHE_HOME:-${HOME:-/root}}"
 ROOT_CACHE_HOME="${BABBLEDECK_BUILD_CACHE_ROOT_HOME:-/root}"
+declare -A SEEN_CLEANUP_PATHS=()
 
 need_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -53,6 +55,10 @@ NODE
 remove_path() {
   local target="$1"
   local reason="$2"
+  if [[ -n "${SEEN_CLEANUP_PATHS[$target]:-}" ]]; then
+    return
+  fi
+  SEEN_CLEANUP_PATHS[$target]=1
   record_path "$target" "$reason"
   if [[ "$DRY_RUN" != "1" ]]; then
     rm -rf "$target"
@@ -75,6 +81,28 @@ exec 9>"$LOCK_FILE"
 if ! flock -n 9; then
   echo "Another BabbleDeck build-cache cleanup is already active." >&2
   exit 1
+fi
+
+exec 8>"$DEPLOY_LOCK_FILE"
+if ! flock -n 8; then
+  now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  node - "$CLEANUP_LOG" "$now" <<'NODE'
+const fs = require("node:fs");
+const [cleanupLog, now] = process.argv.slice(2);
+const record = {
+  app: "babbledeck",
+  startedAt: now,
+  finishedAt: now,
+  dryRun: false,
+  skipped: true,
+  reason: "deployment lock is active",
+  disk: null,
+  paths: [],
+};
+fs.appendFileSync(cleanupLog, `${JSON.stringify(record)}\n`);
+process.stdout.write(`${JSON.stringify(record, null, 2)}\n`);
+NODE
+  exit 0
 fi
 
 paths_file="$(mktemp)"

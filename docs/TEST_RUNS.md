@@ -14,6 +14,10 @@
   - `BABBLEDECK_BUILD_CACHE_CLEANUP_DRY_RUN=1 pnpm cache:cleanup:production`
   - `pnpm cache:cleanup:production`
   - Temporary `.turbo/cleanup-smoke.bin` cleanup smoke
+  - `bash -n scripts/install-production-build-cache-cleanup.sh`
+  - `pnpm cache:cleanup:install:production`
+  - `systemctl list-timers --all --no-pager | rg 'build-cache|babbledeck'`
+  - `systemctl show aialra-babbledeck-build-cache-cleanup.timer aialra-babbledeck-build-cache-cleanup.service --property=Id,ActiveState,SubState,Result,ExecMainStartTimestamp --no-pager`
   - `pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --check-soniox-live --expected-release-commit=2c2bfe9d3e43`
 - Results:
   - Manual cleanup raised free root disk from about `3.1G` to about `9.2G`.
@@ -24,6 +28,10 @@
   - The dry-run command reported existing cleanup targets without removing them.
   - A real cleanup command and a temporary `.turbo` smoke both wrote JSONL records with `disk.plannedRemovedMb`, so the log captures the deleted cache footprint even when filesystem free-space accounting updates later.
   - `standalone_static_assets` initially failed after local `.next` cleanup because readiness still looked only at workspace build output; `scripts/check-production-readiness.ts` now checks the active immutable release path `/srv/aialra/releases/babbledeck/current/apps/web/.next/static/chunks` before falling back to local build directories.
+  - Added `pnpm cache:cleanup:install:production`, which installs `aialra-babbledeck-build-cache-cleanup.service` and `.timer` under systemd, runs the cleanup once, and enables daily cleanup with randomized delay.
+  - The production timer is active/waiting, and the service completed successfully after install.
+  - `scripts/cleanup-production-build-cache.sh` now also takes the deployment lock; if a deployment is active it records a skipped JSONL event and exits without deleting build output.
+  - Readiness now checks the build-cache cleanup timer and scans for the latest non-dry-run cleanup record, so dry-run JSONL entries do not hide a valid recent cleanup.
   - Strict production readiness with live Soniox returned `requiredOk=true` again after that fix; the only remaining failures are still external device runtime evidence and off-host audio storage.
 
 ## 2026-07-06 Device Evidence Release Binding
