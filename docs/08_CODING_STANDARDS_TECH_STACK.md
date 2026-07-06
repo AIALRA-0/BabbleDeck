@@ -33,7 +33,7 @@ Data:
 PostgreSQL
 Prisma or Drizzle
 Redis optional
-Cloudflare R2/S3-compatible object storage
+Self-hosted server object storage, with optional Cloudflare R2/S3-compatible migration
 ```
 
 Realtime:

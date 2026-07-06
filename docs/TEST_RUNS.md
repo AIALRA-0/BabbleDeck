@@ -1,5 +1,28 @@
 # Test Runs
 
+## 2026-07-06 Self-Hosted Audio Storage Readiness
+
+- Environment: production `https://babbledeck.aialra.online`, production env loaded without printing secrets, self-hosted audio storage at `/srv/aialra/storage/babbledeck`, recent backup archive and restore verification present, and the root filesystem close to the deploy preflight threshold.
+- Commands:
+  - `pnpm db:generate`
+  - `pnpm --filter @babbledeck/web typecheck`
+  - `pnpm --filter @babbledeck/web test -- health audio-storage`
+  - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/check-production-readiness.ts`
+  - `pnpm exec prettier --check scripts/check-production-readiness.ts apps/web/src/server/health.ts apps/web/src/server/health.test.ts docs/KNOWN_ISSUES.md docs/DECISIONS.md docs/10_SECURITY_AND_OPERATIONS.md docs/operations/BACKUP_RESTORE.md docs/03_TECHNICAL_DESIGN.md docs/05_DATABASE_DESIGN.md docs/08_CODING_STANDARDS_TECH_STACK.md`
+  - `pnpm metrics:collect:production`
+  - `pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --check-soniox-live --expected-release-commit=80332bcf8167`
+  - `pnpm cache:cleanup:production`
+  - `pnpm deploy:production`
+  - `curl -fsS https://babbledeck.aialra.online/api/health`
+  - `pnpm tsx scripts/check-production-readiness.ts --base-url=https://babbledeck.aialra.online --check-soniox-live --expected-release-commit=$(git rev-parse --short=12 HEAD)`
+- Results:
+  - Production readiness no longer requires off-host R2/S3 storage for the current single-server architecture.
+  - New required checks `production_audio_storage` and `audio_chunks_on_current_storage` passed: `/srv/aialra/storage/babbledeck` is persistent/writable and all `428` uploaded chunks are marked on the current self-hosted target.
+  - `/api/health` now reports audio storage `{ ok: true, driver: "local", selfHostedReady: true, offHostReady: false }` for the deployed release.
+  - R2/S3 cutover scripts remain available as optional migration tooling, and operations/design docs now describe that distinction.
+  - The first deploy retry hit the disk preflight with `/` below the `3072MB` threshold; `pnpm cache:cleanup:production` safely removed rebuildable caches, then `pnpm deploy:production` passed build, service restart, readiness, seed-admin login/logout smoke, anonymous protected-route Playwright smoke, and release pruning.
+  - Required production readiness is green. The only remaining external completion gap is `recent_device_runtime_evidence` for Android, iOS, and desktop physical/runtime checks.
+
 ## 2026-07-06 Production Build Cache Cleanup
 
 - Environment: production workspace for `https://babbledeck.aialra.online`, root filesystem near deployment preflight pressure, immutable production releases serving from `/srv/aialra/releases/babbledeck/current`, and local build caches present in the workspace/root home.

@@ -98,7 +98,7 @@ Backend must support long-lived WebSocket connections, so if deployment platform
 ```text
 PostgreSQL
 Redis/Upstash optional for pub/sub and presence
-Cloudflare R2 or S3-compatible object storage
+Self-hosted server object directory, with optional Cloudflare R2/S3-compatible migration
 Prisma or Drizzle ORM
 Zod validation
 ```
@@ -117,10 +117,10 @@ Future: Deepgram, Google, Azure Speech, Whisper/FunASR
 ### MVP deployment
 
 ```text
-Frontend: Cloudflare Pages or Vercel
-Realtime backend: Fly.io / Render / Railway / ECS / Cloudflare Workers if WS and provider requirements fit
-Database: Neon / Supabase / managed Postgres
-Object storage: Cloudflare R2
+Frontend/backend: self-hosted systemd services behind Nginx
+Realtime backend: self-hosted WebSocket sidecar and LiveKit service
+Database: self-hosted PostgreSQL
+Object storage: self-hosted server directory under /srv/aialra/storage/babbledeck
 Domain: babbledeck.aialra.online
 ```
 

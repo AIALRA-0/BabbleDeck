@@ -35,6 +35,7 @@ describe("health status", () => {
         audioStorage: {
           ok: true,
           driver: "local",
+          selfHostedReady: true,
           offHostReady: false,
         },
         providers: {
@@ -100,6 +101,7 @@ describe("health status", () => {
         audioStorage: {
           ok: true,
           driver: "s3",
+          selfHostedReady: false,
           offHostReady: true,
         },
       },

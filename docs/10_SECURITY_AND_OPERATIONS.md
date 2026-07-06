@@ -156,12 +156,16 @@ Audit logs must not include secrets or raw password values.
 
 ## 9. Object storage operations
 
-### Bucket access
+### Server-local object access
 
-- Private bucket.
-- Least-privilege access key.
-- Separate dev/prod bucket or prefix.
-- Lifecycle policies later for raw audio retention.
+- Production raw audio chunks live in the self-hosted object directory
+  `/srv/aialra/storage/babbledeck`.
+- Keep the directory outside release/workspace paths and readable/writable only by
+  the application service account.
+- Daily backups include a local audio archive under
+  `/srv/aialra/backups/babbledeck`, followed by restore verification.
+- R2/S3-compatible storage remains optional migration tooling, not a production
+  launch requirement for the current single-server deployment.
 
 ### Object keys
 
@@ -187,8 +191,8 @@ sessions/{sessionId}/exports/transcript-{timestamp}.md
 
 ### Object storage
 
-- R2/S3 stores raw chunks.
-- Consider lifecycle policy.
+- The self-hosted server object directory stores raw chunks.
+- Retention is enforced by `aialra-babbledeck-audio-retention.timer`.
 - For critical sessions, export transcript immediately after completion.
 
 ### Local client backup

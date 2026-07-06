@@ -2,7 +2,7 @@
 
 ## 1. Database choice
 
-Use PostgreSQL as the primary relational database. Use Cloudflare R2/S3-compatible storage for raw audio chunks and exported files. Redis is optional for realtime presence/pub-sub but not authoritative persistence.
+Use PostgreSQL as the primary relational database. Use the self-hosted server object directory for raw audio chunks and exported files, with optional Cloudflare R2/S3-compatible migration support if the deployment model changes later. Redis is optional for realtime presence/pub-sub but not authoritative persistence.
 
 ## 2. Naming conventions
 

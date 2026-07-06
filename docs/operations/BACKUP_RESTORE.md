@@ -300,8 +300,11 @@ pnpm tsx scripts/prune-audio-retention.ts --retention-days=30 --batch-size=500
 
 ## Raw Audio Storage Migration
 
-Use `scripts/migrate-audio-storage.ts` when moving uploaded raw audio chunks
-from the local object directory to R2/S3-compatible storage. The script scans
+Production intentionally stores uploaded raw audio chunks on the self-hosted
+server at `/srv/aialra/storage/babbledeck`, and the daily backup includes that
+local object archive. Use `scripts/migrate-audio-storage.ts` only when moving
+uploaded raw audio chunks from the local object directory to R2/S3-compatible
+storage. The script scans
 `UPLOADED` audio chunks, reads each existing object from
 `SOURCE_AUDIO_STORAGE_DIR`, validates the stored byte size and SHA-256 checksum
 when available, writes the object through the configured audio storage adapter,
@@ -362,9 +365,11 @@ Cloudflare R2 endpoint from `R2_ACCOUNT_ID` when it is omitted.
 
 Repeat the non-dry run while `hasMore` is `true`. The script refuses to copy
 local audio onto the same local target directory. After switching
-`AUDIO_STORAGE_DRIVER` to `r2` or `s3`, strict production readiness also checks
-that all `UPLOADED` chunk rows are marked as migrated to the current off-host
-target.
+`AUDIO_STORAGE_DRIVER` to `r2` or `s3`, production readiness checks that all
+`UPLOADED` chunk rows are marked as present on the current R2/S3-compatible
+target. In the default self-hosted server model, readiness instead checks that
+the local storage directory is persistent/writable and that all uploaded chunks
+are marked on the local target.
 
 Non-dry R2/S3 migrations skip chunks already marked on the current target, so
 repeat runs continue from the remaining unmigrated rows instead of rewriting the

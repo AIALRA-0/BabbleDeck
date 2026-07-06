@@ -24,6 +24,7 @@ export type HealthStatus = {
     audioStorage: {
       ok: boolean;
       driver: "local" | "s3" | "unknown";
+      selfHostedReady: boolean;
       offHostReady: boolean;
     };
     providers: {
@@ -81,12 +82,14 @@ function audioStorageHealth() {
     return {
       ok: true,
       driver: config.driver,
+      selfHostedReady: config.driver === "local",
       offHostReady: config.driver === "s3" && offHostAudioStorageReady(),
     };
   } catch {
     return {
       ok: false,
       driver: "unknown" as const,
+      selfHostedReady: false,
       offHostReady: false,
     };
   }

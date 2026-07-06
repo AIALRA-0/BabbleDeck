@@ -22,4 +22,4 @@ The production viewer now uses Server-Sent Events for live transcript updates an
 
 ## ADR-006: Binary Audio Backup Through Object Storage Adapter
 
-Recorder backup chunks upload as `multipart/form-data` and are written as binary objects before the `audio_chunks` row is marked uploaded. Production uses the server-local object root for immediate durability under the current systemd/Nginx deployment, while the same adapter can switch to Cloudflare R2 or S3-compatible storage through environment variables.
+Recorder backup chunks upload as `multipart/form-data` and are written as binary objects before the `audio_chunks` row is marked uploaded. Production intentionally uses the server-local object root for durability under the current systemd/Nginx deployment, with daily backup and restore verification covering the local audio archive. The same adapter can still switch to Cloudflare R2 or S3-compatible storage through environment variables if the hosting model changes later.

@@ -1,8 +1,10 @@
+import { constants as fsConstants } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { Prisma } from "@prisma/client";
+import { resolveAudioStorageConfig } from "../apps/web/src/server/audio-storage";
 import { prisma } from "../apps/web/src/server/db";
 import { verifyPassword } from "../apps/web/src/server/password";
 import { checkSonioxRealtimeConnectivity } from "../apps/web/src/server/soniox-realtime";
@@ -252,8 +254,9 @@ async function seedAdminMatchesEnv() {
   };
 }
 
-function configuredEnvName(names: string[]) {
-  return names.find((name) => Boolean(process.env[name]));
+function configuredEnv(names: string[]) {
+  const name = names.find((item) => Boolean(process.env[item]?.trim()));
+  return name ? { name, value: process.env[name]?.trim() ?? "" } : undefined;
 }
 
 function liveKitConfigured() {
@@ -264,34 +267,104 @@ function liveKitConfigured() {
   );
 }
 
-function offHostAudioStorageStatus() {
-  const driverSetting = process.env.AUDIO_STORAGE_DRIVER?.toLowerCase();
-  if (driverSetting === "local") {
-    return {
-      ok: false,
-      message:
-        "AUDIO_STORAGE_DRIVER is local; production is still using local audio storage.",
-    };
+type ProductionAudioStorageTarget = {
+  driver: "local" | "s3";
+  bucket: string;
+};
+
+type ProductionAudioStorageStatus = {
+  ok: boolean;
+  target?: ProductionAudioStorageTarget;
+  message: string;
+};
+
+async function selfHostedAudioStorageStatus(
+  rootDirInput: string,
+): Promise<ProductionAudioStorageStatus> {
+  const rootDir = path.resolve(rootDirInput);
+  const expectedRoot = path.resolve(
+    process.env.BABBLEDECK_PRODUCTION_AUDIO_STORAGE_DIR ??
+      "/srv/aialra/storage/babbledeck",
+  );
+  const workspaceRoot = path.resolve(process.cwd());
+  const problems = [
+    rootDir === expectedRoot
+      ? undefined
+      : `AUDIO_STORAGE_DIR resolves to ${rootDir}, expected ${expectedRoot}`,
+    rootDir === workspaceRoot ||
+    rootDir.startsWith(`${workspaceRoot}${path.sep}`)
+      ? "AUDIO_STORAGE_DIR is inside the release/workspace tree"
+      : undefined,
+    rootDir === "/tmp" || rootDir.startsWith(`/tmp${path.sep}`)
+      ? "AUDIO_STORAGE_DIR is under /tmp"
+      : undefined,
+  ].filter((item): item is string => Boolean(item));
+
+  try {
+    const stat = await fs.stat(rootDir);
+    if (!stat.isDirectory()) {
+      problems.push("AUDIO_STORAGE_DIR is not a directory");
+    }
+    await fs.access(
+      rootDir,
+      fsConstants.R_OK | fsConstants.W_OK | fsConstants.X_OK,
+    );
+
+    const probeDir = path.join(rootDir, ".readiness");
+    const probeFile = path.join(
+      probeDir,
+      `probe-${process.pid}-${Date.now()}.txt`,
+    );
+    try {
+      await fs.mkdir(probeDir, { recursive: true, mode: 0o700 });
+      await fs.writeFile(probeFile, "babbledeck audio storage readiness\n", {
+        mode: 0o600,
+      });
+      const probeContents = await fs.readFile(probeFile, "utf8");
+      if (probeContents !== "babbledeck audio storage readiness\n") {
+        problems.push("AUDIO_STORAGE_DIR probe readback did not match");
+      }
+    } finally {
+      await fs.rm(probeFile, { force: true }).catch(() => undefined);
+    }
+  } catch (error) {
+    problems.push(
+      error instanceof Error
+        ? `AUDIO_STORAGE_DIR check failed: ${error.message}`
+        : "AUDIO_STORAGE_DIR check failed.",
+    );
   }
 
-  const bucketVar = configuredEnvName([
+  return {
+    ok: problems.length === 0,
+    target: { driver: "local", bucket: "" },
+    message:
+      problems.length === 0
+        ? `Self-hosted production audio storage is persistent and writable at ${rootDir}.`
+        : `Self-hosted production audio storage is not ready: ${problems.join("; ")}.`,
+  };
+}
+
+function s3AudioStorageStatus(): ProductionAudioStorageStatus {
+  const driverSetting = process.env.AUDIO_STORAGE_DRIVER?.toLowerCase();
+  const bucketVar = configuredEnv([
     "AUDIO_STORAGE_BUCKET",
     "R2_BUCKET",
     "S3_BUCKET",
   ]);
-  const endpointVar = configuredEnvName([
+  const endpointVar = configuredEnv([
     "AUDIO_STORAGE_ENDPOINT",
     "R2_ENDPOINT",
     "R2_ACCOUNT_ID",
     "S3_ENDPOINT",
   ]);
-  const accessKeyVar = configuredEnvName([
+  const accessKeyVar = configuredEnv([
     "AUDIO_STORAGE_ACCESS_KEY_ID",
     "R2_ACCESS_KEY_ID",
     "S3_ACCESS_KEY_ID",
     "AWS_ACCESS_KEY_ID",
   ]);
-  const secretKeyVar = configuredEnvName([
+  const secretKeyVar = configuredEnv([
     "AUDIO_STORAGE_SECRET_ACCESS_KEY",
     "R2_SECRET_ACCESS_KEY",
     "S3_SECRET_ACCESS_KEY",
@@ -319,37 +392,43 @@ function offHostAudioStorageStatus() {
 
   return {
     ok: missing.length === 0,
+    target: bucketVar ? { driver: "s3", bucket: bucketVar.value } : undefined,
     message:
       missing.length === 0
-        ? "R2/S3-compatible audio storage target and credentials are configured."
-        : `R2/S3-compatible audio storage is incomplete; missing ${missing.join(", ")}.`,
+        ? "R2/S3-compatible production audio storage target and credentials are configured."
+        : `R2/S3-compatible production audio storage is incomplete; missing ${missing.join(", ")}.`,
   };
 }
 
-async function audioChunksOnCurrentTarget() {
-  const driverSetting = process.env.AUDIO_STORAGE_DRIVER?.toLowerCase();
-  const bucket =
-    process.env.AUDIO_STORAGE_BUCKET ??
-    process.env.R2_BUCKET ??
-    process.env.S3_BUCKET ??
-    "";
-  const targetDriver =
-    driverSetting === "r2" || driverSetting === "s3" || bucket ? "s3" : "local";
-
-  if (targetDriver !== "s3") {
+async function productionAudioStorageStatus(): Promise<ProductionAudioStorageStatus> {
+  try {
+    const config = resolveAudioStorageConfig();
+    if (config.driver === "local") {
+      return await selfHostedAudioStorageStatus(config.rootDir);
+    }
+    return s3AudioStorageStatus();
+  } catch (error) {
     return {
       ok: false,
-      message: "Current audio storage target is local.",
+      message:
+        error instanceof Error
+          ? `Production audio storage config is invalid: ${error.message}`
+          : "Production audio storage config is invalid.",
     };
   }
+}
 
+async function audioChunksOnCurrentTarget(
+  target: ProductionAudioStorageTarget,
+) {
+  const bucket = target.driver === "s3" ? target.bucket : "";
   const rows = await prisma.$queryRaw<
     { total: bigint; matching: bigint }[]
   >(Prisma.sql`
     select
       count(*)::bigint as total,
       count(*) filter (
-        where metadata->>'storageDriver' = ${targetDriver}
+        where metadata->>'storageDriver' = ${target.driver}
           and coalesce(metadata->>'storageBucket', '') = ${bucket}
       )::bigint as matching
     from audio_chunks
@@ -361,8 +440,8 @@ async function audioChunksOnCurrentTarget() {
     ok: total === matching,
     message:
       total === matching
-        ? `All ${total} uploaded audio chunks are marked on the current off-host target.`
-        : `${total - matching} of ${total} uploaded audio chunks are not marked on the current off-host target.`,
+        ? `All ${total} uploaded audio chunks are marked on the current ${target.driver === "local" ? "self-hosted" : "R2/S3-compatible"} target.`
+        : `${total - matching} of ${total} uploaded audio chunks are not marked on the current ${target.driver === "local" ? "self-hosted" : "R2/S3-compatible"} target.`,
   };
 }
 
@@ -1296,20 +1375,18 @@ async function main() {
     message: "Production logrotate config is installed for BabbleDeck logs.",
   });
 
-  const remoteStorage = offHostAudioStorageStatus();
+  const audioStorage = await productionAudioStorageStatus();
   check(checks, {
-    name: "off_host_audio_storage",
-    ok: remoteStorage.ok,
-    severity: "external",
-    message: remoteStorage.message,
+    name: "production_audio_storage",
+    ok: audioStorage.ok,
+    message: audioStorage.message,
   });
 
-  if (remoteStorage.ok) {
-    const migrated = await audioChunksOnCurrentTarget();
+  if (audioStorage.ok && audioStorage.target) {
+    const migrated = await audioChunksOnCurrentTarget(audioStorage.target);
     check(checks, {
-      name: "off_host_audio_migration",
+      name: "audio_chunks_on_current_storage",
       ok: migrated.ok,
-      severity: "external",
       message: migrated.message,
     });
   }

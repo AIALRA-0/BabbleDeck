@@ -7,13 +7,15 @@
 - Added a production deployment disk-space preflight that checks app, release, log, and temp filesystems before build/restart and records the non-secret disk summary in deployment JSONL.
 - Added a production build-cache cleanup command that removes only rebuildable Turbo, Next, pnpm, Gradle, and Rust/Tauri intermediate caches while preserving deployed releases and native runtime artifacts.
 - Added a systemd timer installer and readiness checks for production build-cache cleanup, including protection against running while a deployment lock is active.
+- Aligned production readiness with the self-hosted server storage model: local audio storage under `/srv/aialra/storage/babbledeck` is now a required production check, and R2/S3 remains optional migration tooling instead of a launch blocker.
+- Added `selfHostedReady` to `/api/health` audio storage status so the active single-server deployment reports its intended storage mode without exposing secrets.
 - Fixed production static-asset readiness so it reads the active immutable release before falling back to local workspace build output.
 - Added build-time release metadata to `/api/health` so production can report the deployed git commit, branch, and build timestamp without exposing secrets, and made the deployment smoke verify the expected release commit.
 - Fixed strict Next build typing for export downloads by narrowing the export format before selecting the response content type.
 - Expanded production deployment JSONL records with non-secret readiness summaries and web/recorder systemd service state, result, start time, and restart counts.
 - Strengthened native/device readiness reporting with Android APK and desktop binary artifact metadata plus an optional Tauri/Xvfb headless launch smoke, and rebuilt the Android debug APK against the production PWA.
 - Strengthened production device runtime evidence so manual Android, iOS, and desktop evidence records include the live `/api/health` release commit and readiness rejects stale evidence from older releases.
-- Revalidated the refreshed production Soniox key against the deployed site with live readiness, recorder smoke, UI fake-microphone smoke, and a long trace; required readiness is green while external storage/device evidence gates remain open.
+- Revalidated the refreshed production Soniox key against the deployed site with live readiness, recorder smoke, UI fake-microphone smoke, and a long trace; required readiness is green while external device evidence remains open.
 - Added a production device runtime evidence command and wired recent Android, iOS, and desktop evidence into strict production readiness as an external completion gate.
 - Added a production device runtime readiness command for Android, iOS, and desktop wrapper prerequisites against the deployed production PWA, with non-secret strict-mode gating for physical-device follow-up.
 
