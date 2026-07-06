@@ -1,5 +1,6 @@
 import { Download, FileJson, Monitor, Smartphone } from "lucide-react";
 import Link from "next/link";
+import { AndroidApkInstallQr } from "@/components/AndroidApkInstallQr";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type {
@@ -123,6 +124,9 @@ export function DeviceRuntimeEvidenceStatusPanel({
           </p>
         ) : null}
       </div>
+      {androidDebugApk?.exists ? (
+        <AndroidApkInstallQr baseUrl={summary.baseUrl} />
+      ) : null}
       <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
         <div>
           <dt className="text-xs font-semibold uppercase text-muted-foreground">

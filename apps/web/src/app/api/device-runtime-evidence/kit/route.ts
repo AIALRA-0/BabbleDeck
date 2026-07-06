@@ -17,9 +17,13 @@ function artifactPayload(
   route: string,
   filename: string,
   contentType: string,
+  baseUrl: string,
 ) {
+  const loginUrl = new URL("/login", baseUrl);
+  loginUrl.searchParams.set("next", route);
   return {
     url: route,
+    loginUrl: loginUrl.toString(),
     filename,
     contentType,
     exists: artifact.exists,
@@ -69,12 +73,14 @@ export async function GET() {
           "/api/wrappers/android-debug-apk",
           "babbledeck-debug.apk",
           "application/vnd.android.package-archive",
+          checklist.baseUrl,
         ),
         desktopReleaseBinary: artifactPayload(
           desktopReleaseBinary,
           "/api/wrappers/desktop-release-binary",
           "babbledeck-desktop-linux-x64",
           "application/octet-stream",
+          checklist.baseUrl,
         ),
       },
       evidence: {

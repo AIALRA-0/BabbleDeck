@@ -450,7 +450,9 @@ checklist as an authenticated download.
 Settings also includes `Download kit`, an authenticated JSON attachment with the
 current release, evidence status, checklist URL, artifact URLs, artifact
 SHA-256 values, and record commands. Use it when handing the active deployment
-to another device or workstation for Android, iOS, or desktop verification.
+to another device or workstation for Android, iOS, or desktop verification. The
+kit also includes login-gated artifact URLs so devices can sign in before
+downloading protected wrapper artifacts.
 
 Settings also includes `Create verification link`, which creates a
 release-labeled live session using the configured realtime provider and shows an
@@ -463,7 +465,9 @@ non-secret receipt with recorded time, platform, release, source, and session id
 
 When the Android debug APK exists on the production server, the same Settings
 status panel exposes an authenticated `Download Android APK` action for physical
-Android install/run verification.
+Android install/run verification. It also shows an Android APK install QR that
+opens the protected APK route through admin sign-in instead of making the APK
+public.
 
 When the Linux desktop release binary exists on the production server, Settings
 also exposes `Download desktop binary` so an authenticated admin can fetch the

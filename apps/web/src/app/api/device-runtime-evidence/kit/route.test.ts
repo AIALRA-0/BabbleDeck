@@ -118,12 +118,16 @@ describe("device runtime verification kit route", () => {
       artifacts: {
         androidDebugApk: {
           url: "/api/wrappers/android-debug-apk",
+          loginUrl:
+            "https://babbledeck.aialra.online/login?next=%2Fapi%2Fwrappers%2Fandroid-debug-apk",
           exists: true,
           sizeBytes: 123,
           sha256: "a".repeat(64),
         },
         desktopReleaseBinary: {
           url: "/api/wrappers/desktop-release-binary",
+          loginUrl:
+            "https://babbledeck.aialra.online/login?next=%2Fapi%2Fwrappers%2Fdesktop-release-binary",
           exists: true,
           sizeBytes: 456,
           sha256: "b".repeat(64),
