@@ -1,4 +1,4 @@
-import { Download } from "lucide-react";
+import { Download, Smartphone } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import type {
   DeviceRuntimeEvidenceStatusReason,
   DeviceRuntimeEvidenceStatusSummary,
 } from "@/server/device-runtime-evidence";
+import type { WrapperArtifact } from "@/server/wrapper-artifacts";
 
 const platformLabels = {
   android: "Android",
@@ -45,8 +46,10 @@ function formatDateTime(value: string | null) {
 
 export function DeviceRuntimeEvidenceStatusPanel({
   summary,
+  androidDebugApk,
 }: {
   summary: DeviceRuntimeEvidenceStatusSummary;
+  androidDebugApk?: WrapperArtifact;
 }) {
   return (
     <div className="border-b border-border p-5">
@@ -69,7 +72,27 @@ export function DeviceRuntimeEvidenceStatusPanel({
             Download checklist
           </Link>
         </Button>
+        {androidDebugApk?.exists ? (
+          <Button asChild variant="secondary">
+            <Link href="/api/wrappers/android-debug-apk" prefetch={false}>
+              <Smartphone className="h-4 w-4" />
+              Download Android APK
+            </Link>
+          </Button>
+        ) : (
+          <Button disabled variant="secondary">
+            <Smartphone className="h-4 w-4" />
+            Android APK missing
+          </Button>
+        )}
       </div>
+      {androidDebugApk ? (
+        <p className="mt-3 text-xs text-muted-foreground">
+          {androidDebugApk.exists
+            ? `Android APK ready · ${Math.round((androidDebugApk.sizeBytes ?? 0) / 1024 / 1024)} MB · ${androidDebugApk.sha256?.slice(0, 12)}`
+            : "Build the Android wrapper before physical device verification."}
+        </p>
+      ) : null}
       <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
         <div>
           <dt className="text-xs font-semibold uppercase text-muted-foreground">

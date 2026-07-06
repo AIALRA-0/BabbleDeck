@@ -435,3 +435,7 @@ checks are confirmed.
 The production Settings page also includes the current release evidence status
 and a `Download checklist` action that serves the same non-secret Markdown
 checklist as an authenticated download.
+
+When the Android debug APK exists on the production server, the same Settings
+status panel exposes an authenticated `Download Android APK` action for physical
+Android install/run verification.

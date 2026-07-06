@@ -1,5 +1,18 @@
 # Test Runs
 
+## 2026-07-06 Settings Android APK Download
+
+- Environment: local workspace plus production target `https://babbledeck.aialra.online`, Android debug APK present at `apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk`, and no physical Android device connected.
+- Commands:
+  - `pnpm --filter @babbledeck/web typecheck`
+  - `pnpm --filter @babbledeck/web test -- wrapper-artifacts android-debug-apk settings-service device-runtime-evidence`
+  - `pnpm exec prettier --check apps/web/src/server/wrapper-artifacts.ts apps/web/src/server/wrapper-artifacts.test.ts apps/web/src/app/api/wrappers/android-debug-apk/route.ts apps/web/src/app/api/wrappers/android-debug-apk/route.test.ts apps/web/src/app/settings/page.tsx apps/web/src/components/DeviceRuntimeEvidenceStatusPanel.tsx`
+- Results:
+  - Added authenticated `GET /api/wrappers/android-debug-apk`, which serves the current server-built Android debug APK as an attachment and returns the SHA-256 in a non-secret response header.
+  - Added Settings page Android APK status and download action next to the release-bound device evidence checklist.
+  - Unit coverage verifies configured artifact paths, metadata extraction, missing-artifact handling, authentication, 404 behavior, and successful APK attachment responses.
+  - This makes physical Android handoff easier but does not mark Android runtime evidence as passing; a real physical-device run is still required.
+
 ## 2026-07-06 Settings Checklist Download
 
 - Environment: local workspace plus production target `https://babbledeck.aialra.online`, authenticated device evidence Settings workflow, and existing release-bound checklist command.
