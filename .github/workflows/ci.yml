@@ -14,7 +14,7 @@ jobs:
         image: postgres:18
         env:
           POSTGRES_USER: babbledeck
-          POSTGRES_PASSWORD: babbledeck
+          POSTGRES_PASSWORD: pg-${{ github.run_id }}-${{ github.run_attempt }}
           POSTGRES_DB: babbledeck_dev
         ports:
           - 55432:5432
@@ -24,10 +24,8 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgresql://babbledeck:babbledeck@localhost:55432/babbledeck_dev
-      SEED_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD || 'ci-generated-credential' }}
+      DATABASE_URL: postgresql://babbledeck:pg-${{ github.run_id }}-${{ github.run_attempt }}@localhost:55432/babbledeck_dev
       E2E_ADMIN_EMAIL: admin@example.invalid
-      E2E_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD || 'ci-generated-credential' }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -37,6 +35,15 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+      - name: Generate masked CI credentials
+        run: |
+          seed="$(node -e 'process.stdout.write(`ci_${require("node:crypto").randomBytes(24).toString("base64url")}`)')"
+          rotated="$(node -e 'process.stdout.write(`ci_rotated_${require("node:crypto").randomBytes(24).toString("base64url")}`)')"
+          echo "::add-mask::$seed"
+          echo "::add-mask::$rotated"
+          echo "SEED_ADMIN_PASSWORD=$seed" >> "$GITHUB_ENV"
+          echo "E2E_ADMIN_PASSWORD=$seed" >> "$GITHUB_ENV"
+          echo "E2E_NEW_ADMIN_PASSWORD=$rotated" >> "$GITHUB_ENV"
       - run: pnpm install --frozen-lockfile
       - run: pnpm format:check
       - run: pnpm db:validate
@@ -46,11 +53,7 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
-      - run: pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/recorder-ws-server.ts scripts/prune-audio-retention.ts scripts/migrate-audio-storage.ts scripts/audit-audio-storage.ts scripts/preflight-audio-storage.ts scripts/check-audio-cutover-readiness.ts scripts/check-device-runtime-readiness.ts scripts/record-device-runtime-evidence.ts scripts/preflight-livekit.ts scripts/collect-production-metrics.ts scripts/load-smoke-production.ts scripts/soniox-smoke-production.ts scripts/security-baseline-audit.ts scripts/verify-wrapper-configs.ts scripts/check-production-readiness.ts scripts/sync-seed-admin.ts playwright.config.ts
+      - run: pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --skipLibCheck scripts/recorder-ws-server.ts scripts/prune-audio-retention.ts scripts/migrate-audio-storage.ts scripts/audit-audio-storage.ts scripts/preflight-audio-storage.ts scripts/check-audio-cutover-readiness.ts scripts/check-device-runtime-readiness.ts scripts/record-device-runtime-evidence.ts scripts/preflight-livekit.ts scripts/collect-production-metrics.ts scripts/load-smoke-production.ts scripts/soniox-smoke-production.ts scripts/security-baseline-audit.ts scripts/verify-wrapper-configs.ts scripts/check-production-readiness.ts scripts/sync-seed-admin.ts scripts/secret-scan.ts playwright.config.ts
       - run: pnpm build
       - name: Secret scan
-        run: |
-          if rg -n "REDACTED_LEAKED_PASSWORD_PREFIX|SMOKE_PASSWORD|SECRET_ACCESS_KEY=.*[A-Za-z0-9]{8}|SONIOX_API_KEY=.*[A-Za-z0-9]{8}|LIVEKIT_API_SECRET=.*[A-Za-z0-9]{8}|SEED_ADMIN_PASSWORD=.*Aial|R2_SECRET_ACCESS_KEY=.*[A-Za-z0-9]{8}" . --glob '!node_modules/**' --glob '!apps/web/.next/**' --glob '!pnpm-lock.yaml'; then
-            echo "Secret-like value found in repository files."
-            exit 1
-          fi
+        run: pnpm secret:scan

@@ -13,7 +13,7 @@ jobs:
         image: postgres:18
         env:
           POSTGRES_USER: babbledeck
-          POSTGRES_PASSWORD: babbledeck
+          POSTGRES_PASSWORD: pg-${{ github.run_id }}-${{ github.run_attempt }}
           POSTGRES_DB: babbledeck_dev
         ports:
           - 55432:5432
@@ -23,10 +23,8 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgresql://babbledeck:babbledeck@localhost:55432/babbledeck_dev
-      SEED_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD || 'ci-generated-credential' }}
+      DATABASE_URL: postgresql://babbledeck:pg-${{ github.run_id }}-${{ github.run_attempt }}@localhost:55432/babbledeck_dev
       E2E_ADMIN_EMAIL: admin@example.invalid
-      E2E_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD || 'ci-generated-credential' }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -36,6 +34,15 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+      - name: Generate masked E2E credentials
+        run: |
+          seed="$(node -e 'process.stdout.write(`ci_${require("node:crypto").randomBytes(24).toString("base64url")}`)')"
+          rotated="$(node -e 'process.stdout.write(`ci_rotated_${require("node:crypto").randomBytes(24).toString("base64url")}`)')"
+          echo "::add-mask::$seed"
+          echo "::add-mask::$rotated"
+          echo "SEED_ADMIN_PASSWORD=$seed" >> "$GITHUB_ENV"
+          echo "E2E_ADMIN_PASSWORD=$seed" >> "$GITHUB_ENV"
+          echo "E2E_NEW_ADMIN_PASSWORD=$rotated" >> "$GITHUB_ENV"
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm db:generate

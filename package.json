@@ -34,6 +34,7 @@
     "soniox:ui-smoke:production": "scripts/soniox-ui-smoke-production.sh",
     "soniox:trace:production": "scripts/soniox-trace-production.sh",
     "security:audit:production": "scripts/security-baseline-production.sh",
+    "secret:scan": "tsx scripts/secret-scan.ts",
     "logs:install:production": "scripts/install-production-logrotate.sh",
     "wrappers:check": "tsx scripts/verify-wrapper-configs.ts",
     "wrappers:refresh:production": "scripts/refresh-production-wrapper-artifacts.sh",
