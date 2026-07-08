@@ -435,12 +435,17 @@ const read = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 const login = read(loginPath);
 const me = read(mePath);
 const logout = read(logoutPath);
+const expectedEmail = (process.env.SEED_ADMIN_EMAIL ?? "").toLowerCase();
+const actualEmail =
+  typeof me.data?.user?.email === "string"
+    ? me.data.user.email.toLowerCase()
+    : "";
 const summary = {
   loginStatus,
   loginOk: login.ok === true,
   meStatus,
   meOk: me.ok === true,
-  meEmail: me.data?.user?.email,
+  meEmailMatchesExpected: Boolean(expectedEmail && actualEmail === expectedEmail),
   logoutStatus,
   logoutOk: logout.ok === true,
 };

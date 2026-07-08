@@ -48,7 +48,7 @@ async function main() {
   process.stdout.write(
     `${JSON.stringify(
       {
-        email,
+        emailConfigured: Boolean(email),
         created: !existing,
         role: user.role,
         disabled: Boolean(user.disabledAt),
